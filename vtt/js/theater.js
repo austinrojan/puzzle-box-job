@@ -50,9 +50,8 @@ function cycleScene(dir) {
 
   if (nextAct !== currentAct && dir > 0) {
     showTitleCard({ act: nextAct }, () => {
-      state.sceneIndex = next;
+      state.sceneIndex = next;   // Bridge emits 'scene:loaded'
       loadScene(next, true);
-      EventBus.emit('scene:loaded', next);
     });
   } else {
     state.sceneIndex = next;
@@ -187,15 +186,13 @@ export function showTitleCard({ act, subtitle }, callback) {
   titleCardAct.textContent = `Act ${actNum}: ${actData.title}`;
   titleCardSub.textContent = subtitle || actData.subtitle || '';
 
-  EventBus.emit('title-card:visible');
   titleCard.classList.add('visible');
-  state.titleCardVisible = true;
+  state.titleCardVisible = true;   // Bridge emits 'title-card:visible'
 
   // Hold for 3 seconds, then fade out
   setTimeout(() => {
     titleCard.classList.remove('visible');
-    state.titleCardVisible = false;
-    EventBus.emit('title-card:hidden');
+    state.titleCardVisible = false; // Bridge emits 'title-card:hidden'
     if (callback) setTimeout(callback, 600);
   }, 3000);
 }
