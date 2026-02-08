@@ -189,7 +189,7 @@ export function getTokenDef(tokenId) {
 // Scene-to-act mapping helper
 export function getActForScene(sceneId) {
   const scene = SCENES.find(s => s.id === sceneId);
-  return scene ? ACTS[scene.act - 1] : null;
+  return scene ? getActByNumber(scene.act) : null;
 }
 
 // Get first scene index for a given act number
