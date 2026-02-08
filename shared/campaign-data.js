@@ -186,13 +186,11 @@ export function getTokenDef(tokenId) {
   return TOKENS[tokenId] ?? null;
 }
 
-// Scene-to-act mapping helper
 export function getActForScene(sceneId) {
-  const scene = SCENES.find(s => s.id === sceneId);
+  const scene = getSceneById(sceneId);
   return scene ? getActByNumber(scene.act) : null;
 }
 
-// Get first scene index for a given act number
 export function getFirstSceneOfAct(actNumber) {
   return SCENES.findIndex(s => s.act === actNumber);
 }
@@ -202,16 +200,14 @@ export function getFirstSceneOfAct(actNumber) {
 export function validateCampaignData() {
   const errors = [];
 
-  // Every scene must reference a valid act
   for (const scene of SCENES) {
-    if (!ACTS.find(a => a.number === scene.act)) {
+    if (!ACTS.some(a => a.number === scene.act)) {
       errors.push(`Scene ${scene.id} references non-existent act ${scene.act}`);
     }
   }
 
-  // Every preset must reference valid tokens and maps
   for (const [presetId, preset] of Object.entries(MAP_PRESETS)) {
-    if (!MAPS.find(m => m.id === preset.mapId)) {
+    if (!MAPS.some(m => m.id === preset.mapId)) {
       errors.push(`Preset ${presetId} references non-existent map ${preset.mapId}`);
     }
     for (const t of preset.tokens) {
@@ -221,13 +217,14 @@ export function validateCampaignData() {
     }
   }
 
-  // Scene IDs must be unique
-  const sceneIds = new Set();
-  for (const scene of SCENES) {
-    if (sceneIds.has(scene.id)) {
-      errors.push(`Duplicate scene ID: ${scene.id}`);
+  const sceneIds = SCENES.map(s => s.id);
+  const uniqueIds = new Set(sceneIds);
+  if (sceneIds.length !== uniqueIds.size) {
+    const seen = new Set();
+    for (const id of sceneIds) {
+      if (seen.has(id)) errors.push(`Duplicate scene ID: ${id}`);
+      seen.add(id);
     }
-    sceneIds.add(scene.id);
   }
 
   return errors;

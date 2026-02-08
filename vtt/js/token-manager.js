@@ -792,8 +792,7 @@ export class TokenManager {
     }
 
     // Condition toggles
-    const conditions = CONDITIONS.map(c => c.id);
-    for (const cond of conditions) {
+    for (const { id: cond } of CONDITIONS) {
       const has = token.conditions.includes(cond);
       const item = document.createElement('div');
       item.className = 'token-menu__item';

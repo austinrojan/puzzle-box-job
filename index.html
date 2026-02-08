@@ -5098,17 +5098,17 @@ init();
 <script type="module">
 import { getSceneById } from './shared/campaign-data.js';
 
-// Validate all VTT scene references in ADVENTURE_DATA
+// Cross-validate VTT scene references in ADVENTURE_DATA against shared data
 const errors = [];
-ADVENTURE_DATA.acts.forEach(act => {
-  (act.sections || []).forEach(section => {
-    (section.blocks || []).forEach(block => {
+for (const act of ADVENTURE_DATA.acts) {
+  for (const section of act.sections || []) {
+    for (const block of section.blocks || []) {
       if (block.vtt?.scene && !getSceneById(block.vtt.scene)) {
         errors.push(`Block ${block.id} references unknown scene: ${block.vtt.scene}`);
       }
-    });
-  });
-});
+    }
+  }
+}
 if (errors.length > 0) {
   console.warn('[DM Guide] Scene reference errors:', errors);
 } else {

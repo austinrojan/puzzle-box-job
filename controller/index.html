@@ -419,10 +419,10 @@ import {
 // BroadcastChannel
 // ============================================
 const channel = new BroadcastChannel('puzzlebox-vtt');
-const send = (msg) => {
+function send(msg) {
   console.log('[Controller] BC sending:', msg.type, msg);
   channel.postMessage(msg);
-};
+}
 
 // State mirror
 let vttState = {
@@ -474,8 +474,8 @@ setInterval(() => {
 // ============================================
 // UI Helpers
 // ============================================
-const $ = (sel) => document.querySelector(sel);
-const $$ = (sel) => document.querySelectorAll(sel);
+function $(sel) { return document.querySelector(sel); }
+function $$(sel) { return document.querySelectorAll(sel); }
 
 function updateConnectionStatus() {
   const el = $('#conn-status');
@@ -690,7 +690,9 @@ $('#clear-tokens').addEventListener('click', () => send({ type: 'token:remove-al
 
     for (const { id, def } of items) {
       const btn = document.createElement('button');
-      const cls = def.isPC ? 'token-btn--pc' : def.isObject ? 'token-btn--object' : 'token-btn--npc';
+      let cls = 'token-btn--npc';
+      if (def.isPC) cls = 'token-btn--pc';
+      else if (def.isObject) cls = 'token-btn--object';
       btn.className = 'token-btn ' + cls;
       btn.textContent = def.name;
       btn.addEventListener('click', () => {
@@ -878,22 +880,18 @@ function updateEffectTarget() {
 // ============================================
 // Overlay
 // ============================================
-$('#overlay-send').addEventListener('click', () => {
-  const val = $('#overlay-input').value.trim();
+function sendOverlay() {
+  const input = $('#overlay-input');
+  const val = input.value.trim();
   if (val) {
     send({ type: 'overlay-text', text: val });
-    $('#overlay-input').value = '';
+    input.value = '';
   }
-});
+}
 
+$('#overlay-send').addEventListener('click', sendOverlay);
 $('#overlay-input').addEventListener('keydown', (e) => {
-  if (e.key === 'Enter') {
-    const val = $('#overlay-input').value.trim();
-    if (val) {
-      send({ type: 'overlay-text', text: val });
-      $('#overlay-input').value = '';
-    }
-  }
+  if (e.key === 'Enter') sendOverlay();
 });
 
 $('#overlay-clear').addEventListener('click', () => {
