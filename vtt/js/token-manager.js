@@ -173,11 +173,12 @@ export class TokenManager {
   }
 
   _emitTokensChanged() {
-    EventBus.emit('tokens:changed', this.tokens.map(t => ({
+    state.tokens = this.tokens.map(t => ({
       id: t.id, tokenId: t.tokenId, label: t.label,
       col: t.col, row: t.row, visible: t.visible,
       conditions: [...t.conditions]
-    })));
+    }));
+    // Store triggers broadcastState via subscribeAll
   }
 
   swapToken(id, newTokenId) {

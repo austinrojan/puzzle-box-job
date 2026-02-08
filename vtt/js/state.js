@@ -260,9 +260,3 @@ function handleSyncMessage(msg) {
   // NOTE: broadcastState handled by store.subscribeAll — no manual call needed
 }
 
-// --- Temporary: bridge tokens:changed from EventBus to store ---
-// TokenManager still emits tokens:changed in this task.
-// Task 6 will change it to write state.tokens directly, then this listener is removed.
-EventBus.on('tokens:changed', (tokens) => {
-  state.tokens = tokens;
-});
