@@ -26,10 +26,8 @@ export function init() {
 
 export function switchMode(mode) {
   if (mode === state.mode) return;
-  const prev = state.mode;
-  state.mode = mode;
   applyMode(mode);
-  EventBus.emit('mode:changed', { mode, prev });
+  state.mode = mode;  // Bridge emits 'mode:changed' with {mode, prev}
 }
 
 function applyMode(mode) {
