@@ -4,13 +4,13 @@
 
 import { EventBus, state, store, initSync } from './state.js';
 import { preloadAll } from './image-cache.js';
-import * as theater from './theater.js?v=3';
+import * as theater from './theater.js';
 import * as sceneManager from './scene-manager.js';
-import * as dmControls from './dm-controls.js?v=3';
-import { MapRenderer } from './map-renderer.js?v=6';
-import { TokenManager } from './token-manager.js?v=3';
+import * as dmControls from './dm-controls.js';
+import { MapRenderer } from './map-renderer.js';
+import { TokenManager } from './token-manager.js';
 import * as initiativeTracker from './initiative-tracker.js';
-import * as playerControls from './player-controls.js?v=4';
+import * as playerControls from './player-controls.js';
 import * as sceneNavigator from './scene-navigator.js';
 import { EffectsEngine } from './effects-engine.js';
 

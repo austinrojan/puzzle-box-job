@@ -3,7 +3,7 @@
 // Theater <-> Map <-> Initiative transitions
 // ============================================
 
-import { EventBus, state } from './state.js';
+import { EventBus, state, store } from './state.js';
 
 const $ = id => document.getElementById(id);
 
@@ -20,14 +20,16 @@ export function init() {
   EventBus.on('combat:start', () => switchMode('initiative'));
   EventBus.on('combat:end', () => switchMode('map'));
 
+  // React to ANY mode change (from switchMode, console, or BC handler)
+  store.subscribe('mode', (mode) => applyMode(mode));
+
   // Apply initial mode
   applyMode(state.mode);
 }
 
 export function switchMode(mode) {
   if (mode === state.mode) return;
-  applyMode(mode);
-  state.mode = mode;  // Bridge emits 'mode:changed' with {mode, prev}
+  state.mode = mode;  // Subscriber calls applyMode, bridge emits 'mode:changed'
 }
 
 function applyMode(mode) {
