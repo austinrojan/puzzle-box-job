@@ -1,48 +1,92 @@
 // ============================================
-// VTT State — AppState + EventBus + BroadcastChannel
+// VTT State — Reactive store + EventBus + BroadcastChannel
 // ============================================
 
-// Simple pub/sub event bus
+import { createStore } from './store.js';
+
+// --- Legacy EventBus (kept during migration) ---
 export const EventBus = {
   _listeners: {},
-
-  on(event, fn) {
-    (this._listeners[event] ||= []).push(fn);
-  },
-
+  on(event, fn) { (this._listeners[event] ||= []).push(fn); },
   off(event, fn) {
     const list = this._listeners[event];
     if (list) this._listeners[event] = list.filter(f => f !== fn);
   },
-
   emit(event, data) {
     const list = this._listeners[event];
     if (list) list.forEach(fn => fn(data));
   }
 };
 
-// VTT application state
-export const state = {
-  mode: 'theater',         // 'theater' | 'map' | 'initiative'
-  sceneIndex: 0,           // current index into SCENES array
-  mapId: null,             // current map ID (e.g. 'M06')
-  heat: 0,                 // 0=green, 1=amber, 2=red
+// --- Create the reactive store ---
+const store = createStore({
+  mode: 'theater',
+  sceneIndex: 0,
+  mapId: null,
+  heat: 0,
   initiative: {
     active: false,
     round: 1,
     currentTurn: 0,
-    entries: []            // [{id, name, init, hp, maxHp, conditions, tokenId, isPC}]
+    entries: []
   },
-  tokens: [],              // active tokens on current map
-  gridVisible: true,       // grid overlay visible (synced to controller)
-  fog: {},                 // mapId -> Set of revealed grid coords "x,y"
+  tokens: [],
+  gridVisible: true,
+  fog: {},               // NOTE: nested (mapId -> array). Direct mutation of
+                          // state.fog[mapId] won't trigger subscribers. This is
+                          // intentional — no module needs fog reactivity.
+                          // Future: use store.replaceKey('fog', {...}) if needed.
   titleCardVisible: false,
   overlayText: null,
   presentationMode: false,
   loaded: false
-};
+});
 
-// Initialize BroadcastChannel to receive commands from DM guide
+export { store };
+export const state = store.state;
+
+// ==============================
+// Bridges: store -> legacy EventBus
+// Remove each bridge once all its listeners migrate to store.subscribe().
+// ==============================
+
+store.subscribe('mode', (mode, prev) => {
+  EventBus.emit('mode:changed', { mode, prev });
+});
+
+store.subscribe('sceneIndex', (index) => {
+  EventBus.emit('scene:loaded', index);
+});
+
+store.subscribe('heat', (level) => {
+  EventBus.emit('heat:change', level);
+});
+
+store.subscribe('initiative', (data) => {
+  EventBus.emit('initiative:update', data);
+});
+
+store.subscribe('gridVisible', () => {
+  EventBus.emit('grid:toggle');
+});
+
+store.subscribe('titleCardVisible', (visible) => {
+  EventBus.emit(visible ? 'title-card:visible' : 'title-card:hidden');
+});
+
+store.subscribe('presentationMode', (enabled) => {
+  if (enabled) {
+    document.body.classList.add('presentation');
+  } else {
+    document.body.classList.remove('presentation');
+  }
+  EventBus.emit('presentation:change', enabled);
+});
+
+// ==============================
+// BroadcastChannel
+// ==============================
+
 let channel = null;
 
 export function initSync() {
@@ -55,14 +99,83 @@ export function initSync() {
   }
 }
 
+// Auto-broadcast state on ANY store change (debounced to coalesce)
+let _bcTimer = null;
+store.subscribeAll(() => {
+  if (!channel || _bcTimer) return;
+  _bcTimer = setTimeout(() => {
+    _bcTimer = null;
+    broadcastState();
+  }, 0);
+});
+
+function broadcastState() {
+  if (!channel) return;
+  channel.postMessage({
+    type: 'state:sync',
+    data: {
+      mode: state.mode,
+      sceneIndex: state.sceneIndex,
+      mapId: state.mapId,
+      heat: state.heat,
+      initiative: state.initiative,
+      presentationMode: state.presentationMode,
+      tokens: state.tokens,
+      gridVisible: state.gridVisible
+    }
+  });
+}
+
 function handleSyncMessage(msg) {
   if (!msg || !msg.type) return;
-  console.log('[VTT] BC received:', msg.type, msg);
 
   switch (msg.type) {
+    // --- State changes (bridges handle EventBus emit) ---
     case 'heat':
       state.heat = msg.level;
-      EventBus.emit('heat:change', msg.level);
+      break;
+
+    case 'initiative':
+      store.replaceKey('initiative', { ...state.initiative, ...msg.data });
+      break;
+
+    case 'initiative:next':
+      store.replaceKey('initiative', {
+        ...state.initiative,
+        currentTurn: msg.currentTurn,
+        round: msg.round
+      });
+      break;
+
+    case 'combat:start':
+      store.replaceKey('initiative', {
+        ...state.initiative,
+        ...(msg.data || {}),
+        active: true
+      });
+      EventBus.emit('combat:start', state.initiative);
+      break;
+
+    case 'combat:end':
+      store.replaceKey('initiative', { ...state.initiative, active: false });
+      EventBus.emit('combat:end');
+      break;
+
+    case 'grid:toggle':
+      state.gridVisible = !state.gridVisible;
+      break;
+
+    case 'presentation':
+      state.presentationMode = msg.enabled;
+      break;
+
+    // --- Command events (stay on EventBus) ---
+    case 'scene':
+      EventBus.emit('scene:goto', msg.sceneId);
+      break;
+
+    case 'map':
+      EventBus.emit('map:load', msg.mapId);
       break;
 
     case 'brazier':
@@ -73,36 +186,6 @@ function handleSyncMessage(msg) {
           EventBus.emit('brazier:toggle', { index, lit });
         });
       }
-      break;
-
-    case 'initiative':
-      Object.assign(state.initiative, msg.data);
-      EventBus.emit('initiative:update', state.initiative);
-      break;
-
-    case 'initiative:next':
-      state.initiative.currentTurn = msg.currentTurn;
-      state.initiative.round = msg.round;
-      EventBus.emit('initiative:update', state.initiative);
-      break;
-
-    case 'scene':
-      EventBus.emit('scene:goto', msg.sceneId);
-      break;
-
-    case 'map':
-      EventBus.emit('map:load', msg.mapId);
-      break;
-
-    case 'combat:start':
-      state.initiative.active = true;
-      if (msg.data) Object.assign(state.initiative, msg.data);
-      EventBus.emit('combat:start', state.initiative);
-      break;
-
-    case 'combat:end':
-      state.initiative.active = false;
-      EventBus.emit('combat:end');
       break;
 
     case 'effect':
@@ -141,11 +224,6 @@ function handleSyncMessage(msg) {
       EventBus.emit('fog:hide-all');
       break;
 
-    case 'grid:toggle':
-      state.gridVisible = !state.gridVisible;
-      EventBus.emit('grid:toggle');
-      break;
-
     case 'camera:zoom':
       EventBus.emit('camera:zoom', msg.direction);
       break;
@@ -174,47 +252,17 @@ function handleSyncMessage(msg) {
 
     case 'state:request':
       broadcastState();
-      return;  // don't double-broadcast below
-
-    case 'presentation':
-      state.presentationMode = msg.enabled;
-      if (msg.enabled) {
-        document.body.classList.add('presentation');
-      } else {
-        document.body.classList.remove('presentation');
-      }
-      EventBus.emit('presentation:change', msg.enabled);
-      break;
+      return;
 
     default:
       console.log('[VTT] Unknown sync message:', msg.type);
   }
-
-  // After handling any message, broadcast current state back to controller
-  broadcastState();
+  // NOTE: broadcastState handled by store.subscribeAll — no manual call needed
 }
 
-// Broadcast full VTT state for controller sync
-function broadcastState() {
-  if (!channel) return;
-  console.log('[VTT] BC broadcasting state:sync, mode:', state.mode);
-  channel.postMessage({
-    type: 'state:sync',
-    data: {
-      mode: state.mode,
-      sceneIndex: state.sceneIndex,
-      mapId: state.mapId,
-      heat: state.heat,
-      initiative: state.initiative,
-      presentationMode: state.presentationMode,
-      tokens: state.tokens,
-      gridVisible: state.gridVisible
-    }
-  });
-}
-
-// Listen for token state changes from token-manager
+// --- Temporary: bridge tokens:changed from EventBus to store ---
+// TokenManager still emits tokens:changed in this task.
+// Task 6 will change it to write state.tokens directly, then this listener is removed.
 EventBus.on('tokens:changed', (tokens) => {
   state.tokens = tokens;
-  broadcastState();
 });
