@@ -5,6 +5,7 @@
 
 import { EventBus, state, store } from './state.js';
 import { TOKENS } from './data.js';
+import { resolveCSSVar } from './utils.js';
 
 const $ = id => document.getElementById(id);
 
@@ -16,15 +17,14 @@ export function init() {
   store.subscribe('initiative', render);
   EventBus.on('initiative:next-turn', nextTurn);
   EventBus.on('combat:start', (data) => {
-    store.replaceKey('initiative', {
+    state.initiative = {
       ...state.initiative,
       ...(data || {}),
       active: true
-    });
-    // render() fires via store subscriber
+    };
   });
   EventBus.on('combat:end', () => {
-    store.replaceKey('initiative', { ...state.initiative, active: false });
+    state.initiative = { ...state.initiative, active: false };
     panel.hidden = true;
   });
 }
@@ -33,12 +33,11 @@ function nextTurn() {
   const init = state.initiative;
   if (!init.active || init.entries.length === 0) return;
   const nextIdx = (init.currentTurn + 1) % init.entries.length;
-  store.replaceKey('initiative', {
+  state.initiative = {
     ...init,
     currentTurn: nextIdx,
     round: nextIdx === 0 ? init.round + 1 : init.round
-  });
-  // Bridge emits 'initiative:update' automatically
+  };
 }
 
 function render() {
@@ -158,8 +157,3 @@ function render() {
   });
 }
 
-function resolveCSSVar(value) {
-  if (!value || !value.startsWith('var(')) return value || '#C9A84C';
-  const varName = value.replace('var(', '').replace(')', '');
-  return getComputedStyle(document.documentElement).getPropertyValue(varName).trim() || '#C9A84C';
-}

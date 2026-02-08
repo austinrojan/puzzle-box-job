@@ -4,7 +4,7 @@
 
 import { createStore } from './store.js';
 
-// --- Legacy EventBus (kept during migration) ---
+// --- EventBus: command/event dispatch for non-state events ---
 export const EventBus = {
   _listeners: {},
   on(event, fn) { (this._listeners[event] ||= []).push(fn); },
@@ -35,7 +35,6 @@ const store = createStore({
   fog: {},               // NOTE: nested (mapId -> array). Direct mutation of
                           // state.fog[mapId] won't trigger subscribers. This is
                           // intentional — no module needs fog reactivity.
-                          // Future: use store.replaceKey('fog', {...}) if needed.
   titleCardVisible: false,
   overlayText: null,
   presentationMode: false,
@@ -46,8 +45,7 @@ export { store };
 export const state = store.state;
 
 // ==============================
-// Bridges: store -> legacy EventBus
-// Remove each bridge once all its listeners migrate to store.subscribe().
+// Bridges: store -> EventBus
 // ==============================
 
 store.subscribe('mode', (mode, prev) => {
@@ -75,11 +73,7 @@ store.subscribe('titleCardVisible', (visible) => {
 });
 
 store.subscribe('presentationMode', (enabled) => {
-  if (enabled) {
-    document.body.classList.add('presentation');
-  } else {
-    document.body.classList.remove('presentation');
-  }
+  document.body.classList.toggle('presentation', enabled);
   EventBus.emit('presentation:change', enabled);
 });
 
@@ -136,28 +130,28 @@ function handleSyncMessage(msg) {
       break;
 
     case 'initiative':
-      store.replaceKey('initiative', { ...state.initiative, ...msg.data });
+      state.initiative = { ...state.initiative, ...msg.data };
       break;
 
     case 'initiative:next':
-      store.replaceKey('initiative', {
+      state.initiative = {
         ...state.initiative,
         currentTurn: msg.currentTurn,
         round: msg.round
-      });
+      };
       break;
 
     case 'combat:start':
-      store.replaceKey('initiative', {
+      state.initiative = {
         ...state.initiative,
         ...(msg.data || {}),
         active: true
-      });
+      };
       EventBus.emit('combat:start', state.initiative);
       break;
 
     case 'combat:end':
-      store.replaceKey('initiative', { ...state.initiative, active: false });
+      state.initiative = { ...state.initiative, active: false };
       EventBus.emit('combat:end');
       break;
 
@@ -252,11 +246,9 @@ function handleSyncMessage(msg) {
 
     case 'state:request':
       broadcastState();
-      return;
+      break;
 
     default:
       console.log('[VTT] Unknown sync message:', msg.type);
   }
-  // NOTE: broadcastState handled by store.subscribeAll — no manual call needed
 }
-

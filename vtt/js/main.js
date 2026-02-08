@@ -65,7 +65,6 @@ async function boot() {
 
   // Auto-enable presentation mode — DM controls via Controller app
   state.presentationMode = true;
-  // Bridge subscriber handles document.body.classList
 
   // Fade out loading screen
   await new Promise(r => setTimeout(r, 300));

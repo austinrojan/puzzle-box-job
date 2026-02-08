@@ -4,6 +4,7 @@
 
 import { EventBus, state } from './state.js';
 import { TOKENS, MAP_PRESETS, CONDITIONS, CONDITION_COLORS } from './data.js';
+import { resolveCSSVar } from './utils.js';
 
 const $ = id => document.getElementById(id);
 const TOKEN_RADIUS_FACTOR = 0.35;  // fraction of cellPx for token radius (0.42 was original)
@@ -273,7 +274,7 @@ export class TokenManager {
         thumb.className = 'token-tray__thumb';
         thumb.src = def.image;
         thumb.alt = def.name;
-        thumb.style.borderColor = this.resolveCSSVar(def.border);
+        thumb.style.borderColor = resolveCSSVar(def.border);
         thumb.onerror = () => { thumb.style.display = 'none'; };
 
         const name = document.createElement('span');
@@ -407,7 +408,7 @@ export class TokenManager {
       // Border ring
       ctx.beginPath();
       ctx.arc(cx, cy, radius + 2 / cam.zoom, 0, Math.PI * 2);
-      ctx.strokeStyle = this.resolveCSSVar(def.border);
+      ctx.strokeStyle = resolveCSSVar(def.border);
       ctx.lineWidth = 3 / cam.zoom;
       ctx.stroke();
 
@@ -460,7 +461,7 @@ export class TokenManager {
         ctx.globalAlpha = 0.4;
         ctx.beginPath();
         ctx.arc(gx, gy, ghostRadius, 0, Math.PI * 2);
-        ctx.strokeStyle = this.resolveCSSVar(ghostDef.border);
+        ctx.strokeStyle = resolveCSSVar(ghostDef.border);
         ctx.lineWidth = 2 / cam.zoom;
         ctx.setLineDash([4 / cam.zoom, 4 / cam.zoom]);
         ctx.stroke();
@@ -561,7 +562,7 @@ export class TokenManager {
 
     ctx.beginPath();
     ctx.arc(cx, cy, radius + 2 / cam.zoom, 0, Math.PI * 2);
-    ctx.strokeStyle = this.resolveCSSVar(def.border);
+    ctx.strokeStyle = resolveCSSVar(def.border);
     ctx.lineWidth = 3 / cam.zoom;
     ctx.stroke();
 
@@ -632,13 +633,6 @@ export class TokenManager {
 
     wrapper.appendChild(fill);
     this.labelsEl.appendChild(wrapper);
-  }
-
-  // Resolve CSS variable references like 'var(--token-pc)' to hex
-  resolveCSSVar(value) {
-    if (!value || !value.startsWith('var(')) return value || '#C9A84C';
-    const varName = value.replace('var(', '').replace(')', '');
-    return getComputedStyle(document.documentElement).getPropertyValue(varName).trim() || '#C9A84C';
   }
 
   // --- Mouse interaction ---

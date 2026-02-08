@@ -20,8 +20,7 @@ export function init() {
   EventBus.on('combat:start', () => switchMode('initiative'));
   EventBus.on('combat:end', () => switchMode('map'));
 
-  // React to ANY mode change (from switchMode, console, or BC handler)
-  store.subscribe('mode', (mode) => applyMode(mode));
+  store.subscribe('mode', applyMode);
 
   // Apply initial mode
   applyMode(state.mode);
@@ -52,6 +51,3 @@ function applyMode(mode) {
   }
 }
 
-export function getCurrentMode() {
-  return state.mode;
-}

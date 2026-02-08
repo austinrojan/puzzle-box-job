@@ -311,19 +311,6 @@ export class MapRenderer {
     this.drawFog();
   }
 
-  // Reveal all fog (for exploration maps)
-  revealAll() {
-    if (!this.currentMap) return;
-    const { cols, rows } = this.currentMap;
-    for (let c = 0; c < cols; c++) {
-      for (let r = 0; r < rows; r++) {
-        this.fogRevealed.add(`${c},${r}`);
-      }
-    }
-    state.fog[this.currentMap.id] = [...this.fogRevealed];
-    this.drawFog();
-  }
-
   // Get grid cell from screen coordinates
   screenToCell(sx, sy) {
     const world = this.camera.screenToWorld(sx, sy);

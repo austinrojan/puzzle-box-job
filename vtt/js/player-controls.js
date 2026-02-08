@@ -5,7 +5,7 @@
 // ============================================
 
 import { EventBus, state, store } from './state.js';
-import { SCENES, MAPS, ACTS } from './data.js';
+import { SCENES, MAPS } from './data.js';
 import * as sceneNavigator from './scene-navigator.js';
 
 const $ = id => document.getElementById(id);
@@ -56,7 +56,7 @@ export function init() {
 
   store.subscribe('sceneIndex', () => setTimeout(updateContext, 0));
 
-  store.subscribe('initiative', () => updateContext());
+  store.subscribe('initiative', updateContext);
 
   store.subscribe('titleCardVisible', (visible) => {
     navEl.classList.toggle('hidden-for-title', visible);
@@ -67,9 +67,6 @@ export function init() {
   });
 
   // --- Command events (stay on EventBus) ---
-  EventBus.on('scene:next', onSceneChange);
-  EventBus.on('scene:prev', onSceneChange);
-  EventBus.on('scene:goto', onSceneChange);
   EventBus.on('map:load', onMapLoad);
   EventBus.on('camera:changed', () => {
     const zoom = window.__vtt?.mapRenderer?.camera?.zoom;
@@ -271,12 +268,6 @@ function buildRightRegion() {
 }
 
 // ---- State sync handlers ----
-
-function onSceneChange() {
-  // Defer one tick so state.sceneIndex is current
-  // Use setTimeout instead of rAF — rAF is paused for unfocused tabs
-  setTimeout(updateContext, 0);
-}
 
 function onMapLoad(mapId) {
   const idx = MAPS.findIndex(m => m.id === mapId);
