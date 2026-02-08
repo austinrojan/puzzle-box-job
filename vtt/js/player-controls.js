@@ -4,7 +4,7 @@
 // and contextual controls (grid, camera, next turn)
 // ============================================
 
-import { EventBus, state } from './state.js';
+import { EventBus, state, store } from './state.js';
 import { SCENES, MAPS, ACTS } from './data.js';
 import * as sceneNavigator from './scene-navigator.js';
 
@@ -36,7 +36,6 @@ let zoomLabel = null;
 
 // Local state
 let currentMapIndex = 0;
-let gridToggled = false;
 
 export function init() {
   navEl = $('player-nav');
@@ -44,19 +43,39 @@ export function init() {
 
   buildNav();
 
-  // Subscribe to events
-  EventBus.on('mode:changed', onModeChanged);
+  // --- Store subscriptions (react to state changes) ---
+  store.subscribe('mode', (mode) => {
+    updateModeButtons(mode);
+    updateContext();
+    rightRegion.classList.toggle('theater-hidden', mode === 'theater');
+    nextTurnBtn.hidden = mode !== 'initiative';
+    if ((mode === 'map' || mode === 'initiative') && !state.mapId) {
+      EventBus.emit('map:load', MAPS[currentMapIndex].id);
+    }
+  });
+
+  store.subscribe('sceneIndex', () => setTimeout(updateContext, 0));
+
+  store.subscribe('initiative', () => updateContext());
+
+  store.subscribe('titleCardVisible', (visible) => {
+    navEl.classList.toggle('hidden-for-title', visible);
+  });
+
+  store.subscribe('gridVisible', (visible) => {
+    gridBtn.classList.toggle('toggled', !visible);
+  });
+
+  // --- Command events (stay on EventBus) ---
   EventBus.on('scene:next', onSceneChange);
   EventBus.on('scene:prev', onSceneChange);
   EventBus.on('scene:goto', onSceneChange);
-  EventBus.on('scene:loaded', onSceneChange);
   EventBus.on('map:load', onMapLoad);
-  EventBus.on('initiative:update', onInitiativeUpdate);
-  EventBus.on('title-card:visible', () => navEl.classList.add('hidden-for-title'));
-  EventBus.on('title-card:hidden', () => navEl.classList.remove('hidden-for-title'));
-  EventBus.on('grid:toggle', () => {
-    gridToggled = !gridToggled;
-    gridBtn.classList.toggle('toggled', gridToggled);
+  EventBus.on('camera:changed', () => {
+    const zoom = window.__vtt?.mapRenderer?.camera?.zoom;
+    if (zoom != null) {
+      zoomLabel.textContent = Math.round(zoom * 100) + '%';
+    }
   });
   EventBus.on('navigator:open', () => {
     titleGroupEl.classList.add('pnav-title-group--active');
@@ -65,12 +84,6 @@ export function init() {
   EventBus.on('navigator:close', () => {
     titleGroupEl.classList.remove('pnav-title-group--active');
     expandIcon.classList.remove('rotated');
-  });
-  EventBus.on('camera:changed', () => {
-    const zoom = window.__vtt?.mapRenderer?.camera?.zoom;
-    if (zoom != null) {
-      zoomLabel.textContent = Math.round(zoom * 100) + '%';
-    }
   });
 
   // Set initial state
@@ -227,7 +240,8 @@ function buildRightRegion() {
   gridIcon.className = 'pnav-grid-icon';
   for (let i = 0; i < 4; i++) gridIcon.appendChild(document.createElement('span'));
   gridBtn.appendChild(gridIcon);
-  gridBtn.addEventListener('click', () => EventBus.emit('grid:toggle'));
+  gridBtn.addEventListener('click', () => { state.gridVisible = !state.gridVisible; });
+  gridBtn.classList.toggle('toggled', !state.gridVisible);
 
   // Fit to map
   fitBtn = document.createElement('button');
@@ -258,20 +272,6 @@ function buildRightRegion() {
 
 // ---- State sync handlers ----
 
-function onModeChanged({ mode }) {
-  updateModeButtons(mode);
-  updateContext();
-
-  // Right region visibility
-  rightRegion.classList.toggle('theater-hidden', mode === 'theater');
-  nextTurnBtn.hidden = mode !== 'initiative';
-
-  // Auto-load map when switching to map/initiative mode with no map loaded
-  if ((mode === 'map' || mode === 'initiative') && !state.mapId) {
-    EventBus.emit('map:load', MAPS[currentMapIndex].id);
-  }
-}
-
 function onSceneChange() {
   // Defer one tick so state.sceneIndex is current
   // Use setTimeout instead of rAF — rAF is paused for unfocused tabs
@@ -281,10 +281,6 @@ function onSceneChange() {
 function onMapLoad(mapId) {
   const idx = MAPS.findIndex(m => m.id === mapId);
   if (idx !== -1) currentMapIndex = idx;
-  updateContext();
-}
-
-function onInitiativeUpdate() {
   updateContext();
 }
 
