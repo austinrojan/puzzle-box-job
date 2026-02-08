@@ -2,7 +2,7 @@
 // VTT Main — Bootstrap and initialization
 // ============================================
 
-import { EventBus, state, initSync } from './state.js';
+import { EventBus, state, store, initSync } from './state.js';
 import { preloadAll } from './image-cache.js';
 import * as theater from './theater.js?v=3';
 import * as sceneManager from './scene-manager.js';
@@ -58,14 +58,14 @@ async function boot() {
   effectsEngine.init();
 
   // Expose for debugging and DM guide sync
-  window.__vtt = { state, mapRenderer, tokenManager, effectsEngine, EventBus };
+  window.__vtt = { state, store, mapRenderer, tokenManager, effectsEngine, EventBus };
 
   // Mark as loaded
   state.loaded = true;
 
   // Auto-enable presentation mode — DM controls via Controller app
   state.presentationMode = true;
-  document.body.classList.add('presentation');
+  // Bridge subscriber handles document.body.classList
 
   // Fade out loading screen
   await new Promise(r => setTimeout(r, 300));
