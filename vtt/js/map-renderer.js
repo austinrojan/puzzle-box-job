@@ -3,7 +3,7 @@
 // Background, fog, grid, tokens, effects
 // ============================================
 
-import { EventBus, state } from './state.js';
+import { EventBus, state, store } from './state.js';
 import { MAPS } from './data.js';
 import { Camera } from './map-camera.js';
 
@@ -16,7 +16,6 @@ export class MapRenderer {
     this.camera = new Camera();
     this.currentMap = null;
     this.bgImage = null;
-    this.gridVisible = true;
     this.fogRevealed = new Set(); // "col,row" strings
 
     // Canvas layers
@@ -49,10 +48,7 @@ export class MapRenderer {
     // Listen for events
     EventBus.on('camera:changed', () => this.redrawAll());
     EventBus.on('map:load', (mapId) => this.loadMap(mapId));
-    EventBus.on('grid:toggle', () => {
-      this.gridVisible = !this.gridVisible;
-      this.drawGrid();
-    });
+    store.subscribe('gridVisible', () => this.drawGrid());
     EventBus.on('fog:toggle', () => this.toggleFogAtCursor());
     EventBus.on('fog:reveal-all', () => this.revealAllFog());
     EventBus.on('fog:hide-all', () => this.hideAllFog());
@@ -193,7 +189,7 @@ export class MapRenderer {
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.clearRect(0, 0, VTT_W, VTT_H);
 
-    if (!this.gridVisible || !this.currentMap) return;
+    if (!state.gridVisible || !this.currentMap) return;
 
     this.camera.applyTransform(ctx);
 
