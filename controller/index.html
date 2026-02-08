@@ -1,0 +1,1106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DM Controller — The Puzzle-Box Job</title>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+/* ============================================
+   DM Controller — CSS
+   ============================================ */
+:root {
+  --bg-0: #0D0F14;
+  --bg-1: #141820;
+  --bg-2: #1A1F2B;
+  --bg-3: #212738;
+  --bg-4: #2A3144;
+  --gold: #C9A84C;
+  --gold-dim: #8A7333;
+  --text-primary: #E8E6E1;
+  --text-secondary: #A0A0A8;
+  --text-muted: #6B6B78;
+  --red: #E74C3C;
+  --green: #27AE60;
+  --blue: #2E86AB;
+  --purple: #7E57C2;
+  --cyan: #48B5E0;
+  --amber: #E8A84C;
+  --font-heading: 'Cinzel', serif;
+  --font-body: 'Inter', sans-serif;
+  --font-mono: 'IBM Plex Mono', monospace;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  font-family: var(--font-body);
+  background: var(--bg-0);
+  color: var(--text-primary);
+  font-size: 13px;
+  line-height: 1.4;
+  overflow-x: hidden;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: var(--bg-1); }
+::-webkit-scrollbar-thumb { background: var(--bg-3); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--bg-4); }
+
+/* Header */
+.header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 12px 16px;
+  background: var(--bg-1); border-bottom: 1px solid var(--bg-3);
+  position: sticky; top: 0; z-index: 100;
+}
+.header__title {
+  font-family: var(--font-heading);
+  font-size: 14px; color: var(--gold);
+  letter-spacing: 1px;
+}
+.header__status {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  padding: 3px 10px;
+  border-radius: 10px;
+  border: 1px solid var(--bg-3);
+}
+.header__status--connected { color: var(--green); border-color: var(--green); }
+.header__status--waiting { color: var(--amber); border-color: var(--amber); }
+
+/* Sections */
+.section {
+  border-bottom: 1px solid var(--bg-3);
+  padding: 10px 16px;
+}
+.section__label {
+  font-family: var(--font-mono);
+  font-size: 10px; text-transform: uppercase;
+  letter-spacing: 0.8px; color: var(--text-muted);
+  margin-bottom: 8px;
+}
+
+/* Button grid */
+.btn-row {
+  display: flex; gap: 6px; flex-wrap: wrap;
+  align-items: center;
+}
+.btn {
+  padding: 6px 12px;
+  border: 1px solid var(--bg-3);
+  border-radius: 4px;
+  background: var(--bg-2);
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-family: var(--font-mono);
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+  white-space: nowrap;
+}
+.btn:hover { background: var(--bg-3); color: var(--text-primary); }
+.btn--active { background: var(--gold); color: var(--bg-0); border-color: var(--gold); font-weight: 600; }
+.btn--active:hover { background: #d4a940; }
+.btn--danger { color: var(--red); }
+.btn--danger:hover { background: rgba(231,76,60,0.12); border-color: var(--red); }
+.btn--sm { padding: 4px 8px; font-size: 11px; }
+.btn--icon { padding: 5px 8px; font-size: 14px; min-width: 32px; text-align: center; }
+
+/* Select */
+.ctrl-select {
+  padding: 5px 8px;
+  border: 1px solid var(--bg-3);
+  border-radius: 4px;
+  background: var(--bg-2);
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-family: var(--font-mono);
+  cursor: pointer;
+  max-width: 200px;
+}
+
+/* Input */
+.ctrl-input {
+  padding: 6px 10px;
+  border: 1px solid var(--bg-3);
+  border-radius: 4px;
+  background: var(--bg-2);
+  color: var(--text-primary);
+  font-size: 12px;
+  font-family: var(--font-mono);
+  flex: 1; min-width: 0;
+}
+.ctrl-input::placeholder { color: var(--text-muted); }
+
+/* Scene nav */
+.scene-nav {
+  display: flex; align-items: center; gap: 8px;
+  margin-bottom: 8px;
+}
+.scene-nav__label {
+  font-family: var(--font-mono);
+  font-size: 12px; color: var(--gold);
+  flex: 1; text-align: center;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+
+/* Scene list (collapsible) */
+.scene-list { margin-top: 6px; }
+.scene-list__toggle {
+  font-size: 11px; color: var(--text-muted);
+  cursor: pointer; user-select: none;
+  font-family: var(--font-mono);
+}
+.scene-list__toggle:hover { color: var(--text-secondary); }
+.scene-list__body { display: none; margin-top: 6px; }
+.scene-list__body.open { display: block; }
+.scene-list__act {
+  font-size: 11px; color: var(--gold-dim);
+  font-family: var(--font-heading);
+  padding: 4px 0 2px; margin-top: 4px;
+}
+.scene-list__item {
+  padding: 3px 8px;
+  font-size: 11px; color: var(--text-secondary);
+  cursor: pointer; border-radius: 3px;
+  font-family: var(--font-mono);
+}
+.scene-list__item:hover { background: var(--bg-3); color: var(--text-primary); }
+.scene-list__item--active { background: var(--bg-3); color: var(--gold); }
+
+/* Camera grid */
+.camera-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 32px);
+  grid-template-rows: repeat(3, 32px);
+  gap: 3px;
+  justify-items: center;
+  align-items: center;
+}
+.camera-grid .btn--icon { width: 32px; height: 32px; padding: 0; }
+
+/* Token groups */
+.token-group { margin-top: 6px; }
+.token-group__label {
+  font-size: 10px; color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding: 2px 0 4px;
+  border-bottom: 1px solid var(--bg-3);
+  margin-bottom: 4px;
+}
+.token-btn {
+  padding: 4px 8px; margin: 2px;
+  border: 1px solid var(--bg-3);
+  border-radius: 3px;
+  background: var(--bg-2);
+  color: var(--text-secondary);
+  font-size: 11px;
+  font-family: var(--font-mono);
+  cursor: pointer;
+}
+.token-btn:hover { background: var(--bg-3); color: var(--text-primary); }
+.token-btn--pc { border-left: 3px solid var(--green); }
+.token-btn--npc { border-left: 3px solid var(--red); }
+.token-btn--object { border-left: 3px solid var(--purple); }
+
+/* Active tokens list */
+.active-tokens { margin-top: 8px; }
+.active-token {
+  display: flex; align-items: center; gap: 6px;
+  padding: 4px 6px; border-radius: 3px;
+  font-size: 11px; margin-bottom: 2px;
+}
+.active-token:hover { background: var(--bg-3); }
+.active-token__dot {
+  width: 8px; height: 8px;
+  border-radius: 50%; flex-shrink: 0;
+}
+.active-token__name {
+  flex: 1; overflow: hidden;
+  text-overflow: ellipsis; white-space: nowrap;
+  color: var(--text-secondary);
+}
+.active-token__cond {
+  padding: 1px 5px; border-radius: 3px;
+  font-size: 9px; font-family: var(--font-mono);
+  cursor: pointer; text-transform: uppercase;
+  letter-spacing: 0.3px; font-weight: 600;
+}
+.active-token__cond:hover { opacity: 0.7; }
+.active-token__cond--dominated { background: var(--purple); color: #fff; }
+.active-token__cond--concentrating { background: var(--blue); color: #fff; }
+.active-token__cond--stunned { background: var(--amber); color: var(--bg-0); }
+.active-token__cond--prone { background: #6B6B78; color: #fff; }
+.active-token__cond--poisoned { background: var(--green); color: #fff; }
+.active-token__cond--frightened { background: var(--red); color: #fff; }
+.active-token__cond--invisible { background: var(--cyan); color: var(--bg-0); }
+.active-token__vis {
+  font-size: 11px; cursor: pointer; opacity: 0.6;
+}
+.active-token__vis:hover { opacity: 1; }
+.active-token__remove {
+  font-size: 12px; color: var(--text-muted);
+  cursor: pointer; padding: 0 2px;
+}
+.active-token__remove:hover { color: var(--red); }
+
+/* Conditions popup */
+.cond-popup {
+  position: absolute;
+  background: var(--bg-2);
+  border: 1px solid var(--bg-4);
+  border-radius: 4px;
+  padding: 4px;
+  z-index: 200;
+  display: flex; flex-direction: column; gap: 2px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+}
+.cond-popup__item {
+  padding: 4px 8px;
+  font-size: 11px;
+  font-family: var(--font-mono);
+  cursor: pointer;
+  border-radius: 3px;
+  color: var(--text-secondary);
+}
+.cond-popup__item:hover { background: var(--bg-3); color: var(--text-primary); }
+.cond-popup__item--active { color: var(--gold); }
+
+/* Effects grid */
+.effects-grid {
+  display: flex; flex-wrap: wrap; gap: 4px;
+}
+
+/* Combat info */
+.combat-info {
+  font-family: var(--font-mono);
+  font-size: 12px; color: var(--text-secondary);
+  margin-bottom: 6px;
+}
+.combat-info__turn { color: var(--gold); font-weight: 600; }
+
+/* Empty state */
+.empty-state {
+  font-size: 11px; color: var(--text-muted);
+  font-style: italic; padding: 4px 0;
+}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <span class="header__title">THE PUZZLE-BOX JOB &mdash; CONTROLLER</span>
+  <span class="header__status header__status--waiting" id="conn-status">Waiting&hellip;</span>
+</div>
+
+<!-- Mode -->
+<div class="section" id="sec-mode">
+  <div class="section__label">Mode</div>
+  <div class="btn-row">
+    <button class="btn btn--active" data-mode="theater">Theater</button>
+    <button class="btn" data-mode="map">Map</button>
+    <button class="btn" data-mode="initiative">Initiative</button>
+  </div>
+</div>
+
+<!-- Scenes -->
+<div class="section" id="sec-scenes">
+  <div class="section__label">Scenes</div>
+  <div class="scene-nav">
+    <button class="btn btn--icon btn--sm" id="scene-prev">&#9664;</button>
+    <span class="scene-nav__label" id="scene-label">S01 &mdash; The Rusty Anchor</span>
+    <button class="btn btn--icon btn--sm" id="scene-next">&#9654;</button>
+  </div>
+  <div class="scene-list">
+    <span class="scene-list__toggle" id="scene-list-toggle">&#9654; Scene List</span>
+    <div class="scene-list__body" id="scene-list-body"></div>
+  </div>
+</div>
+
+<!-- Map & Camera -->
+<div class="section" id="sec-map">
+  <div class="section__label">Map &amp; Camera</div>
+  <div class="btn-row" style="margin-bottom:8px">
+    <select class="ctrl-select" id="map-select"></select>
+    <button class="btn btn--sm" id="map-load">Load</button>
+  </div>
+  <div class="btn-row" style="align-items:start;gap:12px">
+    <div class="camera-grid">
+      <div></div>
+      <button class="btn btn--icon" data-cam="up">&#9650;</button>
+      <div></div>
+      <button class="btn btn--icon" data-cam="left">&#9664;</button>
+      <button class="btn btn--icon" data-cam="reset" title="Fit to map">&#8634;</button>
+      <button class="btn btn--icon" data-cam="right">&#9654;</button>
+      <div></div>
+      <button class="btn btn--icon" data-cam="down">&#9660;</button>
+      <div></div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:4px">
+      <div class="btn-row">
+        <button class="btn btn--sm" id="zoom-in">+ Zoom</button>
+        <button class="btn btn--sm" id="zoom-out">&minus; Zoom</button>
+      </div>
+      <div class="btn-row">
+        <button class="btn btn--sm" id="fog-reveal">Fog &#9728;</button>
+        <button class="btn btn--sm" id="fog-hide">Fog &#9632;</button>
+        <button class="btn btn--sm" id="grid-toggle">Grid</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Tokens -->
+<div class="section" id="sec-tokens">
+  <div class="section__label">Tokens</div>
+  <div class="btn-row" style="margin-bottom:6px">
+    <select class="ctrl-select" id="preset-select"></select>
+    <button class="btn btn--sm" id="preset-load">Load Preset</button>
+    <button class="btn btn--sm btn--danger" id="clear-tokens">Clear All</button>
+  </div>
+  <div id="token-buttons"></div>
+  <div class="active-tokens">
+    <div class="token-group__label">Active Tokens</div>
+    <div id="active-tokens-list"></div>
+  </div>
+</div>
+
+<!-- Effects -->
+<div class="section" id="sec-effects">
+  <div class="section__label">Effects</div>
+  <div class="btn-row" style="margin-bottom:6px">
+    <span class="text-xs text-muted" style="white-space:nowrap">Target:</span>
+    <select class="ctrl-select" id="effect-target" style="flex:1">
+      <option value="">Map Center</option>
+    </select>
+  </div>
+  <div class="effects-grid" id="effects-grid"></div>
+</div>
+
+<!-- Overlay -->
+<div class="section" id="sec-overlay">
+  <div class="section__label">Overlay</div>
+  <div class="btn-row">
+    <input type="text" class="ctrl-input" id="overlay-input" placeholder="Overlay text...">
+    <button class="btn btn--sm" id="overlay-send">Send</button>
+    <button class="btn btn--sm btn--danger" id="overlay-clear">&#10005;</button>
+  </div>
+</div>
+
+<!-- Title Card -->
+<div class="section" id="sec-title">
+  <div class="section__label">Title Card</div>
+  <div class="btn-row">
+    <select class="ctrl-select" id="title-act-select"></select>
+    <button class="btn btn--sm" id="title-send">Show</button>
+  </div>
+</div>
+
+<!-- Combat -->
+<div class="section" id="sec-combat">
+  <div class="section__label">Combat</div>
+  <div class="combat-info" id="combat-info"></div>
+  <div class="btn-row">
+    <button class="btn btn--sm" id="next-turn">Next Turn</button>
+  </div>
+</div>
+
+<!-- Condition popup (hidden, absolute positioned) -->
+<div class="cond-popup" id="cond-popup" style="display:none"></div>
+
+<script>
+// ============================================
+// DM Controller — Data (from vtt/js/data.js)
+// ============================================
+
+const SCENES = [
+  { id: 'S01', act: 1, title: 'The Rusty Anchor' },
+  { id: 'S02', act: 1, title: "Locke's Proposition" },
+  { id: 'S03', act: 2, title: 'Dock District' },
+  { id: 'S04', act: 2, title: 'Veymar Estate (Distant)' },
+  { id: 'S05', act: 2, title: 'The Bakery \u2014 Pip' },
+  { id: 'S06', act: 2, title: 'The Undermarket' },
+  { id: 'S07', act: 2, title: 'The Broken Oar' },
+  { id: 'S08', act: 3, title: 'Estate at Night' },
+  { id: 'S09', act: 3, title: 'Main Gate' },
+  { id: 'S10', act: 3, title: "Servants' Entrance" },
+  { id: 'S11', act: 3, title: 'West Wall' },
+  { id: 'S12', act: 3, title: 'Conservatory' },
+  { id: 'S13', act: 4, title: 'The Ballroom' },
+  { id: 'S14', act: 4, title: "Servants' Corridor" },
+  { id: 'S15', act: 4, title: 'Rooftop' },
+  { id: 'S16', act: 4, title: 'Third-Floor Hallway' },
+  { id: 'S17', act: 4, title: 'Grand Staircase' },
+  { id: 'S18', act: 5, title: 'Arcane Ward' },
+  { id: 'S19', act: 5, title: "Veymar's Study" },
+  { id: 'S20', act: 5, title: 'The Puzzle Box' },
+  { id: 'S21', act: 5, title: 'The Swap' },
+  { id: 'S22', act: 6, title: 'Warehouse Exterior' },
+  { id: 'S23', act: 6, title: 'The Ritual' },
+  { id: 'S24', act: 6, title: 'Rakshasa Revealed' },
+  { id: 'S25', act: 6, title: 'Braziers Burning' },
+  { id: 'S26', act: 6, title: 'Epilogue \u2014 Dawn' },
+];
+
+const ACTS = [
+  { number: 1, title: 'The Job Offer' },
+  { number: 2, title: 'Gathering Intel' },
+  { number: 3, title: 'Infiltration' },
+  { number: 4, title: 'The Mansion' },
+  { number: 5, title: 'The Puzzle Box' },
+  { number: 6, title: 'The Ritual' },
+];
+
+const MAPS = [
+  { id: 'M01', title: 'Dock District' },
+  { id: 'M02', title: 'Estate Grounds' },
+  { id: 'M03', title: 'Mansion \u2014 Ground' },
+  { id: 'M04', title: 'Mansion \u2014 Second' },
+  { id: 'M05', title: 'Mansion \u2014 Third' },
+  { id: 'M06', title: 'Warehouse' },
+];
+
+const TOKENS = {
+  'martin-storm':   { name: 'Martin Storm',        isPC: true },
+  'lome':           { name: 'Lome',                 isPC: true },
+  'oda':            { name: 'Oda "Bearda"',         isPC: true },
+  'jean':           { name: 'Jean LeMarque',        isPC: true },
+  'kallista':       { name: 'Kallista',              isPC: true },
+  'oda-bear':       { name: 'Oda (Bear)',           isPC: true },
+  'locke':          { name: 'Locke' },
+  'locke-rakshasa': { name: 'Locke (Revealed)' },
+  'cult-fanatic':   { name: 'Cult Fanatic' },
+  'guard':          { name: 'Estate Guard' },
+  'captain-helm':   { name: 'Captain Dara Helm' },
+  'mastiff':        { name: 'Mastiff' },
+  'pip':            { name: 'Pip' },
+  'brazier-lit':    { name: 'Brazier (Lit)',        isObject: true },
+  'brazier-dead':   { name: 'Brazier (Dead)',       isObject: true },
+  'puzzle-box':     { name: 'Puzzle Box',           isObject: true },
+  'dagger-magic':   { name: '+1 Ornate Dagger',    isObject: true },
+};
+
+const MAP_PRESETS = {
+  'M06-combat':       { label: 'Warehouse \u2014 Final Battle' },
+  'M02-infiltration': { label: 'Estate Grounds \u2014 Infiltration' },
+};
+
+const EFFECTS = {
+  'divine-smite':       { name: 'Divine Smite' },
+  'fireball':           { name: 'Fireball' },
+  'counterspell':       { name: 'Counterspell' },
+  'dispel-magic':       { name: 'Dispel Magic' },
+  'healing-word':       { name: 'Healing Word' },
+  'spirit-guardians':   { name: 'Spirit Guardians' },
+  'hold-person':        { name: 'Hold Person' },
+  'cutting-words':      { name: 'Cutting Words' },
+  'dominate-person':    { name: 'Dominate Person' },
+  'ritual-activate':    { name: 'Ritual Activation' },
+  'rakshasa-reveal':    { name: 'Rakshasa Reveal' },
+  'path-grave-smite':   { name: 'Path+Smite Combo' },
+  'invisibility':       { name: 'Invisibility' },
+};
+
+const CONDITIONS = [
+  { id: 'dominated',      label: 'DOM', color: '#7E57C2' },
+  { id: 'concentrating',  label: 'CON', color: '#2E86AB' },
+  { id: 'stunned',        label: 'STN', color: '#E8A84C' },
+  { id: 'prone',          label: 'PRN', color: '#6B6B78' },
+  { id: 'poisoned',       label: 'PSN', color: '#27AE60' },
+  { id: 'frightened',     label: 'FRT', color: '#E74C3C' },
+  { id: 'invisible',      label: 'INV', color: '#48B5E0' },
+];
+
+// ============================================
+// BroadcastChannel
+// ============================================
+const channel = new BroadcastChannel('puzzlebox-vtt');
+const send = (msg) => {
+  console.log('[Controller] BC sending:', msg.type, msg);
+  channel.postMessage(msg);
+};
+
+// State mirror
+let vttState = {
+  mode: 'theater',
+  sceneIndex: 0,
+  mapId: null,
+  heat: 0,
+  initiative: { active: false, round: 1, currentTurn: 0, entries: [] },
+  presentationMode: false,
+  tokens: [],
+  gridVisible: true,
+};
+
+let connected = false;
+let sceneIndex = 0;
+let lastSyncTime = 0;
+
+// ============================================
+// Receive state sync from VTT
+// ============================================
+channel.onmessage = (e) => {
+  console.log('[Controller] BC received:', e.data.type);
+  if (e.data.type === 'state:sync') {
+    console.log('[Controller] State sync, mode:', e.data.data.mode);
+    vttState = e.data.data;
+    lastSyncTime = Date.now();
+    if (!connected) {
+      connected = true;
+      updateConnectionStatus();
+    }
+    sceneIndex = vttState.sceneIndex || 0;
+    updateUI();
+  }
+};
+
+// Request initial state
+send({ type: 'state:request' });
+
+// Heartbeat: periodically request state and detect VTT disconnection
+setInterval(() => {
+  send({ type: 'state:request' });
+  // If no sync received in 4 seconds, mark as disconnected
+  if (connected && lastSyncTime > 0 && (Date.now() - lastSyncTime) > 4000) {
+    connected = false;
+    updateConnectionStatus();
+  }
+}, 1500);
+
+// ============================================
+// UI Helpers
+// ============================================
+const $ = (sel) => document.querySelector(sel);
+const $$ = (sel) => document.querySelectorAll(sel);
+
+function updateConnectionStatus() {
+  const el = $('#conn-status');
+  if (connected) {
+    el.textContent = 'Connected';
+    el.className = 'header__status header__status--connected';
+  } else {
+    el.textContent = 'Waiting\u2026';
+    el.className = 'header__status header__status--waiting';
+  }
+}
+
+function updateUI() {
+  updateModeButtons();
+  updateSceneLabel();
+  updateMapSelect();
+  updateActiveTokens();
+  updateEffectTarget();
+  updateCombatInfo();
+}
+
+let mapSelectDirty = false;
+let mapSelectDirtyTimer = null;
+
+function updateMapSelect() {
+  if (mapSelectDirty) return;  // User made a selection — don't overwrite until Load or timeout
+  const sel = $('#map-select');
+  if (document.activeElement === sel) return;
+  if (vttState.mapId && sel.value !== vttState.mapId) {
+    sel.value = vttState.mapId;
+  }
+}
+
+// ============================================
+// Mode buttons
+// ============================================
+$$('[data-mode]').forEach(btn => {
+  btn.addEventListener('click', () => {
+    send({ type: 'mode:switch', mode: btn.dataset.mode });
+  });
+});
+
+function updateModeButtons() {
+  $$('[data-mode]').forEach(btn => {
+    btn.classList.toggle('btn--active', btn.dataset.mode === vttState.mode);
+  });
+}
+
+// ============================================
+// Scene navigation
+// ============================================
+function updateSceneLabel() {
+  const scene = SCENES[sceneIndex];
+  if (scene) {
+    $('#scene-label').textContent = scene.id + ' \u2014 ' + scene.title;
+  }
+  // Update active item in scene list
+  $$('.scene-list__item').forEach((el, i) => {
+    el.classList.toggle('scene-list__item--active', i === sceneIndex);
+  });
+}
+
+$('#scene-prev').addEventListener('click', () => {
+  if (sceneIndex > 0) {
+    sceneIndex--;
+    send({ type: 'scene', sceneId: SCENES[sceneIndex].id });
+    updateSceneLabel();
+  }
+});
+
+$('#scene-next').addEventListener('click', () => {
+  if (sceneIndex < SCENES.length - 1) {
+    sceneIndex++;
+    send({ type: 'scene', sceneId: SCENES[sceneIndex].id });
+    updateSceneLabel();
+  }
+});
+
+// Scene list toggle
+$('#scene-list-toggle').addEventListener('click', () => {
+  const body = $('#scene-list-body');
+  const isOpen = body.classList.toggle('open');
+  $('#scene-list-toggle').textContent = (isOpen ? '\u25BC' : '\u25B6') + ' Scene List';
+});
+
+// Build scene list grouped by act
+(function buildSceneList() {
+  const body = $('#scene-list-body');
+  let currentAct = 0;
+  SCENES.forEach((scene, i) => {
+    if (scene.act !== currentAct) {
+      currentAct = scene.act;
+      const actEl = document.createElement('div');
+      actEl.className = 'scene-list__act';
+      actEl.textContent = 'Act ' + currentAct + ': ' + ACTS[currentAct - 1].title;
+      body.appendChild(actEl);
+    }
+    const item = document.createElement('div');
+    item.className = 'scene-list__item';
+    item.textContent = scene.id + '  ' + scene.title;
+    item.addEventListener('click', () => {
+      sceneIndex = i;
+      send({ type: 'scene', sceneId: scene.id });
+      updateSceneLabel();
+    });
+    body.appendChild(item);
+  });
+})();
+
+// ============================================
+// Map & Camera
+// ============================================
+(function buildMapSelect() {
+  const sel = $('#map-select');
+  const opt0 = document.createElement('option');
+  opt0.value = '';
+  opt0.textContent = '\u2014 Select Map \u2014';
+  sel.appendChild(opt0);
+  MAPS.forEach(m => {
+    const opt = document.createElement('option');
+    opt.value = m.id;
+    opt.textContent = m.id + ' \u2014 ' + m.title;
+    sel.appendChild(opt);
+  });
+})();
+
+// Mark dropdown dirty when user makes a selection — prevents state:sync from overwriting it
+$('#map-select').addEventListener('change', () => {
+  mapSelectDirty = true;
+  clearTimeout(mapSelectDirtyTimer);
+  mapSelectDirtyTimer = setTimeout(() => { mapSelectDirty = false; }, 8000); // auto-clear after 8s
+});
+
+$('#map-load').addEventListener('click', () => {
+  const val = $('#map-select').value;
+  if (val) send({ type: 'map', mapId: val });
+  // Clear dirty flag — next state:sync will confirm the new mapId
+  mapSelectDirty = false;
+  clearTimeout(mapSelectDirtyTimer);
+});
+
+// Camera pad
+$$('[data-cam]').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const dir = btn.dataset.cam;
+    const step = 80;
+    switch (dir) {
+      case 'up':    send({ type: 'camera:pan', dx: 0, dy: step }); break;
+      case 'down':  send({ type: 'camera:pan', dx: 0, dy: -step }); break;
+      case 'left':  send({ type: 'camera:pan', dx: step, dy: 0 }); break;
+      case 'right': send({ type: 'camera:pan', dx: -step, dy: 0 }); break;
+      case 'reset': send({ type: 'camera:reset' }); break;
+    }
+  });
+});
+
+$('#zoom-in').addEventListener('click', () => send({ type: 'camera:zoom', direction: 1 }));
+$('#zoom-out').addEventListener('click', () => send({ type: 'camera:zoom', direction: -1 }));
+
+$('#fog-reveal').addEventListener('click', () => send({ type: 'fog:reveal-all' }));
+$('#fog-hide').addEventListener('click', () => send({ type: 'fog:hide-all' }));
+$('#grid-toggle').addEventListener('click', () => send({ type: 'grid:toggle' }));
+
+// ============================================
+// Tokens
+// ============================================
+
+// Preset select
+(function buildPresetSelect() {
+  const sel = $('#preset-select');
+  const opt0 = document.createElement('option');
+  opt0.value = '';
+  opt0.textContent = '\u2014 Preset \u2014';
+  sel.appendChild(opt0);
+  for (const [id, preset] of Object.entries(MAP_PRESETS)) {
+    const opt = document.createElement('option');
+    opt.value = id;
+    opt.textContent = preset.label;
+    sel.appendChild(opt);
+  }
+})();
+
+$('#preset-load').addEventListener('click', () => {
+  const val = $('#preset-select').value;
+  if (val) send({ type: 'token:load-preset', presetId: val });
+});
+
+$('#clear-tokens').addEventListener('click', () => send({ type: 'token:remove-all' }));
+
+// Token placement buttons
+(function buildTokenButtons() {
+  const container = $('#token-buttons');
+  const groups = { 'Player Characters': [], 'NPCs': [], 'Objects': [] };
+  for (const [id, def] of Object.entries(TOKENS)) {
+    if (def.isPC) groups['Player Characters'].push({ id, def });
+    else if (def.isObject) groups['Objects'].push({ id, def });
+    else groups['NPCs'].push({ id, def });
+  }
+
+  for (const [label, items] of Object.entries(groups)) {
+    if (items.length === 0) continue;
+    const group = document.createElement('div');
+    group.className = 'token-group';
+
+    const groupLabel = document.createElement('div');
+    groupLabel.className = 'token-group__label';
+    groupLabel.textContent = label;
+    group.appendChild(groupLabel);
+
+    const row = document.createElement('div');
+    row.className = 'btn-row';
+
+    for (const { id, def } of items) {
+      const btn = document.createElement('button');
+      const cls = def.isPC ? 'token-btn--pc' : def.isObject ? 'token-btn--object' : 'token-btn--npc';
+      btn.className = 'token-btn ' + cls;
+      btn.textContent = def.name;
+      btn.addEventListener('click', () => {
+        send({ type: 'token:add', tokenId: id, x: 10, y: 8, label: def.name });
+      });
+      row.appendChild(btn);
+    }
+
+    group.appendChild(row);
+    container.appendChild(group);
+  }
+})();
+
+// Active tokens list
+function updateActiveTokens() {
+  const container = $('#active-tokens-list');
+  const tokens = vttState.tokens || [];
+
+  if (tokens.length === 0) {
+    container.textContent = '';
+    const empty = document.createElement('div');
+    empty.className = 'empty-state';
+    empty.textContent = 'No tokens placed';
+    container.appendChild(empty);
+    return;
+  }
+
+  container.textContent = '';
+
+  for (const token of tokens) {
+    const def = TOKENS[token.tokenId] || {};
+    const row = document.createElement('div');
+    row.className = 'active-token';
+
+    // Color dot
+    const dot = document.createElement('span');
+    dot.className = 'active-token__dot';
+    dot.style.background = def.isPC ? '#27AE60' : def.isObject ? '#7E57C2' : '#E74C3C';
+    row.appendChild(dot);
+
+    // Name
+    const name = document.createElement('span');
+    name.className = 'active-token__name';
+    name.textContent = token.label || def.name || token.tokenId;
+    row.appendChild(name);
+
+    // Condition badges
+    if (token.conditions) {
+      for (const cond of token.conditions) {
+        const condDef = CONDITIONS.find(c => c.id === cond);
+        if (!condDef) continue;
+        const badge = document.createElement('span');
+        badge.className = 'active-token__cond active-token__cond--' + cond;
+        badge.textContent = condDef.label;
+        badge.title = 'Remove ' + cond;
+        badge.addEventListener('click', (e) => {
+          e.stopPropagation();
+          send({ type: 'token:update-condition', instanceId: token.id, condition: cond, enabled: false });
+        });
+        row.appendChild(badge);
+      }
+    }
+
+    // Add condition button
+    const addCond = document.createElement('span');
+    addCond.className = 'active-token__vis';
+    addCond.textContent = '+';
+    addCond.title = 'Add condition';
+    addCond.addEventListener('click', (e) => {
+      e.stopPropagation();
+      showCondPopup(token, e.target);
+    });
+    row.appendChild(addCond);
+
+    // Visibility toggle
+    const vis = document.createElement('span');
+    vis.className = 'active-token__vis';
+    vis.textContent = token.visible ? '\uD83D\uDC41' : '\uD83D\uDEAB';
+    vis.title = token.visible ? 'Hide token' : 'Show token';
+    vis.addEventListener('click', (e) => {
+      e.stopPropagation();
+      send({ type: 'token:visibility', instanceId: token.id, visible: !token.visible });
+    });
+    row.appendChild(vis);
+
+    // Remove button
+    const remove = document.createElement('span');
+    remove.className = 'active-token__remove';
+    remove.textContent = '\u2715';
+    remove.title = 'Remove token';
+    remove.addEventListener('click', (e) => {
+      e.stopPropagation();
+      send({ type: 'token:remove-one', instanceId: token.id });
+    });
+    row.appendChild(remove);
+
+    container.appendChild(row);
+  }
+}
+
+// Condition popup
+function showCondPopup(token, anchor) {
+  const popup = $('#cond-popup');
+  popup.textContent = '';
+  popup.style.display = 'flex';
+
+  const rect = anchor.getBoundingClientRect();
+
+  for (const cond of CONDITIONS) {
+    const has = (token.conditions || []).includes(cond.id);
+    const item = document.createElement('div');
+    item.className = 'cond-popup__item' + (has ? ' cond-popup__item--active' : '');
+    item.textContent = (has ? '\u2713 ' : '') + cond.id;
+    item.addEventListener('click', () => {
+      send({ type: 'token:update-condition', instanceId: token.id, condition: cond.id, enabled: !has });
+      popup.style.display = 'none';
+    });
+    popup.appendChild(item);
+  }
+
+  // Position popup avoiding viewport overflow
+  const popupRect = popup.getBoundingClientRect();
+  let left = rect.left;
+  let top = rect.bottom + 4;
+  if (left + popupRect.width > window.innerWidth) {
+    left = rect.right - popupRect.width;
+  }
+  if (top + popupRect.height > window.innerHeight) {
+    top = rect.top - popupRect.height - 4;
+  }
+  popup.style.left = left + 'px';
+  popup.style.top = top + 'px';
+}
+
+// Close condition popup on outside click
+document.addEventListener('click', (e) => {
+  const popup = $('#cond-popup');
+  if (popup.style.display !== 'none' && !popup.contains(e.target)) {
+    popup.style.display = 'none';
+  }
+});
+
+// ============================================
+// Effects
+// ============================================
+function getEffectTarget() {
+  const sel = $('#effect-target');
+  const val = sel.value;
+  if (!val) return {};  // Map Center — no col/row, engine defaults to center
+  const token = (vttState.tokens || []).find(t => t.id === val);
+  if (token) return { col: token.col, row: token.row };
+  return {};
+}
+
+function updateEffectTarget() {
+  const sel = $('#effect-target');
+  if (document.activeElement === sel) return;
+  const prev = sel.value;
+  // Keep first option (Map Center), rebuild the rest
+  while (sel.options.length > 1) sel.remove(1);
+  for (const t of (vttState.tokens || [])) {
+    const opt = document.createElement('option');
+    opt.value = t.id;
+    opt.textContent = t.label || t.tokenId;
+    sel.appendChild(opt);
+  }
+  // Restore previous selection if still valid
+  if (prev && [...sel.options].some(o => o.value === prev)) sel.value = prev;
+}
+
+(function buildEffectsGrid() {
+  const grid = $('#effects-grid');
+  for (const [id, eff] of Object.entries(EFFECTS)) {
+    const btn = document.createElement('button');
+    btn.className = 'btn btn--sm';
+    btn.textContent = eff.name;
+    btn.addEventListener('click', () => {
+      const target = getEffectTarget();
+      send({ type: 'effect', effectId: id, ...target });
+    });
+    grid.appendChild(btn);
+  }
+})();
+
+// ============================================
+// Overlay
+// ============================================
+$('#overlay-send').addEventListener('click', () => {
+  const val = $('#overlay-input').value.trim();
+  if (val) {
+    send({ type: 'overlay-text', text: val });
+    $('#overlay-input').value = '';
+  }
+});
+
+$('#overlay-input').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') {
+    const val = $('#overlay-input').value.trim();
+    if (val) {
+      send({ type: 'overlay-text', text: val });
+      $('#overlay-input').value = '';
+    }
+  }
+});
+
+$('#overlay-clear').addEventListener('click', () => {
+  send({ type: 'overlay-text', text: '' });
+  $('#overlay-input').value = '';
+});
+
+// ============================================
+// Title Card
+// ============================================
+(function buildTitleSelect() {
+  const sel = $('#title-act-select');
+  ACTS.forEach(act => {
+    const opt = document.createElement('option');
+    opt.value = act.number;
+    opt.textContent = 'Act ' + act.number + ': ' + act.title;
+    sel.appendChild(opt);
+  });
+})();
+
+$('#title-send').addEventListener('click', () => {
+  const actNum = parseInt($('#title-act-select').value, 10);
+  const act = ACTS[actNum - 1];
+  if (act) {
+    send({ type: 'title-card', act: actNum });
+  }
+});
+
+// ============================================
+// Combat
+// ============================================
+function updateCombatInfo() {
+  const container = $('#combat-info');
+  const init = vttState.initiative;
+  container.textContent = '';
+
+  if (!init || !init.active || !init.entries || init.entries.length === 0) {
+    const empty = document.createElement('span');
+    empty.className = 'empty-state';
+    empty.textContent = 'No active combat';
+    container.appendChild(empty);
+    return;
+  }
+
+  const current = init.entries[init.currentTurn];
+  const turnName = current ? (current.displayName || current.name) : '?';
+
+  const roundLabel = document.createTextNode('Round ');
+  container.appendChild(roundLabel);
+
+  const roundNum = document.createElement('strong');
+  roundNum.textContent = init.round;
+  container.appendChild(roundNum);
+
+  container.appendChild(document.createTextNode(', Turn: '));
+
+  const turnEl = document.createElement('span');
+  turnEl.className = 'combat-info__turn';
+  turnEl.textContent = turnName;
+  container.appendChild(turnEl);
+}
+
+$('#next-turn').addEventListener('click', () => {
+  const init = vttState.initiative;
+  if (!init || !init.active) return;
+  const entries = init.entries || init.order || [];
+  if (entries.length === 0) return;
+  let nextTurn = (init.currentTurn || 0) + 1;
+  let nextRound = init.round || 1;
+  if (nextTurn >= entries.length) {
+    nextTurn = 0;
+    nextRound++;
+  }
+  send({ type: 'initiative:next', currentTurn: nextTurn, round: nextRound });
+});
+
+// ============================================
+// Keyboard shortcuts for the controller window
+// ============================================
+document.addEventListener('keydown', (e) => {
+  if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+
+  switch (e.key) {
+    case 'ArrowRight':
+    case ']':
+      e.preventDefault();
+      if (sceneIndex < SCENES.length - 1) {
+        sceneIndex++;
+        send({ type: 'scene', sceneId: SCENES[sceneIndex].id });
+        updateSceneLabel();
+      }
+      break;
+    case 'ArrowLeft':
+    case '[':
+      e.preventDefault();
+      if (sceneIndex > 0) {
+        sceneIndex--;
+        send({ type: 'scene', sceneId: SCENES[sceneIndex].id });
+        updateSceneLabel();
+      }
+      break;
+    case '1': send({ type: 'mode:switch', mode: 'theater' }); break;
+    case '2': send({ type: 'mode:switch', mode: 'map' }); break;
+    case '3': send({ type: 'mode:switch', mode: 'initiative' }); break;
+  }
+});
+
+// Initialize combat info with empty state
+updateCombatInfo();
+</script>
+</body>
+</html>

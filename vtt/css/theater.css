@@ -1,0 +1,156 @@
+/* ============================================
+   VTT Theater Mode — Cinematic scene display
+   Full-screen art, crossfade, title cards
+   ============================================ */
+
+#theater {
+  z-index: var(--z-theater);
+  background: var(--bg-0);
+}
+
+/* Scene artwork — dual-image crossfade system */
+.theater-bg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+  pointer-events: none;
+  transition: opacity var(--transition-scene);
+}
+
+.theater-bg--next {
+  opacity: 0;
+}
+
+/* Text overlay for dramatic narration */
+.theater-overlay {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  padding: 80px 120px 100px;
+  background: linear-gradient(
+    to top,
+    rgba(13, 15, 20, 0.95) 0%,
+    rgba(13, 15, 20, 0.7) 50%,
+    transparent 100%
+  );
+  opacity: 0;
+  transform: translateY(20px);
+  transition: opacity 600ms ease, transform 600ms ease;
+  pointer-events: none;
+}
+
+.theater-overlay.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.theater-overlay__text {
+  font-family: var(--font-read-aloud);
+  font-size: 28px;
+  line-height: 1.7;
+  color: var(--parchment-text);
+  font-style: italic;
+  text-align: center;
+  max-width: 900px;
+  margin: 0 auto;
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.8);
+}
+
+.theater-overlay__speaker {
+  font-family: var(--font-heading);
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--gold);
+  text-transform: uppercase;
+  letter-spacing: 3px;
+  text-align: center;
+  margin-bottom: 12px;
+  text-shadow: 0 0 20px rgba(201, 168, 76, 0.4);
+}
+
+/* Title cards — cinematic act transitions */
+.title-card {
+  position: absolute;
+  inset: 0;
+  z-index: var(--z-title-card);
+  background: var(--bg-0);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 20px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 600ms ease;
+}
+
+.title-card.visible {
+  opacity: 1;
+}
+
+.title-card__act {
+  font-family: var(--font-heading);
+  font-size: 72px;
+  font-weight: 700;
+  color: var(--gold);
+  letter-spacing: 12px;
+  text-transform: uppercase;
+  text-shadow:
+    0 0 60px rgba(201, 168, 76, 0.4),
+    0 0 120px rgba(201, 168, 76, 0.15);
+  opacity: 0;
+  transform: translateY(10px);
+  transition: opacity 800ms ease 200ms, transform 800ms ease 200ms;
+}
+
+.title-card.visible .title-card__act {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.title-card__subtitle {
+  font-family: var(--font-read-aloud);
+  font-size: 24px;
+  color: var(--text-secondary);
+  font-style: italic;
+  letter-spacing: 2px;
+  opacity: 0;
+  transform: translateY(10px);
+  transition: opacity 800ms ease 600ms, transform 800ms ease 600ms;
+}
+
+.title-card.visible .title-card__subtitle {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* Decorative line under title */
+.title-card__act::after {
+  content: '';
+  display: block;
+  width: 120px;
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    var(--gold-dim),
+    transparent
+  );
+  margin: 16px auto 0;
+}
+
+/* Scene indicator (bottom-right, subtle) */
+.theater-scene-id {
+  position: absolute;
+  bottom: 16px;
+  right: 24px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text-muted);
+  opacity: 0.4;
+  letter-spacing: 1px;
+}

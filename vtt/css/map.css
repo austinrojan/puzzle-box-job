@@ -1,0 +1,89 @@
+/* ============================================
+   VTT Map Mode — Canvas layers + grid controls
+   ============================================ */
+
+#map-container {
+  z-index: var(--z-map);
+  background: var(--bg-0);
+  cursor: grab;
+}
+
+#map-container.panning { cursor: grabbing; }
+#map-container.dragging-token { cursor: none; }
+
+/* All canvas layers fill the container identically */
+.map-canvas {
+  position: absolute;
+  inset: 0;
+  width: var(--vtt-width);
+  height: var(--vtt-height);
+  image-rendering: auto;
+}
+
+#map-bg    { z-index: 0; }
+#map-fog   { z-index: 1; }
+#map-grid  { z-index: 2; }
+#map-tokens { z-index: 3; }
+#map-effects { z-index: 4; }
+
+/* DOM overlay for labels, HP bars above tokens */
+.map-labels {
+  position: absolute;
+  inset: 0;
+  z-index: var(--z-map-labels);
+  pointer-events: none;
+}
+
+/* Token name label */
+.token-label {
+  position: absolute;
+  font-family: var(--font-body);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-primary);
+  text-align: center;
+  white-space: nowrap;
+  transform: translateX(-50%);
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.9), 0 0 6px rgba(0, 0, 0, 0.6);
+  pointer-events: none;
+}
+
+/* HP bar under token */
+.token-hp {
+  position: absolute;
+  width: 40px;
+  height: 4px;
+  background: var(--bg-4);
+  border-radius: 2px;
+  transform: translateX(-50%);
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.token-hp__fill {
+  height: 100%;
+  border-radius: 2px;
+  transition: width var(--transition-fast);
+}
+
+.token-hp__fill--healthy { background: var(--heat-green); }
+.token-hp__fill--wounded { background: var(--heat-amber); }
+.token-hp__fill--critical { background: var(--red-bright); }
+
+/* Grid calibration hint (DM only) */
+.grid-info {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text-muted);
+  background: rgba(13, 15, 20, 0.8);
+  padding: 4px 8px;
+  border-radius: 3px;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity var(--transition-fast);
+}
+
+.grid-info.visible { opacity: 1; }

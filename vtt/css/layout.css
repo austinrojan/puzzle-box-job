@@ -1,0 +1,83 @@
+/* ============================================
+   VTT Layout — Full-screen layer stack
+   Fixed 1920x1080 for Discord screenshare
+   ============================================ */
+
+/* Base layer: absolute fill within viewport */
+.layer {
+  position: absolute;
+  inset: 0;
+  width: var(--vtt-width);
+  height: var(--vtt-height);
+  overflow: hidden;
+}
+
+.layer[hidden] { display: none; }
+
+/* Loading screen */
+.loading {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-loading);
+  background: var(--bg-0);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 24px;
+}
+
+.loading[hidden] { display: none; }
+
+.loading__title {
+  font-family: var(--font-heading);
+  font-size: 42px;
+  font-weight: 600;
+  color: var(--gold);
+  letter-spacing: 6px;
+  text-transform: uppercase;
+  text-shadow: 0 0 40px rgba(201, 168, 76, 0.3);
+}
+
+.loading__bar {
+  width: 320px;
+  height: 3px;
+  background: var(--bg-3);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.loading__fill {
+  height: 100%;
+  width: 0%;
+  background: linear-gradient(90deg, var(--gold-dim), var(--gold-bright));
+  border-radius: 2px;
+  transition: width 300ms ease;
+}
+
+.loading__status {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-muted);
+  letter-spacing: 1px;
+}
+
+/* Screen flash overlay for spell effects */
+.screen-flash {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-screen-flash);
+  pointer-events: none;
+  opacity: 0;
+}
+
+/* Presentation Mode — hide all DM-only UI for Discord screenshare */
+body.presentation #player-nav,
+body.presentation #token-tray,
+body.presentation #dm-controls,
+body.presentation #token-menu,
+body.presentation #scene-navigator,
+body.presentation .theater-scene-id,
+body.presentation .grid-info {
+  display: none !important;
+}
