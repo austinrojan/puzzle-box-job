@@ -3,7 +3,7 @@
 // ============================================
 
 import { EventBus, state } from './state.js';
-import { TOKENS, MAP_PRESETS } from './data.js';
+import { TOKENS, MAP_PRESETS, CONDITIONS, CONDITION_COLORS } from './data.js';
 
 const $ = id => document.getElementById(id);
 const TOKEN_RADIUS_FACTOR = 0.35;  // fraction of cellPx for token radius (0.42 was original)
@@ -592,15 +592,7 @@ export class TokenManager {
 
   drawConditionDots(ctx, cx, cy, radius, conditions, zoom) {
     const dotRadius = 4 / zoom;
-    const colors = {
-      dominated: '#7E57C2',
-      concentrating: '#2E86AB',
-      stunned: '#E8A84C',
-      prone: '#6B6B78',
-      poisoned: '#27AE60',
-      frightened: '#E74C3C',
-      invisible: '#48B5E0',
-    };
+    const colors = CONDITION_COLORS;
 
     conditions.forEach((cond, i) => {
       const angle = (Math.PI * 2 * i) / Math.max(conditions.length, 6) - Math.PI / 2;
@@ -800,7 +792,7 @@ export class TokenManager {
     }
 
     // Condition toggles
-    const conditions = ['dominated', 'concentrating', 'stunned', 'prone', 'poisoned', 'frightened', 'invisible'];
+    const conditions = CONDITIONS.map(c => c.id);
     for (const cond of conditions) {
       const has = token.conditions.includes(cond);
       const item = document.createElement('div');

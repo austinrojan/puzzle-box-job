@@ -5095,5 +5095,25 @@ function init() {
 
 init();
 </script>
+<script type="module">
+import { getSceneById } from './shared/campaign-data.js';
+
+// Validate all VTT scene references in ADVENTURE_DATA
+const errors = [];
+ADVENTURE_DATA.acts.forEach(act => {
+  (act.sections || []).forEach(section => {
+    (section.blocks || []).forEach(block => {
+      if (block.vtt?.scene && !getSceneById(block.vtt.scene)) {
+        errors.push(`Block ${block.id} references unknown scene: ${block.vtt.scene}`);
+      }
+    });
+  });
+});
+if (errors.length > 0) {
+  console.warn('[DM Guide] Scene reference errors:', errors);
+} else {
+  console.log('[DM Guide] All VTT scene references valid.');
+}
+</script>
 </body>
 </html>
