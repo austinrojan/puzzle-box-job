@@ -124,7 +124,6 @@ export class TokenManager {
 
     EventBus.on('token:remove-one', (instanceId) => {
       this.removeToken(instanceId);
-      this._emitTokensChanged();
     });
 
     EventBus.on('token:visibility', ({ instanceId, visible }) => {
@@ -171,6 +170,7 @@ export class TokenManager {
   removeToken(id) {
     this.tokens = this.tokens.filter(t => t.id !== id);
     this.draw();
+    this._emitTokensChanged();
   }
 
   _emitTokensChanged() {
@@ -191,6 +191,7 @@ export class TokenManager {
     token.size = def.size || 1;
     this.loadTokenImage(newTokenId);
     this.draw();
+    this._emitTokensChanged();
   }
 
   getBrazierTokens() {
@@ -749,6 +750,7 @@ export class TokenManager {
     this._dragging = null;
     $('map-container').classList.remove('dragging-token');
     this.draw();
+    this._emitTokensChanged();
   }
 
   showMenu(token, x, y) {
@@ -800,6 +802,7 @@ export class TokenManager {
           token.conditions.push(cond);
         }
         this.draw();
+        this._emitTokensChanged();
         this.closeMenu();
       });
       menu.appendChild(item);
@@ -818,6 +821,7 @@ export class TokenManager {
       e.stopPropagation();
       token.visible = !token.visible;
       this.draw();
+      this._emitTokensChanged();
       this.closeMenu();
     });
     menu.appendChild(toggleVis);
