@@ -3,7 +3,7 @@
 // Left-side overlay during combat
 // ============================================
 
-import { EventBus, state } from './state.js';
+import { EventBus, state, store } from './state.js';
 import { TOKENS } from './data.js';
 
 const $ = id => document.getElementById(id);
@@ -13,15 +13,18 @@ let panel = null;
 export function init() {
   panel = $('initiative-panel');
 
-  EventBus.on('initiative:update', render);
+  store.subscribe('initiative', render);
   EventBus.on('initiative:next-turn', nextTurn);
   EventBus.on('combat:start', (data) => {
-    if (data) Object.assign(state.initiative, data);
-    state.initiative.active = true;
-    render();
+    store.replaceKey('initiative', {
+      ...state.initiative,
+      ...(data || {}),
+      active: true
+    });
+    // render() fires via store subscriber
   });
   EventBus.on('combat:end', () => {
-    state.initiative.active = false;
+    store.replaceKey('initiative', { ...state.initiative, active: false });
     panel.hidden = true;
   });
 }
@@ -29,11 +32,13 @@ export function init() {
 function nextTurn() {
   const init = state.initiative;
   if (!init.active || init.entries.length === 0) return;
-
-  init.currentTurn = (init.currentTurn + 1) % init.entries.length;
-  if (init.currentTurn === 0) init.round++;
-
-  EventBus.emit('initiative:update', init);
+  const nextIdx = (init.currentTurn + 1) % init.entries.length;
+  store.replaceKey('initiative', {
+    ...init,
+    currentTurn: nextIdx,
+    round: nextIdx === 0 ? init.round + 1 : init.round
+  });
+  // Bridge emits 'initiative:update' automatically
 }
 
 function render() {
