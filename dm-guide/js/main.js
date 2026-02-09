@@ -1,4 +1,5 @@
-import { ADVENTURE_DATA } from './adventure-data.js';
+import { ADVENTURE_DATA, setAdventureData } from './adventure-data.js';
+import { setCombatConfig } from './combat-config.js';
 import { syncIdCounter } from './utils.js';
 import { AppState, loadState, resetState, saveState } from './state.js';
 import { searchIndex } from './search.js';
@@ -61,7 +62,14 @@ async function boot() {
   const manifest = await loadCampaign();
   document.title = manifest.title + ' \u2014 DM Guide';
 
-  // 2. Init subsystems that need the DOM
+  // 2. Load DM-specific campaign data
+  const adventureMod = await import(CAMPAIGN.assetBase + manifest.files.adventureData);
+  setAdventureData(adventureMod.ADVENTURE_DATA);
+
+  const combatMod = await import(CAMPAIGN.assetBase + manifest.files.combat);
+  setCombatConfig(combatMod.COMBAT_CONFIG);
+
+  // 3. Init subsystems that need the DOM
   initVttSync();
   initPresentation();
   initSearchUI();
