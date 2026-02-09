@@ -412,7 +412,8 @@ body {
 
 <script type="module">
 import {
-  SCENES, ACTS, MAPS, TOKENS, MAP_PRESETS, EFFECTS, CONDITIONS
+  SCENES, ACTS, MAPS, TOKENS, MAP_PRESETS, EFFECTS, CONDITIONS,
+  CAMPAIGN, loadCampaign
 } from '../shared/campaign-data.js';
 import {
   MSG, createStateRequestMsg, createSceneMsg, createMapMsg,
@@ -425,9 +426,16 @@ import {
 } from '../shared/protocol.js';
 
 // ============================================
+// Load campaign data
+// ============================================
+const manifest = await loadCampaign();
+document.querySelector('.header__title').textContent = manifest.title.toUpperCase() + ' \u2014 CONTROLLER';
+document.title = manifest.title + ' \u2014 Controller';
+
+// ============================================
 // BroadcastChannel
 // ============================================
-const channel = new BroadcastChannel('puzzlebox-vtt');
+const channel = new BroadcastChannel(CAMPAIGN.broadcastChannel);
 function send(msg) {
   console.log('[Controller] BC sending:', msg.type, msg);
   channel.postMessage(msg);

@@ -11,7 +11,7 @@ import { initSearchUI, toggleSearch } from './search-ui.js';
 import { initTooltips } from './tooltips.js';
 import { initKeyboard } from './keyboard.js';
 import { renderHeatBar, renderNavTree, initNavResize } from './heat-nav.js';
-import { getSceneById } from '../../shared/campaign-data.js';
+import { loadCampaign, CAMPAIGN, getSceneById } from '../../shared/campaign-data.js';
 
 const $ = id => document.getElementById(id);
 
@@ -21,7 +21,6 @@ window.fireVttActions = fireVttActions;
 window.toggleCollapse = toggleCollapse;
 window.toggleForeshadowing = toggleForeshadowing;
 window.toggleIntel = toggleIntel;
-window.resetState = () => { resetState(); init(); };
 
 function init() {
   loadState();
@@ -55,38 +54,49 @@ function init() {
   if (AppState.combatPanelOpen) renderCombatPanel();
 }
 
-// Init sequence
-initVttSync();
-initPresentation();
-initSearchUI();
-initTooltips();
-initKeyboard();
-initNavResize();
-setVttActionsFn(fireVttActions);
+window.resetState = () => { resetState(); init(); };
 
-// Delegated click handler for VTT cue buttons (replaces inline onclick)
-$('main-content').addEventListener('click', (e) => {
-  const cue = e.target.closest('.block-vtt-cue');
-  if (cue && cue.dataset.vtt) {
-    fireVttActions(JSON.parse(cue.dataset.vtt));
-  }
-});
+async function boot() {
+  // 1. Load campaign shared data (VTT data, metadata)
+  const manifest = await loadCampaign();
+  document.title = manifest.title + ' \u2014 DM Guide';
 
-init();
+  // 2. Init subsystems that need the DOM
+  initVttSync();
+  initPresentation();
+  initSearchUI();
+  initTooltips();
+  initKeyboard();
+  initNavResize();
+  setVttActionsFn(fireVttActions);
 
-// Cross-validate VTT scene references
-const errors = [];
-for (const act of ADVENTURE_DATA.acts) {
-  for (const section of act.sections || []) {
-    for (const block of section.blocks || []) {
-      if (block.vtt?.scene && !getSceneById(block.vtt.scene)) {
-        errors.push(`Block ${block.id} references unknown scene: ${block.vtt.scene}`);
+  // 3. Delegated click handler for VTT cue buttons (replaces inline onclick)
+  $('main-content').addEventListener('click', (e) => {
+    const cue = e.target.closest('.block-vtt-cue');
+    if (cue && cue.dataset.vtt) {
+      fireVttActions(JSON.parse(cue.dataset.vtt));
+    }
+  });
+
+  // 4. Run existing init (loads state, builds UI)
+  init();
+
+  // 5. Cross-validate VTT scene references
+  const errors = [];
+  for (const act of ADVENTURE_DATA.acts) {
+    for (const section of act.sections || []) {
+      for (const block of section.blocks || []) {
+        if (block.vtt?.scene && !getSceneById(block.vtt.scene)) {
+          errors.push(`Block ${block.id} references unknown scene: ${block.vtt.scene}`);
+        }
       }
     }
   }
+  if (errors.length > 0) {
+    console.warn('[DM Guide] Scene reference errors:', errors);
+  } else {
+    console.log('[DM Guide] All VTT scene references valid.');
+  }
 }
-if (errors.length > 0) {
-  console.warn('[DM Guide] Scene reference errors:', errors);
-} else {
-  console.log('[DM Guide] All VTT scene references valid.');
-}
+
+boot().catch(err => console.error('[DM Guide] Boot failed:', err));

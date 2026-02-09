@@ -4,7 +4,7 @@ import { EventBus, state, store, initSync } from './state.js';
 import { preloadAll } from './image-cache.js';
 import { runPreflight, renderPreflightResults } from './preflight.js';
 import { loadSavedState, validateRestoredState, initAutoSave, saveImmediate, clearSavedState } from './persistence.js';
-import { SCENES } from './data.js';
+import { SCENES, loadCampaign } from './data.js';
 import * as theater from './theater.js';
 import * as sceneManager from './scene-manager.js';
 import { MapRenderer } from './map-renderer.js';
@@ -23,6 +23,10 @@ async function boot() {
   const loadingEl = $('loading');
   const fillEl = loadingEl.querySelector('.loading__fill');
   const statusEl = loadingEl.querySelector('.loading__status');
+
+  statusEl.textContent = 'Loading campaign\u2026';
+  const manifest = await loadCampaign();
+  document.title = manifest.title + ' \u2014 VTT';
 
   statusEl.textContent = 'Loading assets\u2026';
   const preloadResults = await preloadAll(({ completed, total }) => {

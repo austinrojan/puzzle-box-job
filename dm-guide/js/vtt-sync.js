@@ -1,4 +1,5 @@
 import { AppState } from './state.js';
+import { CAMPAIGN } from '../../shared/campaign-data.js';
 import {
   createSceneMsg, createModeSwitchMsg, createMapMsg, createEffectMsg,
   createTitleCardMsg, createCombatStartMsg, createTokenLoadPresetMsg,
@@ -8,7 +9,7 @@ import {
 let _channel = null;
 
 export function initVttSync() {
-  try { _channel = new BroadcastChannel('puzzlebox-vtt'); } catch (_) { /* not available */ }
+  try { _channel = new BroadcastChannel(CAMPAIGN.broadcastChannel); } catch (_) { /* not available */ }
 }
 
 export function vttSync(msg) {
@@ -46,7 +47,7 @@ export function syncFullInitiative() {
 
 const TOKEN_ID_MAP = {
   'Martin Storm': 'martin-storm',
-  'Lómë': 'lome',
+  'L\u00F3m\u00EB': 'lome',
   'Oda (Bearda)': 'oda',
   'Jean LeMarque': 'jean',
   'Kallista': 'kallista',

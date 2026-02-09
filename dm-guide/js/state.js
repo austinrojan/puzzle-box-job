@@ -1,4 +1,9 @@
 import { debounce } from './utils.js';
+import { CAMPAIGN } from '../../shared/campaign-data.js';
+
+function getStorageKey() {
+  return CAMPAIGN.storagePrefix + '-dm-state';
+}
 
 export const DEFAULT_STATE = {
   tabs: [{ id: 'welcome', type: 'welcome', label: 'Welcome', closeable: false }],
@@ -33,7 +38,7 @@ function replaceState(source) {
 
 export function loadState() {
   try {
-    const saved = localStorage.getItem('puzzlebox-dm-state');
+    const saved = localStorage.getItem(getStorageKey());
     if (saved) {
       replaceState(Object.assign(JSON.parse(JSON.stringify(DEFAULT_STATE)), JSON.parse(saved)));
     }
@@ -43,11 +48,11 @@ export function loadState() {
 export const saveState = debounce(() => {
   try {
     const { searchOpen, presentationBlock, ...persistable } = AppState;
-    localStorage.setItem('puzzlebox-dm-state', JSON.stringify(persistable));
+    localStorage.setItem(getStorageKey(), JSON.stringify(persistable));
   } catch (e) { console.warn('State save failed:', e); }
 }, 300);
 
 export function resetState() {
   replaceState(JSON.parse(JSON.stringify(DEFAULT_STATE)));
-  localStorage.removeItem('puzzlebox-dm-state');
+  localStorage.removeItem(getStorageKey());
 }

@@ -3,9 +3,11 @@
 // Uses sessionStorage (not localStorage) so state clears when the browser
 // closes entirely, but survives refresh/navigation within the tab.
 
-import { SCENES, MAPS, TOKENS } from './data.js';
+import { SCENES, MAPS, TOKENS, CAMPAIGN } from './data.js';
 
-const STORAGE_KEY = 'puzzlebox-vtt-state';
+function getStorageKey() {
+  return CAMPAIGN.storagePrefix + '-vtt-state';
+}
 const SAVE_DEBOUNCE_MS = 500;
 const STALENESS_MS = 4 * 60 * 60 * 1000; // 4 hours
 const STATE_VERSION = 1;
@@ -28,7 +30,7 @@ function saveState(snapshot) {
   toSave._version = STATE_VERSION;
 
   try {
-    sessionStorage.setItem(STORAGE_KEY, JSON.stringify(toSave));
+    sessionStorage.setItem(getStorageKey(), JSON.stringify(toSave));
   } catch (err) {
     console.warn('[VTT] State save failed:', err);
   }
@@ -52,7 +54,7 @@ export function saveImmediate(store) {
 // Returns null if missing, corrupt, stale, or wrong version.
 export function loadSavedState() {
   try {
-    const raw = sessionStorage.getItem(STORAGE_KEY);
+    const raw = sessionStorage.getItem(getStorageKey());
     if (!raw) return null;
 
     const saved = JSON.parse(raw);
@@ -79,7 +81,7 @@ export function loadSavedState() {
 
 // Clear saved state. Exposed on window.__vtt for debugging.
 export function clearSavedState() {
-  sessionStorage.removeItem(STORAGE_KEY);
+  sessionStorage.removeItem(getStorageKey());
   console.log('[VTT] Saved state cleared');
 }
 

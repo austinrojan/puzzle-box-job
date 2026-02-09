@@ -2,6 +2,7 @@
 
 import { createStore } from './store.js';
 import { MSG, validateMessage, createStateSyncMsg } from '../../shared/protocol.js';
+import { CAMPAIGN } from './data.js';
 
 export const EventBus = {
   _listeners: {},
@@ -67,7 +68,7 @@ let channel = null;
 
 export function initSync() {
   try {
-    channel = new BroadcastChannel('puzzlebox-vtt');
+    channel = new BroadcastChannel(CAMPAIGN.broadcastChannel);
     channel.onmessage = (e) => handleSyncMessage(e.data);
     console.log('[VTT] BroadcastChannel connected');
   } catch (err) {
