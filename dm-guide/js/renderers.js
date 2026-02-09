@@ -2,6 +2,16 @@ import { ADVENTURE_DATA } from './adventure-data.js';
 import { uid, escapeHtml, markdownLite, textToParas } from './utils.js';
 import { AppState, saveState } from './state.js';
 
+function collapseState(block) {
+  const id = block.id || uid();
+  const exp = AppState.collapsed[id] !== false ? '' : 'expanded';
+  return { id, exp };
+}
+
+function optionalRow(label, value) {
+  return value ? `<div class="stat-block-row"><strong>${label}</strong> ${escapeHtml(value)}</div>` : '';
+}
+
 export function renderBlock(block) {
   const _fns = {
     'read-aloud': renderReadAloud,
@@ -30,16 +40,12 @@ export function renderVttCue(block) {
 }
 
 export function renderDmNote(block) {
-  const id = block.id || uid();
-  const col = AppState.collapsed[id] !== false;
-  const exp = col ? '' : 'expanded';
+  const { id, exp } = collapseState(block);
   return `<div class="block-dm-note" data-block-id="${id}"><div class="block-header ${exp}" onclick="toggleCollapse('${id}', this)"><span class="icon">\uD83D\uDC41</span><span>${escapeHtml(block.title || 'DM Note')}</span><span class="chevron">\u25B6</span></div><div class="block-body ${exp}"><div class="block-body-inner">${textToParas(block.text)}</div></div></div>`;
 }
 
 export function renderDmTip(block) {
-  const id = block.id || uid();
-  const col = AppState.collapsed[id] !== false;
-  const exp = col ? '' : 'expanded';
+  const { id, exp } = collapseState(block);
   return `<div class="block-dm-tip" data-block-id="${id}"><div class="block-header ${exp}" onclick="toggleCollapse('${id}', this)"><span>\uD83D\uDCA1 ${escapeHtml(block.title || 'Tip')}</span><span class="chevron">\u25B6</span></div><div class="block-body ${exp}"><div class="block-body-inner">${textToParas(block.text)}</div></div></div>`;
 }
 
@@ -56,9 +62,7 @@ export function renderNarrative(block) {
 }
 
 export function renderConditional(block) {
-  const id = block.id || uid();
-  const col = AppState.collapsed[id] !== false;
-  const exp = col ? '' : 'expanded';
+  const { id, exp } = collapseState(block);
   return `<div class="block-conditional" data-block-id="${id}"><div class="block-header ${exp}" onclick="toggleCollapse('${id}', this)"><em>${escapeHtml(block.condition || 'If...')}</em><span class="chevron">\u25B6</span></div><div class="block-body ${exp}"><div class="block-body-inner">${textToParas(block.outcome || block.text)}</div></div></div>`;
 }
 
@@ -103,11 +107,11 @@ export function renderStatBlock(sb) {
     h += `<div><div class="ability-label">${_abs[i]}</div><div class="ability-value">${vals[i]}</div><div class="ability-mod">${mods[i]}</div></div>`;
   }
   h += '</div><hr class="stat-block-divider">';
-  if (sb.skills) h += `<div class="stat-block-row"><strong>Skills</strong> ${escapeHtml(sb.skills)}</div>`;
-  if (sb.vulnerabilities) h += `<div class="stat-block-row"><strong>Vulnerabilities</strong> ${escapeHtml(sb.vulnerabilities)}</div>`;
-  if (sb.immunities) h += `<div class="stat-block-row"><strong>Immunities</strong> ${escapeHtml(sb.immunities)}</div>`;
-  if (sb.senses) h += `<div class="stat-block-row"><strong>Senses</strong> ${escapeHtml(sb.senses)}</div>`;
-  if (sb.languages) h += `<div class="stat-block-row"><strong>Languages</strong> ${escapeHtml(sb.languages)}</div>`;
+  h += optionalRow('Skills', sb.skills);
+  h += optionalRow('Vulnerabilities', sb.vulnerabilities);
+  h += optionalRow('Immunities', sb.immunities);
+  h += optionalRow('Senses', sb.senses);
+  h += optionalRow('Languages', sb.languages);
   if (sb.features) {
     h += '<hr class="stat-block-divider">';
     for (const f of sb.features) {

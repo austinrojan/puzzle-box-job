@@ -38,34 +38,12 @@ export function renderNavTree() {
   nav.appendChild(title);
 
   for (const act of ADVENTURE_DATA.acts) {
-    const sec = document.createElement('div');
-    sec.className = 'nav-section';
-
-    const header = document.createElement('div');
-    header.className = 'nav-section-header expanded';
-    // Content from ADVENTURE_DATA (trusted), act titles are escapeHtml'd
-    header.innerHTML = `<span class="nav-icon">${_icons[act.number - 1] || '\uD83D\uDCC4'}</span><span>Act ${act.number}: ${escapeHtml(act.title)}</span><span class="nav-chevron">\u25B6</span>`;
-    header.addEventListener('click', () => toggleNavSection(header));
-    sec.appendChild(header);
-
-    const children = document.createElement('div');
-    children.className = 'nav-children expanded';
-    const inner = document.createElement('div');
-    inner.className = 'nav-children-inner';
-
-    for (const section of act.sections || []) {
-      const child = document.createElement('div');
-      child.className = 'nav-child';
-      child.textContent = section.title;
-      child.addEventListener('click', () => {
-        openTab('act', act.id, `Act ${act.number}: ${act.title}`, section.id);
-      });
-      inner.appendChild(child);
-    }
-
-    children.appendChild(inner);
-    sec.appendChild(children);
-    nav.appendChild(sec);
+    const icon = _icons[act.number - 1] || '\uD83D\uDCC4';
+    const items = (act.sections || []).map((section) => ({
+      label: section.title,
+      action: () => openTab('act', act.id, `Act ${act.number}: ${act.title}`, section.id)
+    }));
+    addNavSection(nav, icon, `Act ${act.number}: ${act.title}`, items, true);
   }
 
   const divider = document.createElement('div');

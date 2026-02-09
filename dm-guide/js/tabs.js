@@ -91,36 +91,36 @@ export function closeTab(tabId) {
   saveState();
 }
 
+const _tabRenderers = {
+  welcome: () => renderWelcome(),
+  act: (id) => {
+    const act = ADVENTURE_DATA.acts.find(a => a.id === id);
+    return act ? renderActContent(act) : '<p class="text-muted">Act not found.</p>';
+  },
+  npc: (id) => {
+    const npc = ADVENTURE_DATA.npcs[id];
+    return npc ? renderNpcDetail(npc) : '<p class="text-muted">NPC not found.</p>';
+  },
+  statblock: (id) => {
+    const sb = ADVENTURE_DATA.statBlocks[id];
+    return sb ? renderStatBlock(sb) : '<p class="text-muted">Stat block not found.</p>';
+  },
+  reference: (id) => renderReferenceContent(id),
+  tools: (id) => renderToolsContent(id)
+};
+
 export function renderMainContent(scrollToId) {
   hideTooltip();
   const mainEl = $('main-content');
   const tab = AppState.tabs.find(t => t.id === AppState.activeTabId);
-  // Content from our own render functions (trusted ADVENTURE_DATA), not user input
-  if (!tab) { mainEl.textContent = ''; const w = document.createElement('div'); w.innerHTML = renderWelcome(); mainEl.appendChild(w); return; }
 
-  let html = '';
-  if (tab.type === 'welcome') { html = renderWelcome(); }
-  else if (tab.type === 'act') {
-    const act = ADVENTURE_DATA.acts.find(a => a.id === tab.contentId);
-    html = act ? renderActContent(act) : '<p class="text-muted">Act not found.</p>';
-  }
-  else if (tab.type === 'npc') {
-    const npc = ADVENTURE_DATA.npcs[tab.contentId];
-    html = npc ? renderNpcDetail(npc) : '<p class="text-muted">NPC not found.</p>';
-  }
-  else if (tab.type === 'statblock') {
-    const sb = ADVENTURE_DATA.statBlocks[tab.contentId];
-    html = sb ? renderStatBlock(sb) : '<p class="text-muted">Stat block not found.</p>';
-  }
-  else if (tab.type === 'reference') { html = renderReferenceContent(tab.contentId); }
-  else if (tab.type === 'tools') { html = renderToolsContent(tab.contentId); }
-  else { html = renderWelcome(); }
+  const renderer = _tabRenderers[tab?.type] || _tabRenderers.welcome;
+  const html = renderer(tab?.contentId);
 
   // Content built from trusted render functions using ADVENTURE_DATA
   const container = document.createElement('div');
-  container.innerHTML = html;
-  mainEl.textContent = '';
-  while (container.firstChild) { mainEl.appendChild(container.firstChild); }
+  container.innerHTML = html;  // eslint-disable-line -- trusted render output, not user input
+  mainEl.replaceChildren(...container.childNodes);
 
   if (scrollToId) {
     requestAnimationFrame(() => {

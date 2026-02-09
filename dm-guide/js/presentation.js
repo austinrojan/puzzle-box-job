@@ -72,6 +72,20 @@ function collectPresentationPages(blockId) {
   return pages;
 }
 
+function stripMarkdown(text) {
+  return (text || '').replace(/\*\*/g, '').replace(/\*/g, '');
+}
+
+function makeInterstitial(typeClass, labelText) {
+  const div = document.createElement('div');
+  div.className = 'present-interstitial';
+  const typeLabel = document.createElement('div');
+  typeLabel.className = `interstitial-type ${typeClass}`;
+  typeLabel.textContent = labelText;
+  div.appendChild(typeLabel);
+  return div;
+}
+
 function renderPresentationPage() {
   const content = $('presentation-content');
   const page = _presentationPages[_presentationIdx];
@@ -84,23 +98,13 @@ function renderPresentationPage() {
     p.textContent = page.text;
     content.appendChild(p);
   } else if (page.type === 'dm-note' || page.type === 'narrative') {
-    const div = document.createElement('div');
-    div.className = 'present-interstitial';
-    const typeLabel = document.createElement('div');
-    typeLabel.className = 'interstitial-type type-dm-note';
-    typeLabel.textContent = page.type === 'dm-note' ? '\u{1F441} DM Note' : 'Narrative';
-    div.appendChild(typeLabel);
+    const div = makeInterstitial('type-dm-note', page.type === 'dm-note' ? '\u{1F441} DM Note' : 'Narrative');
     const body = document.createElement('div');
-    body.textContent = `${page.title ? `${page.title}: ` : ''}${(page.text || '').replace(/\*\*/g, '').replace(/\*/g, '').substring(0, 300)}`;
+    body.textContent = `${page.title ? `${page.title}: ` : ''}${stripMarkdown(page.text).substring(0, 300)}`;
     div.appendChild(body);
     content.appendChild(div);
   } else if (page.type === 'skill-check') {
-    const div = document.createElement('div');
-    div.className = 'present-interstitial';
-    const typeLabel = document.createElement('div');
-    typeLabel.className = 'interstitial-type type-skill-check';
-    typeLabel.textContent = '\u{1F3B2} Skill Check';
-    div.appendChild(typeLabel);
+    const div = makeInterstitial('type-skill-check', '\u{1F3B2} Skill Check');
     const dcEl = document.createElement('span');
     dcEl.className = 'interstitial-dc';
     dcEl.textContent = `DC ${page.dc}`;
@@ -113,35 +117,25 @@ function renderPresentationPage() {
     if (page.details) {
       const det = document.createElement('div');
       det.style.marginTop = '8px';
-      det.textContent = page.details.replace(/\*\*/g, '').replace(/\*/g, '');
+      det.textContent = stripMarkdown(page.details);
       div.appendChild(det);
     }
     content.appendChild(div);
   } else if (page.type === 'encounter') {
-    const div = document.createElement('div');
-    div.className = 'present-interstitial';
-    const typeLabel = document.createElement('div');
-    typeLabel.className = 'interstitial-type type-encounter';
-    typeLabel.textContent = '\u2694 Encounter';
-    div.appendChild(typeLabel);
+    const div = makeInterstitial('type-encounter', '\u2694 Encounter');
     const body = document.createElement('div');
     body.textContent = `${page.title ? `${page.title}: ` : ''}${(page.text || '').replace(/\*\*/g, '').substring(0, 300)}`;
     div.appendChild(body);
     content.appendChild(div);
   } else if (page.type === 'conditional') {
-    const div = document.createElement('div');
-    div.className = 'present-interstitial';
-    const typeLabel = document.createElement('div');
-    typeLabel.className = 'interstitial-type type-dm-note';
-    typeLabel.textContent = '\u2753 Conditional';
-    div.appendChild(typeLabel);
+    const div = makeInterstitial('type-dm-note', '\u2753 Conditional');
     const cond = document.createElement('div');
     cond.style.fontStyle = 'italic';
     cond.style.marginBottom = '6px';
     cond.textContent = page.condition || '';
     div.appendChild(cond);
     const body = document.createElement('div');
-    body.textContent = (page.text || '').replace(/\*\*/g, '').replace(/\*/g, '').substring(0, 400);
+    body.textContent = stripMarkdown(page.text).substring(0, 400);
     div.appendChild(body);
     content.appendChild(div);
   }
