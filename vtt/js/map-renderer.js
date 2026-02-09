@@ -173,35 +173,33 @@ export class MapRenderer {
     const { cols, rows } = this.currentMap;
     const cp = this.cellPx;
 
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
-    ctx.lineWidth = 0.5 / this.camera.zoom;
-
-    ctx.beginPath();
-    for (let c = 0; c <= cols; c++) {
-      ctx.moveTo(c * cp, 0);
-      ctx.lineTo(c * cp, rows * cp);
-    }
-    for (let r = 0; r <= rows; r++) {
-      ctx.moveTo(0, r * cp);
-      ctx.lineTo(cols * cp, r * cp);
-    }
-    ctx.stroke();
-
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
-    ctx.lineWidth = 1 / this.camera.zoom;
-
-    ctx.beginPath();
-    for (let c = 0; c <= cols; c += 5) {
-      ctx.moveTo(c * cp, 0);
-      ctx.lineTo(c * cp, rows * cp);
-    }
-    for (let r = 0; r <= rows; r += 5) {
-      ctx.moveTo(0, r * cp);
-      ctx.lineTo(cols * cp, r * cp);
-    }
-    ctx.stroke();
+    this._drawGridLines(ctx, cols, rows, cp, {
+      stroke: 'rgba(255, 255, 255, 0.1)',
+      width: 0.5 / this.camera.zoom,
+      step: 1,
+    });
+    this._drawGridLines(ctx, cols, rows, cp, {
+      stroke: 'rgba(255, 255, 255, 0.2)',
+      width: 1 / this.camera.zoom,
+      step: 5,
+    });
 
     this.camera.resetTransform(ctx);
+  }
+
+  _drawGridLines(ctx, cols, rows, cp, { stroke, width, step }) {
+    ctx.strokeStyle = stroke;
+    ctx.lineWidth = width;
+    ctx.beginPath();
+    for (let c = 0; c <= cols; c += step) {
+      ctx.moveTo(c * cp, 0);
+      ctx.lineTo(c * cp, rows * cp);
+    }
+    for (let r = 0; r <= rows; r += step) {
+      ctx.moveTo(0, r * cp);
+      ctx.lineTo(cols * cp, r * cp);
+    }
+    ctx.stroke();
   }
 
   drawFog() {
@@ -256,8 +254,7 @@ export class MapRenderer {
       }
     }
 
-    state.fog[this.currentMap.id] = [...this.fogRevealed];
-    this.drawFog();
+    this._syncFog();
   }
 
   revealAllFog() {
@@ -268,14 +265,17 @@ export class MapRenderer {
         this.fogRevealed.add(`${c},${r}`);
       }
     }
-    state.fog[this.currentMap.id] = [...this.fogRevealed];
-    this.drawFog();
+    this._syncFog();
   }
 
   hideAllFog() {
     if (!this.currentMap) return;
     this.fogRevealed.clear();
-    state.fog[this.currentMap.id] = [];
+    this._syncFog();
+  }
+
+  _syncFog() {
+    state.fog[this.currentMap.id] = [...this.fogRevealed];
     this.drawFog();
   }
 

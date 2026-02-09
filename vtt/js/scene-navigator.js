@@ -10,6 +10,24 @@ const $ = id => document.getElementById(id);
 
 const ACT_ICONS = ['\uD83C\uDFAD', '\uD83D\uDD0D', '\uD83D\uDEAA', '\uD83C\uDFF0', '\uD83D\uDCE6', '\u2694\uFE0F'];
 
+function createNavItem(cls, badgeCls, badgeText, titleCls, titleText, onClick) {
+  const item = document.createElement('div');
+  item.className = cls;
+
+  const badge = document.createElement('span');
+  badge.className = badgeCls;
+  badge.textContent = badgeText;
+
+  const title = document.createElement('span');
+  title.className = titleCls;
+  title.textContent = titleText;
+
+  item.appendChild(badge);
+  item.appendChild(title);
+  item.addEventListener('click', onClick);
+  return item;
+}
+
 let containerEl = null;
 let backdropEl = null;
 let panelEl = null;
@@ -157,22 +175,12 @@ function renderScenes() {
 
     for (const scene of actScenes) {
       const idx = SCENES.indexOf(scene);
-      const item = document.createElement('div');
-      item.className = 'scene-nav__scene-item';
+      const item = createNavItem(
+        'scene-nav__scene-item', 'scene-nav__scene-badge', scene.id,
+        'scene-nav__scene-title', scene.title, () => onSceneClick(scene.id),
+      );
       item.dataset.sceneIndex = idx;
       if (idx === state.sceneIndex) item.classList.add('active');
-
-      const badge = document.createElement('span');
-      badge.className = 'scene-nav__scene-badge';
-      badge.textContent = scene.id;
-
-      const sceneTitle = document.createElement('span');
-      sceneTitle.className = 'scene-nav__scene-title';
-      sceneTitle.textContent = scene.title;
-
-      item.appendChild(badge);
-      item.appendChild(sceneTitle);
-      item.addEventListener('click', () => onSceneClick(scene.id));
 
       inner.appendChild(item);
     }
@@ -204,27 +212,17 @@ function renderMaps() {
   bodyEl.appendChild(label);
 
   for (const map of MAPS) {
-    const item = document.createElement('div');
-    item.className = 'scene-nav__map-item';
+    const item = createNavItem(
+      'scene-nav__map-item', 'scene-nav__map-badge', map.id,
+      'scene-nav__map-title', map.title, () => onMapClick(map.id),
+    );
     item.dataset.mapId = map.id;
     if (map.id === currentMapId) item.classList.add('active');
-
-    const badge = document.createElement('span');
-    badge.className = 'scene-nav__map-badge';
-    badge.textContent = map.id;
-
-    const title = document.createElement('span');
-    title.className = 'scene-nav__map-title';
-    title.textContent = map.title;
 
     const dims = document.createElement('span');
     dims.className = 'scene-nav__map-dims';
     dims.textContent = `${map.cols}\u00D7${map.rows}`;
-
-    item.appendChild(badge);
-    item.appendChild(title);
     item.appendChild(dims);
-    item.addEventListener('click', () => onMapClick(map.id));
 
     bodyEl.appendChild(item);
   }

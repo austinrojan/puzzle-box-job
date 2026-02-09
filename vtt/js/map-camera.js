@@ -212,18 +212,13 @@ export class Camera {
 
     // --- Mouse up: end pan ---
     window.addEventListener('mouseup', (e) => {
-      // Clear pending pan on any mouseup
-      if (this._pendingPan) {
-        this._pendingPan = false;
-      }
-      if (!this._panning) return;
-      if (e.button === this._panButton) {
-        this._panning = false;
-        this._panButton = -1;
-        if (this._el) {
-          this._el.classList.remove('panning');
-          this._el.style.cursor = this.spaceHeld ? 'grab' : '';
-        }
+      this._pendingPan = false;
+      if (!this._panning || e.button !== this._panButton) return;
+      this._panning = false;
+      this._panButton = -1;
+      if (this._el) {
+        this._el.classList.remove('panning');
+        this._el.style.cursor = this.spaceHeld ? 'grab' : '';
       }
     });
 
@@ -252,13 +247,8 @@ export class Camera {
     });
 
     // --- EventBus handlers ---
-    EventBus.on('camera:pan', ({ dx, dy }) => {
-      this.panBy(dx, dy);
-    });
-
-    EventBus.on('camera:zoom', (direction) => {
-      this.zoomToCenter(direction);
-    });
+    EventBus.on('camera:pan', ({ dx, dy }) => this.panBy(dx, dy));
+    EventBus.on('camera:zoom', (direction) => this.zoomToCenter(direction));
 
     // Cancel pan if window loses focus or mouse leaves the map
     window.addEventListener('blur', () => this._cancelPan());

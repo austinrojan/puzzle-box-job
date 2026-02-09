@@ -6,6 +6,15 @@ import * as sceneNavigator from './scene-navigator.js';
 
 const $ = id => document.getElementById(id);
 
+function el(tag, { cls, text, aria, onClick } = {}) {
+  const node = document.createElement(tag);
+  if (cls) node.className = cls;
+  if (text) node.textContent = text;
+  if (aria) node.setAttribute('aria-label', aria);
+  if (onClick) node.addEventListener('click', onClick);
+  return node;
+}
+
 let navEl = null;
 let leftRegion = null;
 let centerRegion = null;
@@ -86,59 +95,33 @@ function buildNav() {
 }
 
 function buildLeftRegion() {
-  leftRegion = document.createElement('div');
-  leftRegion.className = 'pnav-left';
+  leftRegion = el('div', { cls: 'pnav-left' });
 
-  prevBtn = document.createElement('button');
-  prevBtn.className = 'pnav-chevron';
-  prevBtn.textContent = '\u2039';
-  prevBtn.setAttribute('aria-label', 'Previous');
-  prevBtn.addEventListener('click', onPrevClick);
+  prevBtn = el('button', { cls: 'pnav-chevron', text: '\u2039', aria: 'Previous', onClick: () => onNavClick(-1) });
 
-  titleGroupEl = document.createElement('div');
-  titleGroupEl.className = 'pnav-title-group pnav-title-group--clickable';
+  titleGroupEl = el('div', { cls: 'pnav-title-group pnav-title-group--clickable', aria: 'Open scene navigator', onClick: () => sceneNavigator.toggle() });
   titleGroupEl.setAttribute('role', 'button');
-  titleGroupEl.setAttribute('aria-label', 'Open scene navigator');
-  titleGroupEl.addEventListener('click', () => sceneNavigator.toggle());
 
-  badgeEl = document.createElement('span');
-  badgeEl.className = 'pnav-badge';
-
-  titleEl = document.createElement('span');
-  titleEl.className = 'pnav-title';
-
-  expandIcon = document.createElement('span');
-  expandIcon.className = 'pnav-expand-icon';
-  expandIcon.textContent = '\u25B4';
+  badgeEl = el('span', { cls: 'pnav-badge' });
+  titleEl = el('span', { cls: 'pnav-title' });
+  expandIcon = el('span', { cls: 'pnav-expand-icon', text: '\u25B4' });
 
   titleGroupEl.appendChild(badgeEl);
   titleGroupEl.appendChild(titleEl);
   titleGroupEl.appendChild(expandIcon);
 
-  nextBtn = document.createElement('button');
-  nextBtn.className = 'pnav-chevron';
-  nextBtn.textContent = '\u203A';
-  nextBtn.setAttribute('aria-label', 'Next');
-  nextBtn.addEventListener('click', onNextClick);
+  nextBtn = el('button', { cls: 'pnav-chevron', text: '\u203A', aria: 'Next', onClick: () => onNavClick(1) });
 
   leftRegion.appendChild(prevBtn);
   leftRegion.appendChild(titleGroupEl);
   leftRegion.appendChild(nextBtn);
 }
 
-function onPrevClick() {
+function onNavClick(dir) {
   if (state.mode === 'theater') {
-    EventBus.emit('scene:prev');
+    EventBus.emit(dir === -1 ? 'scene:prev' : 'scene:next');
   } else {
-    cycleMap(-1);
-  }
-}
-
-function onNextClick() {
-  if (state.mode === 'theater') {
-    EventBus.emit('scene:next');
-  } else {
-    cycleMap(1);
+    cycleMap(dir);
   }
 }
 
@@ -148,8 +131,7 @@ function cycleMap(dir) {
 }
 
 function buildCenterRegion() {
-  centerRegion = document.createElement('div');
-  centerRegion.className = 'pnav-center';
+  centerRegion = el('div', { cls: 'pnav-center' });
 
   const modes = [
     { key: 'theater', label: 'Theater' },
@@ -158,11 +140,8 @@ function buildCenterRegion() {
   ];
 
   for (const mode of modes) {
-    const btn = document.createElement('button');
-    btn.className = 'pnav-mode-btn';
-    btn.textContent = mode.label;
+    const btn = el('button', { cls: 'pnav-mode-btn', text: mode.label, onClick: () => EventBus.emit('mode:switch', mode.key) });
     btn.dataset.mode = mode.key;
-    btn.addEventListener('click', () => EventBus.emit('mode:switch', mode.key));
     modeButtons[mode.key] = btn;
     centerRegion.appendChild(btn);
   }
@@ -180,56 +159,28 @@ function updateModeButtons(activeMode) {
 }
 
 function buildRightRegion() {
-  rightRegion = document.createElement('div');
-  rightRegion.className = 'pnav-right';
+  rightRegion = el('div', { cls: 'pnav-right' });
 
-  const zoomGroup = document.createElement('div');
-  zoomGroup.className = 'pnav-zoom-group';
+  const zoomGroup = el('div', { cls: 'pnav-zoom-group' });
 
-  zoomOutBtn = document.createElement('button');
-  zoomOutBtn.className = 'pnav-zoom-btn';
-  zoomOutBtn.textContent = '\u2212';
-  zoomOutBtn.setAttribute('aria-label', 'Zoom out');
-  zoomOutBtn.addEventListener('click', () => EventBus.emit('camera:zoom', -1));
-
-  zoomLabel = document.createElement('button');
-  zoomLabel.className = 'pnav-zoom-label';
-  zoomLabel.textContent = '100%';
-  zoomLabel.setAttribute('aria-label', 'Fit to map');
-  zoomLabel.addEventListener('click', () => EventBus.emit('camera:reset'));
-
-  zoomInBtn = document.createElement('button');
-  zoomInBtn.className = 'pnav-zoom-btn';
-  zoomInBtn.textContent = '+';
-  zoomInBtn.setAttribute('aria-label', 'Zoom in');
-  zoomInBtn.addEventListener('click', () => EventBus.emit('camera:zoom', 1));
+  zoomOutBtn = el('button', { cls: 'pnav-zoom-btn', text: '\u2212', aria: 'Zoom out', onClick: () => EventBus.emit('camera:zoom', -1) });
+  zoomLabel = el('button', { cls: 'pnav-zoom-label', text: '100%', aria: 'Fit to map', onClick: () => EventBus.emit('camera:reset') });
+  zoomInBtn = el('button', { cls: 'pnav-zoom-btn', text: '+', aria: 'Zoom in', onClick: () => EventBus.emit('camera:zoom', 1) });
 
   zoomGroup.appendChild(zoomOutBtn);
   zoomGroup.appendChild(zoomLabel);
   zoomGroup.appendChild(zoomInBtn);
 
-  gridBtn = document.createElement('button');
-  gridBtn.className = 'pnav-icon-btn';
-  gridBtn.setAttribute('aria-label', 'Toggle grid');
-  const gridIcon = document.createElement('div');
-  gridIcon.className = 'pnav-grid-icon';
+  gridBtn = el('button', { cls: 'pnav-icon-btn', aria: 'Toggle grid', onClick: () => { state.gridVisible = !state.gridVisible; } });
+  const gridIcon = el('div', { cls: 'pnav-grid-icon' });
   for (let i = 0; i < 4; i++) gridIcon.appendChild(document.createElement('span'));
   gridBtn.appendChild(gridIcon);
-  gridBtn.addEventListener('click', () => { state.gridVisible = !state.gridVisible; });
   gridBtn.classList.toggle('toggled', !state.gridVisible);
 
-  fitBtn = document.createElement('button');
-  fitBtn.className = 'pnav-icon-btn';
-  fitBtn.setAttribute('aria-label', 'Fit to map');
-  const fitIcon = document.createElement('div');
-  fitIcon.className = 'pnav-fit-icon';
-  fitBtn.appendChild(fitIcon);
-  fitBtn.addEventListener('click', () => EventBus.emit('camera:reset'));
+  fitBtn = el('button', { cls: 'pnav-icon-btn', aria: 'Fit to map', onClick: () => EventBus.emit('camera:reset') });
+  fitBtn.appendChild(el('div', { cls: 'pnav-fit-icon' }));
 
-  nextTurnBtn = document.createElement('button');
-  nextTurnBtn.className = 'pnav-next-turn';
-  nextTurnBtn.textContent = 'NEXT \u2192';
-  nextTurnBtn.addEventListener('click', () => EventBus.emit('initiative:next-turn'));
+  nextTurnBtn = el('button', { cls: 'pnav-next-turn', text: 'NEXT \u2192', onClick: () => EventBus.emit('initiative:next-turn') });
 
   rightRegion.appendChild(zoomGroup);
   rightRegion.appendChild(gridBtn);
