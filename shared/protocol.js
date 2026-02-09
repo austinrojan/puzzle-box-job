@@ -78,7 +78,7 @@ function msg(type, payload) {
 export const createHeatMsg            = (level) => msg(MSG.HEAT, { level });
 export const createInitiativeMsg      = (data) => msg(MSG.INITIATIVE, { data });
 export const createInitiativeNextMsg  = (currentTurn, round) => msg(MSG.INITIATIVE_NEXT, { currentTurn, round });
-export const createCombatStartMsg     = (data) => msg(MSG.COMBAT_START, { data });
+export const createCombatStartMsg     = (data) => data ? msg(MSG.COMBAT_START, { data }) : msg(MSG.COMBAT_START);
 export const createCombatEndMsg       = () => msg(MSG.COMBAT_END);
 export const createGridToggleMsg      = () => msg(MSG.GRID_TOGGLE);
 export const createPresentationMsg    = (enabled) => msg(MSG.PRESENTATION, { enabled });
@@ -117,27 +117,27 @@ export const createEffectMsg = (effectId, target) => msg(MSG.EFFECT, { effectId,
 
 // --- Validation ---
 
-export function validateMessage(msg) {
-  if (!msg || typeof msg !== 'object') {
+export function validateMessage(message) {
+  if (!message || typeof message !== 'object') {
     return { valid: false, error: 'Message is not an object' };
   }
-  if (!msg.type) {
+  if (!message.type) {
     return { valid: false, error: 'Message has no type' };
   }
-  if (!MSG_VALUES.has(msg.type)) {
-    return { valid: false, error: `Unknown message type: "${msg.type}"` };
+  if (!MSG_VALUES.has(message.type)) {
+    return { valid: false, error: `Unknown message type: "${message.type}"` };
   }
 
   // Version check (warn but don't reject — forward-compatible)
-  if (msg._v !== undefined && msg._v !== PROTOCOL_VERSION) {
-    console.warn(`[Protocol] Version mismatch: expected ${PROTOCOL_VERSION}, got ${msg._v}`);
+  if (message._v !== undefined && message._v !== PROTOCOL_VERSION) {
+    console.warn(`[Protocol] Version mismatch: expected ${PROTOCOL_VERSION}, got ${message._v}`);
   }
 
-  const required = REQUIRED_FIELDS[msg.type];
+  const required = REQUIRED_FIELDS[message.type];
   if (required) {
     for (const field of required) {
-      if (msg[field] === undefined) {
-        return { valid: false, error: `Missing field "${field}" for ${msg.type}` };
+      if (message[field] === undefined) {
+        return { valid: false, error: `Missing field "${field}" for ${message.type}` };
       }
     }
   }
