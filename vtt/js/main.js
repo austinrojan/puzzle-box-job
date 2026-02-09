@@ -4,7 +4,6 @@ import { EventBus, state, store, initSync } from './state.js';
 import { preloadAll } from './image-cache.js';
 import * as theater from './theater.js';
 import * as sceneManager from './scene-manager.js';
-import * as dmControls from './dm-controls.js';
 import { MapRenderer } from './map-renderer.js';
 import { TokenManager } from './token-manager.js';
 import * as initiativeTracker from './initiative-tracker.js';
@@ -35,7 +34,6 @@ async function boot() {
 
   theater.init();
   sceneManager.init();
-  dmControls.init();
 
   const mapRenderer = new MapRenderer();
   mapRenderer.init();

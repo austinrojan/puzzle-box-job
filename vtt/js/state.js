@@ -51,12 +51,8 @@ store.subscribe('initiative', (data) => {
   EventBus.emit('initiative:update', data);
 });
 
-store.subscribe('gridVisible', () => {
-  EventBus.emit('grid:toggle');
-});
-
 store.subscribe('titleCardVisible', (visible) => {
-  EventBus.emit(visible ? 'title-card:visible' : 'title-card:hidden');
+  if (visible) EventBus.emit('title-card:visible');
 });
 
 store.subscribe('presentationMode', (enabled) => {

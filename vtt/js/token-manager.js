@@ -66,7 +66,6 @@ export class TokenManager {
     });
 
     EventBus.on('map:redraw', () => this.draw());
-    EventBus.on('map:load-preset', (presetId) => this.loadPreset(presetId));
 
     EventBus.on('brazier:toggle', ({ index, lit }) => {
       const braziers = this.getBrazierTokens();
