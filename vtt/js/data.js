@@ -5,5 +5,5 @@
 export {
   SCENES, ACTS, MAPS, TOKENS, MAP_PRESETS, EFFECTS,
   CONDITIONS, CONDITION_COLORS,
-  validateCampaignData
+  CAMPAIGN, loadCampaign, getSceneById, getTokenDef, validateCampaignData
 } from '../../shared/campaign-data.js';
