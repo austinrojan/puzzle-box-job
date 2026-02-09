@@ -44,26 +44,28 @@ export function syncFullInitiative() {
   }));
 }
 
+const TOKEN_ID_MAP = {
+  'Martin Storm': 'martin-storm',
+  'Lómë': 'lome',
+  'Oda (Bearda)': 'oda',
+  'Jean LeMarque': 'jean',
+  'Kallista': 'kallista',
+  'Locke (Rakshasa)': 'locke-rakshasa',
+  'Cult Fanatic 1': 'cult-fanatic',
+  'Cult Fanatic 2': 'cult-fanatic',
+};
+
+const DISPLAY_NAME_MAP = {
+  'Locke (Rakshasa)': 'Locke',
+  'Cult Fanatic 1': 'Cultist 1',
+  'Cult Fanatic 2': 'Cultist 2',
+  'Lair Action': 'Lair Action',
+};
+
 export function nameToTokenId(name) {
-  const _map = {
-    'Martin Storm': 'martin-storm',
-    'Lómë': 'lome',
-    'Oda (Bearda)': 'oda',
-    'Jean LeMarque': 'jean',
-    'Kallista': 'kallista',
-    'Locke (Rakshasa)': 'locke-rakshasa',
-    'Cult Fanatic 1': 'cult-fanatic',
-    'Cult Fanatic 2': 'cult-fanatic',
-  };
-  return _map[name] ?? null;
+  return TOKEN_ID_MAP[name] ?? null;
 }
 
 export function nameToDisplayName(name) {
-  const _map = {
-    'Locke (Rakshasa)': 'Locke',
-    'Cult Fanatic 1': 'Cultist 1',
-    'Cult Fanatic 2': 'Cultist 2',
-    'Lair Action': 'Lair Action',
-  };
-  return _map[name] ?? name;
+  return DISPLAY_NAME_MAP[name] ?? name;
 }

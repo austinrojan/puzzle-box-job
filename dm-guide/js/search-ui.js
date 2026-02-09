@@ -6,6 +6,13 @@ import { ADVENTURE_DATA } from './adventure-data.js';
 
 const $ = id => document.getElementById(id);
 
+function showPlaceholder(container, text) {
+  const msg = document.createElement('div');
+  msg.className = 'search-empty';
+  msg.textContent = text;
+  container.appendChild(msg);
+}
+
 let _searchSelectedIdx = -1;
 
 function highlightSearchItem(items) {
@@ -44,18 +51,12 @@ export function initSearchUI() {
     resultsEl.textContent = '';
     _searchSelectedIdx = -1;
     if (!query || query.length < 2) {
-      const msg = document.createElement('div');
-      msg.className = 'search-empty';
-      msg.textContent = 'Type to search...';
-      resultsEl.appendChild(msg);
+      showPlaceholder(resultsEl, 'Type to search...');
       return;
     }
     const results = searchIndex.search(query);
     if (results.length === 0) {
-      const msg = document.createElement('div');
-      msg.className = 'search-empty';
-      msg.textContent = `No results for "${query}"`;
-      resultsEl.appendChild(msg);
+      showPlaceholder(resultsEl, `No results for "${query}"`);
       return;
     }
     const groups = {};
@@ -122,9 +123,6 @@ export function toggleSearch() {
     $('search-input').focus();
     const r = $('search-results');
     r.textContent = '';
-    const msg = document.createElement('div');
-    msg.className = 'search-empty';
-    msg.textContent = 'Type to search...';
-    r.appendChild(msg);
+    showPlaceholder(r, 'Type to search...');
   }
 }

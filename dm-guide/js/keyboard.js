@@ -30,8 +30,22 @@ export function initKeyboard() {
       if (blocks.length > 0) openPresentation(blocks[0].dataset.blockId);
       return;
     }
-    if ((e.metaKey || e.ctrlKey) && e.key === '[') { e.preventDefault(); const idx = AppState.tabs.findIndex((t) => t.id === AppState.activeTabId); if (idx > 0) switchTab(AppState.tabs[idx - 1].id); return; }
-    if ((e.metaKey || e.ctrlKey) && e.key === ']') { e.preventDefault(); const idx = AppState.tabs.findIndex((t) => t.id === AppState.activeTabId); if (idx < AppState.tabs.length - 1) switchTab(AppState.tabs[idx + 1].id); return; }
-    if ((e.metaKey || e.ctrlKey) && e.key === 'w') { e.preventDefault(); closeTab(AppState.activeTabId); return; }
+    if ((e.metaKey || e.ctrlKey) && e.key === '[') {
+      e.preventDefault();
+      const idx = AppState.tabs.findIndex((t) => t.id === AppState.activeTabId);
+      if (idx > 0) switchTab(AppState.tabs[idx - 1].id);
+      return;
+    }
+    if ((e.metaKey || e.ctrlKey) && e.key === ']') {
+      e.preventDefault();
+      const idx = AppState.tabs.findIndex((t) => t.id === AppState.activeTabId);
+      if (idx < AppState.tabs.length - 1) switchTab(AppState.tabs[idx + 1].id);
+      return;
+    }
+    if ((e.metaKey || e.ctrlKey) && e.key === 'w') {
+      e.preventDefault();
+      closeTab(AppState.activeTabId);
+      return;
+    }
   });
 }

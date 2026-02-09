@@ -26,29 +26,28 @@ export const DEFAULT_STATE = {
 
 export const AppState = JSON.parse(JSON.stringify(DEFAULT_STATE));
 
+function replaceState(source) {
+  for (const key of Object.keys(AppState)) delete AppState[key];
+  Object.assign(AppState, source);
+}
+
 export function loadState() {
   try {
     const saved = localStorage.getItem('puzzlebox-dm-state');
     if (saved) {
-      const parsed = JSON.parse(saved);
-      const merged = Object.assign(JSON.parse(JSON.stringify(DEFAULT_STATE)), parsed);
-      for (const key of Object.keys(AppState)) delete AppState[key];
-      Object.assign(AppState, merged);
+      replaceState(Object.assign(JSON.parse(JSON.stringify(DEFAULT_STATE)), JSON.parse(saved)));
     }
   } catch (e) { console.warn('State load failed:', e); }
 }
 
 export const saveState = debounce(() => {
   try {
-    const s = Object.assign({}, AppState);
-    delete s.searchOpen;
-    delete s.presentationBlock;
-    localStorage.setItem('puzzlebox-dm-state', JSON.stringify(s));
+    const { searchOpen, presentationBlock, ...persistable } = AppState;
+    localStorage.setItem('puzzlebox-dm-state', JSON.stringify(persistable));
   } catch (e) { console.warn('State save failed:', e); }
 }, 300);
 
 export function resetState() {
-  for (const key of Object.keys(AppState)) delete AppState[key];
-  Object.assign(AppState, JSON.parse(JSON.stringify(DEFAULT_STATE)));
+  replaceState(JSON.parse(JSON.stringify(DEFAULT_STATE)));
   localStorage.removeItem('puzzlebox-dm-state');
 }
