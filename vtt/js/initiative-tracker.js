@@ -67,13 +67,7 @@ function render() {
       img.onerror = () => {
         const initials = entry.name.split(' ').map(w => w[0]).join('').substring(0, 2);
         portrait.textContent = initials;
-        portrait.style.display = 'flex';
-        portrait.style.alignItems = 'center';
-        portrait.style.justifyContent = 'center';
-        portrait.style.fontSize = '14px';
-        portrait.style.fontWeight = '700';
-        portrait.style.fontFamily = 'var(--font-heading)';
-        portrait.style.color = 'var(--gold)';
+        portrait.classList.add('init-portrait--fallback');
       };
       img.src = tokenDef.image;
 
@@ -92,7 +86,6 @@ function render() {
     if (entry.hp !== undefined && entry.maxHp) {
       const hpBar = document.createElement('div');
       hpBar.className = 'init-hp';
-      hpBar.style.position = 'relative';
 
       const fill = document.createElement('div');
       const pct = Math.max(0, Math.min(100, (entry.hp / entry.maxHp) * 100));

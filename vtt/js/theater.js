@@ -3,6 +3,9 @@
 import { EventBus, state } from './state.js';
 import { SCENES, ACTS } from './data.js';
 
+const VTT_W = 1920;
+const VTT_H = 1080;
+
 const $ = id => document.getElementById(id);
 
 let bgCurrent = null;
@@ -96,40 +99,41 @@ function loadScene(index, crossfade) {
 
 function showPlaceholder(imgEl, scene) {
   const canvas = document.createElement('canvas');
-  canvas.width = 1920;
-  canvas.height = 1080;
+  canvas.width = VTT_W;
+  canvas.height = VTT_H;
   const ctx = canvas.getContext('2d');
+  const cx = VTT_W / 2;
 
-  const grad = ctx.createLinearGradient(0, 0, 0, 1080);
+  const grad = ctx.createLinearGradient(0, 0, 0, VTT_H);
   grad.addColorStop(0, '#141820');
   grad.addColorStop(1, '#0D0F14');
   ctx.fillStyle = grad;
-  ctx.fillRect(0, 0, 1920, 1080);
+  ctx.fillRect(0, 0, VTT_W, VTT_H);
 
   ctx.strokeStyle = '#8B7435';
   ctx.lineWidth = 2;
-  ctx.strokeRect(60, 60, 1800, 960);
+  ctx.strokeRect(60, 60, VTT_W - 120, VTT_H - 120);
   ctx.strokeStyle = '#8B743540';
   ctx.lineWidth = 1;
-  ctx.strokeRect(48, 48, 1824, 984);
+  ctx.strokeRect(48, 48, VTT_W - 96, VTT_H - 96);
 
   ctx.fillStyle = '#6B6B78';
   ctx.font = '500 14px "IBM Plex Mono", monospace';
   ctx.textAlign = 'center';
-  ctx.fillText(scene.id, 960, 460);
+  ctx.fillText(scene.id, cx, 460);
 
   ctx.fillStyle = '#E8C55A';
   ctx.font = '600 48px "Cinzel", serif';
-  ctx.fillText(scene.title, 960, 540);
+  ctx.fillText(scene.title, cx, 540);
 
   ctx.fillStyle = '#A0A0A8';
   ctx.font = 'italic 20px "Crimson Text", serif';
   const act = ACTS[scene.act - 1];
-  if (act) ctx.fillText(`Act ${act.number}: ${act.title}`, 960, 590);
+  if (act) ctx.fillText(`Act ${act.number}: ${act.title}`, cx, 590);
 
   ctx.fillStyle = '#C9A84C';
   ctx.font = '16px serif';
-  ctx.fillText('\u25C6', 960, 640);
+  ctx.fillText('\u25C6', cx, 640);
 
   imgEl.src = canvas.toDataURL();
 }
