@@ -17,15 +17,17 @@ export function vttSync(msg) {
   _channel?.postMessage(msg);
 }
 
+const VTT_ACTIONS = [
+  ['scene', createSceneMsg], ['mode', createModeSwitchMsg], ['map', createMapMsg],
+  ['effect', createEffectMsg], ['titleCard', createTitleCardMsg],
+  ['combat', createCombatStartMsg], ['preset', createTokenLoadPresetMsg],
+];
+
 export function fireVttActions(vtt) {
   if (!vtt) return;
-  if (vtt.scene)     vttSync(createSceneMsg(vtt.scene));
-  if (vtt.mode)      vttSync(createModeSwitchMsg(vtt.mode));
-  if (vtt.map)       vttSync(createMapMsg(vtt.map));
-  if (vtt.effect)    vttSync(createEffectMsg(vtt.effect));
-  if (vtt.titleCard) vttSync(createTitleCardMsg(vtt.titleCard));
-  if (vtt.combat)    vttSync(createCombatStartMsg());
-  if (vtt.preset)    vttSync(createTokenLoadPresetMsg(vtt.preset));
+  for (const [key, factory] of VTT_ACTIONS) {
+    if (vtt[key]) vttSync(factory(vtt[key]));
+  }
 }
 
 export function syncFullInitiative() {

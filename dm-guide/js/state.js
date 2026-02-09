@@ -1,4 +1,4 @@
-import { debounce } from './utils.js';
+import { debounce, deepClone } from './utils.js';
 import { CAMPAIGN } from '../../shared/campaign-data.js';
 import { COMBAT_CONFIG } from './combat-config.js';
 
@@ -26,10 +26,10 @@ export const DEFAULT_STATE = {
 };
 
 export function buildCombatDefaults() {
-  return JSON.parse(JSON.stringify(COMBAT_CONFIG.defaultState));
+  return deepClone(COMBAT_CONFIG.defaultState);
 }
 
-export const AppState = JSON.parse(JSON.stringify(DEFAULT_STATE));
+export const AppState = deepClone(DEFAULT_STATE);
 
 function replaceState(source) {
   for (const key of Object.keys(AppState)) delete AppState[key];
@@ -38,7 +38,7 @@ function replaceState(source) {
 
 export function loadState() {
   try {
-    const defaults = JSON.parse(JSON.stringify(DEFAULT_STATE));
+    const defaults = deepClone(DEFAULT_STATE);
     defaults.combat = buildCombatDefaults();
     const saved = localStorage.getItem(getStorageKey());
     if (saved) {
@@ -57,7 +57,7 @@ export const saveState = debounce(() => {
 }, 300);
 
 export function resetState() {
-  const defaults = JSON.parse(JSON.stringify(DEFAULT_STATE));
+  const defaults = deepClone(DEFAULT_STATE);
   defaults.combat = buildCombatDefaults();
   replaceState(defaults);
   localStorage.removeItem(getStorageKey());

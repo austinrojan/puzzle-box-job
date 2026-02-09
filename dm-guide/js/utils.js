@@ -29,6 +29,8 @@ export function debounce(fn, ms) {
   };
 }
 
+export const deepClone = obj => JSON.parse(JSON.stringify(obj));
+
 export function markdownLite(text) {
   if (!text) return '';
   return text
