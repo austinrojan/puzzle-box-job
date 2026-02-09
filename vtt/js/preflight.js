@@ -50,21 +50,6 @@ function checkBroadcastChannel() {
   }
 }
 
-function renderCheckErrors(result, list) {
-  for (const err of result.errors.slice(0, MAX_ERRORS)) {
-    const errRow = document.createElement('div');
-    errRow.className = 'preflight__error';
-    errRow.textContent = err;
-    list.appendChild(errRow);
-  }
-  if (result.errors.length > MAX_ERRORS) {
-    const more = document.createElement('div');
-    more.className = 'preflight__error preflight__error--more';
-    more.textContent = `\u2026and ${result.errors.length - MAX_ERRORS} more`;
-    list.appendChild(more);
-  }
-}
-
 export function renderPreflightResults(results, containerEl) {
   const checks = [
     { key: 'data',      label: 'Campaign data integrity' },
@@ -97,7 +82,18 @@ export function renderPreflightResults(results, containerEl) {
 
     if (!result.ok) {
       allOk = false;
-      renderCheckErrors(result, list);
+      for (const err of result.errors.slice(0, MAX_ERRORS)) {
+        const errRow = document.createElement('div');
+        errRow.className = 'preflight__error';
+        errRow.textContent = err;
+        list.appendChild(errRow);
+      }
+      if (result.errors.length > MAX_ERRORS) {
+        const more = document.createElement('div');
+        more.className = 'preflight__error preflight__error--more';
+        more.textContent = `\u2026and ${result.errors.length - MAX_ERRORS} more`;
+        list.appendChild(more);
+      }
     }
   }
 
