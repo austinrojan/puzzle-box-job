@@ -163,3 +163,38 @@ export const CONDITION_COLORS = Object.fromEntries(
 export function getSceneById(id) {
   return SCENES.find(s => s.id === id) ?? null;
 }
+
+export function validateCampaignData() {
+  const errors = [];
+
+  for (const scene of SCENES) {
+    if (!ACTS.find(a => a.number === scene.act)) {
+      errors.push(`Scene ${scene.id} references non-existent act ${scene.act}`);
+    }
+  }
+
+  const sceneIds = new Set();
+  for (const scene of SCENES) {
+    if (sceneIds.has(scene.id)) errors.push(`Duplicate scene ID: ${scene.id}`);
+    sceneIds.add(scene.id);
+  }
+
+  const mapIds = new Set();
+  for (const map of MAPS) {
+    if (mapIds.has(map.id)) errors.push(`Duplicate map ID: ${map.id}`);
+    mapIds.add(map.id);
+  }
+
+  for (const [presetId, preset] of Object.entries(MAP_PRESETS)) {
+    if (!MAPS.find(m => m.id === preset.mapId)) {
+      errors.push(`Preset ${presetId} references non-existent map ${preset.mapId}`);
+    }
+    for (const t of preset.tokens) {
+      if (!TOKENS[t.tokenId]) {
+        errors.push(`Preset ${presetId} references non-existent token ${t.tokenId}`);
+      }
+    }
+  }
+
+  return errors;
+}

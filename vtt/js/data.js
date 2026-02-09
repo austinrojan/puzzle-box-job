@@ -4,5 +4,6 @@
 
 export {
   SCENES, ACTS, MAPS, TOKENS, MAP_PRESETS, EFFECTS,
-  CONDITIONS, CONDITION_COLORS
+  CONDITIONS, CONDITION_COLORS,
+  validateCampaignData
 } from '../../shared/campaign-data.js';
