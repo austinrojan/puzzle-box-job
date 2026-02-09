@@ -72,16 +72,6 @@ export function validateCampaignData() {
 
 // --- Campaign loader ---
 
-function getCampaignId() {
-  return new URLSearchParams(window.location.search).get('campaign') || 'puzzle-box';
-}
-
-function resolveCampaignBase(campaignId) {
-  const sharedDir = new URL('.', import.meta.url);
-  const projectRoot = new URL('..', sharedDir);
-  return new URL(`campaigns/${campaignId}/`, projectRoot).href;
-}
-
 function resolveAssetPaths(data, base) {
   const resolve = (path) => {
     if (!path || path.startsWith('http') || path.startsWith('/')) return path;
@@ -92,19 +82,19 @@ function resolveAssetPaths(data, base) {
   for (const t of Object.values(data.TOKENS || {})) t.image = resolve(t.image);
 }
 
-function replaceArray(target, source) {
-  target.length = 0;
-  target.push(...source);
-}
-
-function replaceObject(target, source) {
-  for (const key of Object.keys(target)) delete target[key];
-  Object.assign(target, source);
-}
-
 export async function loadCampaign() {
-  const campaignId = getCampaignId();
-  const base = resolveCampaignBase(campaignId);
+  const campaignId = new URLSearchParams(window.location.search).get('campaign') || 'puzzle-box';
+  const base = new URL(`../campaigns/${campaignId}/`, import.meta.url).href;
+
+  function replaceArray(target, source) {
+    target.length = 0;
+    target.push(...source);
+  }
+
+  function replaceObject(target, source) {
+    for (const key of Object.keys(target)) delete target[key];
+    Object.assign(target, source);
+  }
 
   // 1. Fetch manifest
   const resp = await fetch(base + 'campaign.json');
