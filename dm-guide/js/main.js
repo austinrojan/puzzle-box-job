@@ -70,7 +70,7 @@ async function boot() {
   initNavResize();
   setVttActionsFn(fireVttActions);
 
-  // 3. Delegated click handler for VTT cue buttons (replaces inline onclick)
+  // 4. Delegated click handler for VTT cue buttons (replaces inline onclick)
   $('main-content').addEventListener('click', (e) => {
     const cue = e.target.closest('.block-vtt-cue');
     if (cue && cue.dataset.vtt) {
@@ -78,10 +78,10 @@ async function boot() {
     }
   });
 
-  // 4. Run existing init (loads state, builds UI)
+  // 5. Run existing init (loads state, builds UI)
   init();
 
-  // 5. Cross-validate VTT scene references
+  // 6. Cross-validate VTT scene references
   const errors = [];
   for (const act of ADVENTURE_DATA.acts) {
     for (const section of act.sections || []) {
