@@ -1,0 +1,9 @@
+/* The Puzzle-Box Job — Campaign theme overrides */
+:root {
+  --campaign-accent: #C9A84C;
+  --campaign-accent-dim: #8B7435;
+  --campaign-accent-bright: #E8C55A;
+  --campaign-accent-glow: #F5D76E;
+  --campaign-font-heading: 'Cinzel', serif;
+  --campaign-font-narrative: 'Crimson Text', serif;
+}

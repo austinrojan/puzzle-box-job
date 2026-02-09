@@ -1,0 +1,24 @@
+{
+  "id": "puzzle-box",
+  "version": 1,
+  "title": "The Puzzle-Box Job",
+  "subtitle": "A one-shot heist in Waterdeep",
+  "system": "D&D 5e",
+
+  "files": {
+    "vttData": "vtt-data.js",
+    "adventureData": "adventure-data.js",
+    "combat": "combat.js",
+    "theme": "theme.css"
+  },
+
+  "fonts": [
+    "https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Crimson+Text:ital,wght@0,400;0,600;1,400;1,600&family=Inter:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap"
+  ],
+
+  "broadcastChannel": "puzzlebox-vtt",
+
+  "storage": {
+    "prefix": "puzzlebox"
+  }
+}
