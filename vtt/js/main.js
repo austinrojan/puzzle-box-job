@@ -25,10 +25,10 @@ async function boot() {
   const statusEl = loadingEl.querySelector('.loading__status');
 
   statusEl.textContent = 'Loading assets\u2026';
-  const preloadResults = await preloadAll(({ loaded, total }) => {
-    const pct = Math.round((loaded / total) * 100);
+  const preloadResults = await preloadAll(({ completed, total }) => {
+    const pct = Math.round((completed / total) * 100);
     fillEl.style.width = pct + '%';
-    statusEl.textContent = `Loading assets\u2026 ${loaded}/${total}`;
+    statusEl.textContent = `Loading assets\u2026 ${completed}/${total}`;
   });
 
   // Pre-flight diagnostic checks

@@ -164,6 +164,16 @@ export function getSceneById(id) {
   return SCENES.find(s => s.id === id) ?? null;
 }
 
+function findDuplicateIds(items, label) {
+  const seen = new Set();
+  const dupes = [];
+  for (const item of items) {
+    if (seen.has(item.id)) dupes.push(`Duplicate ${label} ID: ${item.id}`);
+    seen.add(item.id);
+  }
+  return dupes;
+}
+
 export function validateCampaignData() {
   const errors = [];
 
@@ -173,17 +183,8 @@ export function validateCampaignData() {
     }
   }
 
-  const sceneIds = new Set();
-  for (const scene of SCENES) {
-    if (sceneIds.has(scene.id)) errors.push(`Duplicate scene ID: ${scene.id}`);
-    sceneIds.add(scene.id);
-  }
-
-  const mapIds = new Set();
-  for (const map of MAPS) {
-    if (mapIds.has(map.id)) errors.push(`Duplicate map ID: ${map.id}`);
-    mapIds.add(map.id);
-  }
+  errors.push(...findDuplicateIds(SCENES, 'scene'));
+  errors.push(...findDuplicateIds(MAPS, 'map'));
 
   for (const [presetId, preset] of Object.entries(MAP_PRESETS)) {
     if (!MAPS.find(m => m.id === preset.mapId)) {

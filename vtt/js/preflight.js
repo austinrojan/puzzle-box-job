@@ -2,6 +2,8 @@
 
 import { SCENES, MAPS, TOKENS, validateCampaignData } from './data.js';
 
+const MAX_ERRORS = 5;
+
 export function runPreflight(preloadResults) {
   const failedSet = new Set(preloadResults.failedSources);
 
@@ -58,22 +60,18 @@ export function renderPreflightResults(results, containerEl) {
   ];
 
   const list = document.createElement('div');
-  list.style.cssText = 'text-align: left; max-width: 400px; margin: 1rem auto 0;';
+  list.className = 'preflight__list';
 
   let allOk = true;
 
   for (const check of checks) {
     const result = results[check.key];
     const row = document.createElement('div');
-    row.style.cssText = `
-      display: flex; align-items: center; gap: 8px;
-      font-family: var(--font-mono); font-size: 13px;
-      margin-bottom: 4px; color: ${result.ok ? 'var(--heat-green)' : 'var(--red-bright)'};
-    `;
+    row.className = result.ok ? 'preflight__row preflight__row--pass' : 'preflight__row preflight__row--fail';
 
     const icon = document.createElement('span');
     icon.textContent = result.ok ? '\u2713' : '\u2717';
-    icon.style.fontWeight = 'bold';
+    icon.className = 'preflight__icon';
 
     const label = document.createElement('span');
     label.textContent = check.label;
@@ -84,20 +82,16 @@ export function renderPreflightResults(results, containerEl) {
 
     if (!result.ok) {
       allOk = false;
-      for (const err of result.errors.slice(0, 5)) {
+      for (const err of result.errors.slice(0, MAX_ERRORS)) {
         const errRow = document.createElement('div');
-        errRow.style.cssText = `
-          font-size: 11px; color: var(--red-bright);
-          padding-left: 24px; opacity: 0.8;
-          font-family: var(--font-mono);
-        `;
+        errRow.className = 'preflight__error';
         errRow.textContent = err;
         list.appendChild(errRow);
       }
-      if (result.errors.length > 5) {
+      if (result.errors.length > MAX_ERRORS) {
         const more = document.createElement('div');
-        more.style.cssText = 'font-size: 11px; color: var(--red-bright); padding-left: 24px; opacity: 0.6; font-family: var(--font-mono);';
-        more.textContent = `\u2026and ${result.errors.length - 5} more`;
+        more.className = 'preflight__error preflight__error--more';
+        more.textContent = `\u2026and ${result.errors.length - MAX_ERRORS} more`;
         list.appendChild(more);
       }
     }
@@ -107,11 +101,7 @@ export function renderPreflightResults(results, containerEl) {
 
   if (!allOk) {
     const warning = document.createElement('div');
-    warning.style.cssText = `
-      color: var(--heat-amber); font-family: var(--font-read-aloud);
-      font-style: italic; margin-top: 0.5rem; font-size: 15px;
-      text-align: center;
-    `;
+    warning.className = 'preflight__warning';
     warning.textContent = 'Some checks failed. The VTT will still load, but you may see placeholders.';
     containerEl.appendChild(warning);
   }

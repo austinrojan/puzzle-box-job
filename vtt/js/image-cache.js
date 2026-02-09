@@ -24,16 +24,16 @@ export async function preloadAll(onProgress) {
   for (const token of Object.values(TOKENS)) sources.push(token.image);
 
   const total = sources.length;
-  let loaded = 0;
+  let completed = 0;
   let failed = 0;
   const failedSources = [];
 
   const results = await Promise.all(
     sources.map(src =>
       preloadImage(src).then(result => {
-        loaded++;
+        completed++;
         if (!result.ok) { failed++; failedSources.push(result.src); }
-        if (onProgress) onProgress({ loaded, total, failed, src: result.src });
+        if (onProgress) onProgress({ completed, total, failed, src: result.src });
         return result;
       })
     )

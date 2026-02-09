@@ -62,6 +62,46 @@
   letter-spacing: 1px;
 }
 
+/* Preflight check results (appended to .loading) */
+.preflight__list {
+  text-align: left;
+  max-width: 400px;
+  margin: 1rem auto 0;
+}
+
+.preflight__row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  margin-bottom: 4px;
+}
+
+.preflight__row--pass { color: var(--heat-green); }
+.preflight__row--fail { color: var(--red-bright); }
+
+.preflight__icon { font-weight: bold; }
+
+.preflight__error {
+  font-size: 11px;
+  color: var(--red-bright);
+  padding-left: 24px;
+  opacity: 0.8;
+  font-family: var(--font-mono);
+}
+
+.preflight__error--more { opacity: 0.6; }
+
+.preflight__warning {
+  color: var(--heat-amber);
+  font-family: var(--font-read-aloud);
+  font-style: italic;
+  margin-top: 0.5rem;
+  font-size: 15px;
+  text-align: center;
+}
+
 /* Screen flash overlay for spell effects */
 .screen-flash {
   position: fixed;
