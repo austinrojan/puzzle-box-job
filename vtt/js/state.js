@@ -1,6 +1,7 @@
 // VTT State — Reactive store + EventBus + BroadcastChannel
 
 import { createStore } from './store.js';
+import { MSG, validateMessage, createStateSyncMsg } from '../../shared/protocol.js';
 
 export const EventBus = {
   _listeners: {},
@@ -86,35 +87,36 @@ store.subscribeAll(() => {
 
 function broadcastState() {
   if (!channel) return;
-  channel.postMessage({
-    type: 'state:sync',
-    data: {
-      mode: state.mode,
-      sceneIndex: state.sceneIndex,
-      mapId: state.mapId,
-      heat: state.heat,
-      initiative: state.initiative,
-      presentationMode: state.presentationMode,
-      tokens: state.tokens,
-      gridVisible: state.gridVisible
-    }
-  });
+  channel.postMessage(createStateSyncMsg({
+    mode: state.mode,
+    sceneIndex: state.sceneIndex,
+    mapId: state.mapId,
+    heat: state.heat,
+    initiative: state.initiative,
+    presentationMode: state.presentationMode,
+    tokens: state.tokens,
+    gridVisible: state.gridVisible
+  }));
 }
 
 function handleSyncMessage(msg) {
-  if (!msg || !msg.type) return;
+  const result = validateMessage(msg);
+  if (!result.valid) {
+    if (msg?.type) console.warn('[VTT] Invalid message:', result.error, msg);
+    return;
+  }
 
   switch (msg.type) {
     // State changes (bridges handle EventBus emit)
-    case 'heat':
+    case MSG.HEAT:
       state.heat = msg.level;
       break;
 
-    case 'initiative':
+    case MSG.INITIATIVE:
       state.initiative = { ...state.initiative, ...msg.data };
       break;
 
-    case 'initiative:next':
+    case MSG.INITIATIVE_NEXT:
       state.initiative = {
         ...state.initiative,
         currentTurn: msg.currentTurn,
@@ -122,7 +124,7 @@ function handleSyncMessage(msg) {
       };
       break;
 
-    case 'combat:start':
+    case MSG.COMBAT_START:
       state.initiative = {
         ...state.initiative,
         ...(msg.data || {}),
@@ -131,29 +133,29 @@ function handleSyncMessage(msg) {
       EventBus.emit('combat:start', state.initiative);
       break;
 
-    case 'combat:end':
+    case MSG.COMBAT_END:
       state.initiative = { ...state.initiative, active: false };
       EventBus.emit('combat:end');
       break;
 
-    case 'grid:toggle':
+    case MSG.GRID_TOGGLE:
       state.gridVisible = !state.gridVisible;
       break;
 
-    case 'presentation':
+    case MSG.PRESENTATION:
       state.presentationMode = msg.enabled;
       break;
 
     // Command events (relayed to EventBus)
-    case 'scene':
+    case MSG.SCENE:
       EventBus.emit('scene:goto', msg.sceneId);
       break;
 
-    case 'map':
+    case MSG.MAP:
       EventBus.emit('map:load', msg.mapId);
       break;
 
-    case 'brazier':
+    case MSG.BRAZIER:
       if (typeof msg.index === 'number') {
         EventBus.emit('brazier:toggle', { index: msg.index, lit: msg.lit });
       } else if (Array.isArray(msg.braziers)) {
@@ -163,73 +165,73 @@ function handleSyncMessage(msg) {
       }
       break;
 
-    case 'effect':
+    case MSG.EFFECT:
       EventBus.emit('effect:trigger', msg);
       break;
 
-    case 'title-card':
+    case MSG.TITLE_CARD:
       EventBus.emit('title-card:show', msg);
       break;
 
-    case 'overlay-text':
+    case MSG.OVERLAY_TEXT:
       EventBus.emit('overlay-text:show', msg);
       break;
 
-    case 'mode:switch':
+    case MSG.MODE_SWITCH:
       EventBus.emit('mode:switch', msg.mode);
       break;
 
-    case 'token:add':
+    case MSG.TOKEN_ADD:
       EventBus.emit('token:add', msg);
       break;
 
-    case 'token:remove-all':
+    case MSG.TOKEN_REMOVE_ALL:
       EventBus.emit('token:remove-all');
       break;
 
-    case 'token:load-preset':
+    case MSG.TOKEN_LOAD_PRESET:
       EventBus.emit('token:load-preset', msg.presetId);
       break;
 
-    case 'fog:reveal-all':
+    case MSG.FOG_REVEAL_ALL:
       EventBus.emit('fog:reveal-all');
       break;
 
-    case 'fog:hide-all':
+    case MSG.FOG_HIDE_ALL:
       EventBus.emit('fog:hide-all');
       break;
 
-    case 'camera:zoom':
+    case MSG.CAMERA_ZOOM:
       EventBus.emit('camera:zoom', msg.direction);
       break;
 
-    case 'camera:pan':
+    case MSG.CAMERA_PAN:
       EventBus.emit('camera:pan', { dx: msg.dx, dy: msg.dy });
       break;
 
-    case 'camera:reset':
+    case MSG.CAMERA_RESET:
       EventBus.emit('camera:reset');
       break;
 
-    case 'token:update-condition':
+    case MSG.TOKEN_UPDATE_CONDITION:
       EventBus.emit('token:update-condition', {
         instanceId: msg.instanceId, condition: msg.condition, enabled: msg.enabled
       });
       break;
 
-    case 'token:remove-one':
+    case MSG.TOKEN_REMOVE_ONE:
       EventBus.emit('token:remove-one', msg.instanceId);
       break;
 
-    case 'token:visibility':
+    case MSG.TOKEN_VISIBILITY:
       EventBus.emit('token:visibility', { instanceId: msg.instanceId, visible: msg.visible });
       break;
 
-    case 'state:request':
+    case MSG.STATE_REQUEST:
       broadcastState();
       break;
 
     default:
-      console.log('[VTT] Unknown sync message:', msg.type);
+      console.warn('[VTT] Unhandled sync message:', msg.type);
   }
 }
