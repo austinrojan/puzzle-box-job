@@ -22,6 +22,24 @@ let mapSelectDirty = false;
 let mapSelectDirtyTimer = null;
 
 // ============================================
+// Shared helpers
+// ============================================
+function buildSelect(sel, placeholder, items) {
+  if (placeholder) {
+    const opt0 = document.createElement('option');
+    opt0.value = '';
+    opt0.textContent = placeholder;
+    sel.appendChild(opt0);
+  }
+  for (const { value, text } of items) {
+    const opt = document.createElement('option');
+    opt.value = value;
+    opt.textContent = text;
+    sel.appendChild(opt);
+  }
+}
+
+// ============================================
 // Connection status
 // ============================================
 export function updateConnectionStatus() {
@@ -157,17 +175,13 @@ export function initMapCamera() {
     clearTimeout(mapSelectDirtyTimer);
   });
 
+  const camActions = { up: [0, 80], down: [0, -80], left: [80, 0], right: [-80, 0] };
   $$('[data-cam]').forEach(btn => {
     btn.addEventListener('click', () => {
       const dir = btn.dataset.cam;
-      const step = 80;
-      switch (dir) {
-        case 'up':    send(createCameraPanMsg(0, step)); break;
-        case 'down':  send(createCameraPanMsg(0, -step)); break;
-        case 'left':  send(createCameraPanMsg(step, 0)); break;
-        case 'right': send(createCameraPanMsg(-step, 0)); break;
-        case 'reset': send(createCameraResetMsg()); break;
-      }
+      const args = camActions[dir];
+      if (args) send(createCameraPanMsg(...args));
+      else if (dir === 'reset') send(createCameraResetMsg());
     });
   });
 
@@ -179,17 +193,11 @@ export function initMapCamera() {
 }
 
 function buildMapSelect() {
-  const sel = $('#map-select');
-  const opt0 = document.createElement('option');
-  opt0.value = '';
-  opt0.textContent = '\u2014 Select Map \u2014';
-  sel.appendChild(opt0);
-  MAPS.forEach(m => {
-    const opt = document.createElement('option');
-    opt.value = m.id;
-    opt.textContent = m.id + ' \u2014 ' + m.title;
-    sel.appendChild(opt);
-  });
+  buildSelect(
+    $('#map-select'),
+    '\u2014 Select Map \u2014',
+    MAPS.map(m => ({ value: m.id, text: m.id + ' \u2014 ' + m.title }))
+  );
 }
 
 function updateMapSelect() {
@@ -217,17 +225,40 @@ export function initTokens() {
 }
 
 function buildPresetSelect() {
-  const sel = $('#preset-select');
-  const opt0 = document.createElement('option');
-  opt0.value = '';
-  opt0.textContent = '\u2014 Preset \u2014';
-  sel.appendChild(opt0);
-  for (const [id, preset] of Object.entries(MAP_PRESETS)) {
-    const opt = document.createElement('option');
-    opt.value = id;
-    opt.textContent = preset.label;
-    sel.appendChild(opt);
+  buildSelect(
+    $('#preset-select'),
+    '\u2014 Preset \u2014',
+    Object.entries(MAP_PRESETS).map(([id, p]) => ({ value: id, text: p.label }))
+  );
+}
+
+function renderTokenGroup(label, items) {
+  const group = document.createElement('div');
+  group.className = 'token-group';
+
+  const groupLabel = document.createElement('div');
+  groupLabel.className = 'token-group__label';
+  groupLabel.textContent = label;
+  group.appendChild(groupLabel);
+
+  const row = document.createElement('div');
+  row.className = 'btn-row';
+
+  for (const { id, def } of items) {
+    const btn = document.createElement('button');
+    let cls = 'token-btn--npc';
+    if (def.isPC) cls = 'token-btn--pc';
+    else if (def.isObject) cls = 'token-btn--object';
+    btn.className = 'token-btn ' + cls;
+    btn.textContent = def.name;
+    btn.addEventListener('click', () => {
+      send(createTokenAddMsg({ tokenId: id, x: 10, y: 8, label: def.name }));
+    });
+    row.appendChild(btn);
   }
+
+  group.appendChild(row);
+  return group;
 }
 
 function buildTokenButtons() {
@@ -241,33 +272,72 @@ function buildTokenButtons() {
 
   for (const [label, items] of Object.entries(groups)) {
     if (items.length === 0) continue;
-    const group = document.createElement('div');
-    group.className = 'token-group';
-
-    const groupLabel = document.createElement('div');
-    groupLabel.className = 'token-group__label';
-    groupLabel.textContent = label;
-    group.appendChild(groupLabel);
-
-    const row = document.createElement('div');
-    row.className = 'btn-row';
-
-    for (const { id, def } of items) {
-      const btn = document.createElement('button');
-      let cls = 'token-btn--npc';
-      if (def.isPC) cls = 'token-btn--pc';
-      else if (def.isObject) cls = 'token-btn--object';
-      btn.className = 'token-btn ' + cls;
-      btn.textContent = def.name;
-      btn.addEventListener('click', () => {
-        send(createTokenAddMsg({ tokenId: id, x: 10, y: 8, label: def.name }));
-      });
-      row.appendChild(btn);
-    }
-
-    group.appendChild(row);
-    container.appendChild(group);
+    container.appendChild(renderTokenGroup(label, items));
   }
+}
+
+function renderTokenRow(token) {
+  const def = TOKENS[token.tokenId] || {};
+  const row = document.createElement('div');
+  row.className = 'active-token';
+
+  const dot = document.createElement('span');
+  dot.className = 'active-token__dot';
+  dot.style.background = def.isPC ? '#27AE60' : def.isObject ? '#7E57C2' : '#E74C3C';
+  row.appendChild(dot);
+
+  const name = document.createElement('span');
+  name.className = 'active-token__name';
+  name.textContent = token.label || def.name || token.tokenId;
+  row.appendChild(name);
+
+  if (token.conditions) {
+    for (const cond of token.conditions) {
+      const condDef = CONDITIONS.find(c => c.id === cond);
+      if (!condDef) continue;
+      const badge = document.createElement('span');
+      badge.className = 'active-token__cond active-token__cond--' + cond;
+      badge.textContent = condDef.label;
+      badge.title = 'Remove ' + cond;
+      badge.addEventListener('click', (e) => {
+        e.stopPropagation();
+        send(createTokenUpdateConditionMsg(token.id, cond, false));
+      });
+      row.appendChild(badge);
+    }
+  }
+
+  const addCond = document.createElement('span');
+  addCond.className = 'active-token__vis';
+  addCond.textContent = '+';
+  addCond.title = 'Add condition';
+  addCond.addEventListener('click', (e) => {
+    e.stopPropagation();
+    showCondPopup(token, e.target);
+  });
+  row.appendChild(addCond);
+
+  const vis = document.createElement('span');
+  vis.className = 'active-token__vis';
+  vis.textContent = token.visible ? '\uD83D\uDC41' : '\uD83D\uDEAB';
+  vis.title = token.visible ? 'Hide token' : 'Show token';
+  vis.addEventListener('click', (e) => {
+    e.stopPropagation();
+    send(createTokenVisibilityMsg(token.id, !token.visible));
+  });
+  row.appendChild(vis);
+
+  const remove = document.createElement('span');
+  remove.className = 'active-token__remove';
+  remove.textContent = '\u2715';
+  remove.title = 'Remove token';
+  remove.addEventListener('click', (e) => {
+    e.stopPropagation();
+    send(createTokenRemoveOneMsg(token.id));
+  });
+  row.appendChild(remove);
+
+  return row;
 }
 
 function updateActiveTokens() {
@@ -284,69 +354,8 @@ function updateActiveTokens() {
   }
 
   container.textContent = '';
-
   for (const token of tokens) {
-    const def = TOKENS[token.tokenId] || {};
-    const row = document.createElement('div');
-    row.className = 'active-token';
-
-    const dot = document.createElement('span');
-    dot.className = 'active-token__dot';
-    dot.style.background = def.isPC ? '#27AE60' : def.isObject ? '#7E57C2' : '#E74C3C';
-    row.appendChild(dot);
-
-    const name = document.createElement('span');
-    name.className = 'active-token__name';
-    name.textContent = token.label || def.name || token.tokenId;
-    row.appendChild(name);
-
-    if (token.conditions) {
-      for (const cond of token.conditions) {
-        const condDef = CONDITIONS.find(c => c.id === cond);
-        if (!condDef) continue;
-        const badge = document.createElement('span');
-        badge.className = 'active-token__cond active-token__cond--' + cond;
-        badge.textContent = condDef.label;
-        badge.title = 'Remove ' + cond;
-        badge.addEventListener('click', (e) => {
-          e.stopPropagation();
-          send(createTokenUpdateConditionMsg(token.id, cond, false));
-        });
-        row.appendChild(badge);
-      }
-    }
-
-    const addCond = document.createElement('span');
-    addCond.className = 'active-token__vis';
-    addCond.textContent = '+';
-    addCond.title = 'Add condition';
-    addCond.addEventListener('click', (e) => {
-      e.stopPropagation();
-      showCondPopup(token, e.target);
-    });
-    row.appendChild(addCond);
-
-    const vis = document.createElement('span');
-    vis.className = 'active-token__vis';
-    vis.textContent = token.visible ? '\uD83D\uDC41' : '\uD83D\uDEAB';
-    vis.title = token.visible ? 'Hide token' : 'Show token';
-    vis.addEventListener('click', (e) => {
-      e.stopPropagation();
-      send(createTokenVisibilityMsg(token.id, !token.visible));
-    });
-    row.appendChild(vis);
-
-    const remove = document.createElement('span');
-    remove.className = 'active-token__remove';
-    remove.textContent = '\u2715';
-    remove.title = 'Remove token';
-    remove.addEventListener('click', (e) => {
-      e.stopPropagation();
-      send(createTokenRemoveOneMsg(token.id));
-    });
-    row.appendChild(remove);
-
-    container.appendChild(row);
+    container.appendChild(renderTokenRow(token));
   }
 }
 
@@ -459,13 +468,11 @@ export function initOverlay() {
 // Title Card
 // ============================================
 export function initTitleCard() {
-  const sel = $('#title-act-select');
-  ACTS.forEach(act => {
-    const opt = document.createElement('option');
-    opt.value = act.number;
-    opt.textContent = 'Act ' + act.number + ': ' + act.title;
-    sel.appendChild(opt);
-  });
+  buildSelect(
+    $('#title-act-select'),
+    null,
+    ACTS.map(act => ({ value: act.number, text: 'Act ' + act.number + ': ' + act.title }))
+  );
 
   $('#title-send').addEventListener('click', () => {
     const actNum = parseInt($('#title-act-select').value, 10);
