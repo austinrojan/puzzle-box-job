@@ -12,10 +12,8 @@ const STATE_VERSION = 1;
 
 let _saveTimer = null;
 
-/**
- * Keys worth persisting. Transient UI state (titleCardVisible,
- * presentationMode, loaded) is deliberately excluded.
- */
+// Keys worth persisting. Transient UI state (titleCardVisible,
+// presentationMode, loaded) is deliberately excluded.
 const PERSIST_KEYS = [
   'mode', 'sceneIndex', 'mapId', 'heat',
   'initiative', 'tokens', 'gridVisible', 'fog'
@@ -36,7 +34,7 @@ function saveState(snapshot) {
   }
 }
 
-/** Wire to store.subscribeAll() for debounced auto-save. */
+// Wire to store.subscribeAll() for debounced auto-save.
 export function initAutoSave(store) {
   store.subscribeAll(() => {
     clearTimeout(_saveTimer);
@@ -44,16 +42,14 @@ export function initAutoSave(store) {
   });
 }
 
-/** Immediate save for beforeunload — bypasses debounce. */
+// Immediate save for beforeunload — bypasses debounce.
 export function saveImmediate(store) {
   clearTimeout(_saveTimer);
   saveState(store.snapshot());
 }
 
-/**
- * Load saved state from sessionStorage.
- * Returns the saved object or null if missing/corrupt/stale/wrong version.
- */
+// Load saved state from sessionStorage.
+// Returns null if missing, corrupt, stale, or wrong version.
 export function loadSavedState() {
   try {
     const raw = sessionStorage.getItem(STORAGE_KEY);
@@ -81,16 +77,14 @@ export function loadSavedState() {
   }
 }
 
-/** Clear saved state. Exposed on window.__vtt for debugging. */
+// Clear saved state. Exposed on window.__vtt for debugging.
 export function clearSavedState() {
   sessionStorage.removeItem(STORAGE_KEY);
   console.log('[VTT] Saved state cleared');
 }
 
-/**
- * Validate and sanitize restored state.
- * Clamps out-of-bounds values, drops unknown token/map references.
- */
+// Validate and sanitize restored state.
+// Clamps out-of-bounds values, drops unknown token/map references.
 export function validateRestoredState(saved) {
   const clean = {};
 

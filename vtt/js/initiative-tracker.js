@@ -43,7 +43,7 @@ function render() {
   roundEl.appendChild(roundNum);
   panel.appendChild(roundEl);
 
-  init.entries.forEach((entry, i) => {
+  for (const [i, entry] of init.entries.entries()) {
     const el = document.createElement('div');
     el.className = 'init-entry';
     if (i === init.currentTurn) el.classList.add('init-entry--active');
@@ -130,6 +130,6 @@ function render() {
     el.appendChild(portrait);
     el.appendChild(info);
     panel.appendChild(el);
-  });
+  }
 }
 

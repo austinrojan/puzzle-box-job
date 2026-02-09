@@ -17,6 +17,7 @@ export class MapRenderer {
     this.layers = {};
     this.contexts = {};
     this.cellPx = 40;
+    this.gridSizeFt = 5;
     this._mapWorldW = 0;
     this._mapWorldH = 0;
   }
@@ -278,17 +279,4 @@ export class MapRenderer {
     this.drawFog();
   }
 
-  screenToCell(sx, sy) {
-    const world = this.camera.screenToWorld(sx, sy);
-    return {
-      col: Math.floor(world.x / this.cellPx),
-      row: Math.floor(world.y / this.cellPx)
-    };
-  }
-
-  cellToScreen(col, row) {
-    const worldX = (col + 0.5) * this.cellPx;
-    const worldY = (row + 0.5) * this.cellPx;
-    return this.camera.worldToScreen(worldX, worldY);
-  }
 }

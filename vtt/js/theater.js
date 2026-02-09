@@ -175,11 +175,3 @@ export function showTitleCard({ act, subtitle }, callback) {
     if (callback) setTimeout(callback, 600);
   }, 3000);
 }
-
-export function getCurrentScene() {
-  return SCENES[state.sceneIndex] || null;
-}
-
-export function getSceneCount() {
-  return SCENES.length;
-}

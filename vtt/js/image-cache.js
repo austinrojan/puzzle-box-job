@@ -1,10 +1,7 @@
-// ============================================
 // VTT Image Cache — Preloads all images at startup
-// ============================================
 
 import { SCENES, MAPS, TOKENS } from './data.js';
 
-// Preload a single image, resolves even on error (graceful degradation)
 function preloadImage(src) {
   return new Promise(resolve => {
     const img = new Image();
@@ -14,11 +11,9 @@ function preloadImage(src) {
   });
 }
 
-// Preload all images with progress callback
 export async function preloadAll(onProgress) {
   const sources = [];
 
-  // Collect all image paths
   for (const scene of SCENES) sources.push(scene.art);
   for (const map of MAPS) sources.push(map.image);
   for (const token of Object.values(TOKENS)) sources.push(token.image);
@@ -28,19 +23,18 @@ export async function preloadAll(onProgress) {
   let failed = 0;
   const failedSources = [];
 
-  const results = await Promise.all(
+  await Promise.all(
     sources.map(src =>
       preloadImage(src).then(result => {
         completed++;
         if (!result.ok) { failed++; failedSources.push(result.src); }
         if (onProgress) onProgress({ completed, total, failed, src: result.src });
-        return result;
       })
     )
   );
 
-  const okCount = results.filter(r => r.ok).length;
-  console.log(`[VTT] Images preloaded: ${okCount}/${total} (${failed} missing — placeholders will be used)`);
+  const loaded = total - failed;
+  console.log(`[VTT] Images preloaded: ${loaded}/${total} (${failed} missing — placeholders will be used)`);
 
-  return { total, loaded: okCount, failed, failedSources };
+  return { total, loaded, failed, failedSources };
 }

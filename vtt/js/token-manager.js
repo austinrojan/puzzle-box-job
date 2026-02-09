@@ -6,6 +6,7 @@ import { resolveCSSVar } from './utils.js';
 
 const $ = id => document.getElementById(id);
 const TOKEN_RADIUS_FACTOR = 0.35;  // fraction of cellPx for token radius (0.42 was original)
+const CLICK_TOLERANCE = 0.03;     // extra radius fraction for click detection
 
 export class TokenManager {
   constructor(mapRenderer) {
@@ -17,8 +18,6 @@ export class TokenManager {
     this.menuEl = null;
 
     this._dragging = null;
-    this._dragOffX = 0;
-    this._dragOffY = 0;
     this._dragScreenX = 0;
     this._dragScreenY = 0;
 
@@ -205,10 +204,7 @@ export class TokenManager {
     this._emitTokensChanged();
   }
 
-  /**
-   * Restore tokens from a serialized snapshot (e.g. from persistence).
-   * Rebuilds the internal tokens array and redraws.
-   */
+  // Restore tokens from a serialized snapshot (e.g. from persistence).
   restoreTokens(serialized) {
     if (!Array.isArray(serialized) || serialized.length === 0) return;
 
@@ -570,7 +566,7 @@ export class TokenManager {
   drawConditionDots(ctx, cx, cy, radius, conditions, zoom) {
     const dotRadius = 4 / zoom;
 
-    conditions.forEach((cond, i) => {
+    for (const [i, cond] of conditions.entries()) {
       const angle = (Math.PI * 2 * i) / Math.max(conditions.length, 6) - Math.PI / 2;
       const dx = Math.cos(angle) * (radius + 6 / zoom);
       const dy = Math.sin(angle) * (radius + 6 / zoom);
@@ -579,7 +575,7 @@ export class TokenManager {
       ctx.arc(cx + dx, cy + dy, dotRadius, 0, Math.PI * 2);
       ctx.fillStyle = CONDITION_COLORS[cond] || '#A0A0A8';
       ctx.fill();
-    });
+    }
   }
 
   addLabel(text, x, y) {
@@ -620,7 +616,7 @@ export class TokenManager {
       const tx = token.col * cp + size / 2;
       const ty = token.row * cp + size / 2;
       const dist = Math.hypot(world.x - tx, world.y - ty);
-      if (dist <= size * (TOKEN_RADIUS_FACTOR + 0.03)) return token;
+      if (dist <= size * (TOKEN_RADIUS_FACTOR + CLICK_TOLERANCE)) return token;
     }
     return null;
   }

@@ -11,7 +11,7 @@ export const EventBus = {
   },
   emit(event, data) {
     const list = this._listeners[event];
-    if (list) list.forEach(fn => fn(data));
+    if (list) { for (const fn of list) fn(data); }
   }
 };
 
@@ -75,11 +75,11 @@ export function initSync() {
 }
 
 // Auto-broadcast on any store change (microtask-debounced)
-let _bcTimer = null;
+let _broadcastTimer = null;
 store.subscribeAll(() => {
-  if (!channel || _bcTimer) return;
-  _bcTimer = setTimeout(() => {
-    _bcTimer = null;
+  if (!channel || _broadcastTimer) return;
+  _broadcastTimer = setTimeout(() => {
+    _broadcastTimer = null;
     broadcastState();
   }, 0);
 });
@@ -157,9 +157,9 @@ function handleSyncMessage(msg) {
       if (typeof msg.index === 'number') {
         EventBus.emit('brazier:toggle', { index: msg.index, lit: msg.lit });
       } else if (Array.isArray(msg.braziers)) {
-        msg.braziers.forEach((lit, index) => {
+        for (const [index, lit] of msg.braziers.entries()) {
           EventBus.emit('brazier:toggle', { index, lit });
-        });
+        }
       }
       break;
 
