@@ -1,8 +1,4 @@
-// ============================================
 // VTT Player Controls — Bottom navigation bar
-// Visual UI for scene/map navigation, mode switching,
-// and contextual controls (grid, camera, next turn)
-// ============================================
 
 import { EventBus, state, store } from './state.js';
 import { SCENES, MAPS } from './data.js';
@@ -15,18 +11,13 @@ let leftRegion = null;
 let centerRegion = null;
 let rightRegion = null;
 
-// Left region elements
 let prevBtn = null;
 let nextBtn = null;
 let badgeEl = null;
 let titleEl = null;
 let expandIcon = null;
 let titleGroupEl = null;
-
-// Center region elements
 let modeButtons = {};
-
-// Right region elements
 let gridBtn = null;
 let fitBtn = null;
 let nextTurnBtn = null;
@@ -34,7 +25,6 @@ let zoomOutBtn = null;
 let zoomInBtn = null;
 let zoomLabel = null;
 
-// Local state
 let currentMapIndex = 0;
 
 export function init() {
@@ -43,7 +33,6 @@ export function init() {
 
   buildNav();
 
-  // --- Store subscriptions (react to state changes) ---
   store.subscribe('mode', (mode) => {
     updateModeButtons(mode);
     updateContext();
@@ -66,7 +55,6 @@ export function init() {
     gridBtn.classList.toggle('toggled', !visible);
   });
 
-  // --- Command events (stay on EventBus) ---
   EventBus.on('map:load', onMapLoad);
   EventBus.on('camera:changed', () => {
     const zoom = window.__vtt?.mapRenderer?.camera?.zoom;
@@ -83,7 +71,6 @@ export function init() {
     expandIcon.classList.remove('rotated');
   });
 
-  // Set initial state
   updateModeButtons(state.mode);
   updateContext();
 }
@@ -97,8 +84,6 @@ function buildNav() {
   navEl.appendChild(centerRegion);
   navEl.appendChild(rightRegion);
 }
-
-// ---- Left region: scene/map title + nav arrows ----
 
 function buildLeftRegion() {
   leftRegion = document.createElement('div');
@@ -162,8 +147,6 @@ function cycleMap(dir) {
   EventBus.emit('map:load', MAPS[currentMapIndex].id);
 }
 
-// ---- Center region: mode switcher ----
-
 function buildCenterRegion() {
   centerRegion = document.createElement('div');
   centerRegion.className = 'pnav-center';
@@ -189,7 +172,6 @@ function updateModeButtons(activeMode) {
   for (const [key, btn] of Object.entries(modeButtons)) {
     const wasActive = btn.classList.contains('active');
     btn.classList.toggle('active', key === activeMode);
-    // Pulse animation on activation
     if (key === activeMode && !wasActive) {
       btn.classList.add('pulse');
       btn.addEventListener('animationend', () => btn.classList.remove('pulse'), { once: true });
@@ -197,13 +179,10 @@ function updateModeButtons(activeMode) {
   }
 }
 
-// ---- Right region: contextual controls ----
-
 function buildRightRegion() {
   rightRegion = document.createElement('div');
   rightRegion.className = 'pnav-right';
 
-  // Zoom control group: [−] [75%] [+]
   const zoomGroup = document.createElement('div');
   zoomGroup.className = 'pnav-zoom-group';
 
@@ -229,7 +208,6 @@ function buildRightRegion() {
   zoomGroup.appendChild(zoomLabel);
   zoomGroup.appendChild(zoomInBtn);
 
-  // Grid toggle
   gridBtn = document.createElement('button');
   gridBtn.className = 'pnav-icon-btn';
   gridBtn.setAttribute('aria-label', 'Toggle grid');
@@ -240,7 +218,6 @@ function buildRightRegion() {
   gridBtn.addEventListener('click', () => { state.gridVisible = !state.gridVisible; });
   gridBtn.classList.toggle('toggled', !state.gridVisible);
 
-  // Fit to map
   fitBtn = document.createElement('button');
   fitBtn.className = 'pnav-icon-btn';
   fitBtn.setAttribute('aria-label', 'Fit to map');
@@ -249,7 +226,6 @@ function buildRightRegion() {
   fitBtn.appendChild(fitIcon);
   fitBtn.addEventListener('click', () => EventBus.emit('camera:reset'));
 
-  // Next turn (initiative only)
   nextTurnBtn = document.createElement('button');
   nextTurnBtn.className = 'pnav-next-turn';
   nextTurnBtn.textContent = 'NEXT \u2192';
@@ -260,14 +236,11 @@ function buildRightRegion() {
   rightRegion.appendChild(fitBtn);
   rightRegion.appendChild(nextTurnBtn);
 
-  // Initial: hide in theater mode
   if (state.mode === 'theater') {
     rightRegion.classList.add('theater-hidden');
   }
   nextTurnBtn.hidden = state.mode !== 'initiative';
 }
-
-// ---- State sync handlers ----
 
 function onMapLoad(mapId) {
   const idx = MAPS.findIndex(m => m.id === mapId);
@@ -294,7 +267,6 @@ function updateContext() {
       badgeEl.textContent = badge;
       titleEl.textContent = map.title;
     }
-    // Maps wrap around, never disable chevrons
     prevBtn.disabled = false;
     nextBtn.disabled = false;
   }

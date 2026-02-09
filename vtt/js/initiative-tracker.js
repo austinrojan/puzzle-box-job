@@ -1,7 +1,4 @@
-// ============================================
-// VTT Initiative Tracker — DOM-based turn order display
-// Left-side overlay during combat
-// ============================================
+// VTT Initiative Tracker — Turn order overlay during combat
 
 import { EventBus, state, store } from './state.js';
 import { TOKENS } from './data.js';
@@ -36,7 +33,6 @@ function render() {
 
   if (!init.active || init.entries.length === 0) return;
 
-  // Round counter
   const roundEl = document.createElement('div');
   roundEl.className = 'init-round';
   const roundLabel = document.createTextNode('Round ');
@@ -47,24 +43,20 @@ function render() {
   roundEl.appendChild(roundNum);
   panel.appendChild(roundEl);
 
-  // Combatant entries
   init.entries.forEach((entry, i) => {
     const el = document.createElement('div');
     el.className = 'init-entry';
     if (i === init.currentTurn) el.classList.add('init-entry--active');
     if (entry.hp !== undefined && entry.hp <= 0) el.classList.add('init-entry--dead');
 
-    // Initiative roll number
     const rollEl = document.createElement('div');
     rollEl.className = 'init-roll';
     rollEl.textContent = entry.init ?? '';
 
-    // Portrait
     const portrait = document.createElement('div');
     portrait.className = 'init-portrait';
     portrait.style.backgroundColor = 'var(--bg-3)';
 
-    // Try to load token image
     const tokenDef = TOKENS[entry.tokenId];
     if (tokenDef) {
       const img = new Image();
@@ -73,7 +65,6 @@ function render() {
         portrait.style.backgroundSize = 'cover';
       };
       img.onerror = () => {
-        // Show initials
         const initials = entry.name.split(' ').map(w => w[0]).join('').substring(0, 2);
         portrait.textContent = initials;
         portrait.style.display = 'flex';
@@ -86,12 +77,10 @@ function render() {
       };
       img.src = tokenDef.image;
 
-      // Set border color from token definition
       const borderColor = resolveCSSVar(tokenDef.border);
       portrait.style.borderColor = borderColor;
     }
 
-    // Info block
     const info = document.createElement('div');
     info.className = 'init-info';
 
@@ -100,7 +89,6 @@ function render() {
     name.textContent = entry.displayName || entry.name;
     info.appendChild(name);
 
-    // HP bar (only for enemies, not PCs)
     if (entry.hp !== undefined && entry.maxHp) {
       const hpBar = document.createElement('div');
       hpBar.className = 'init-hp';
@@ -115,7 +103,6 @@ function render() {
       fill.style.width = pct + '%';
       hpBar.appendChild(fill);
 
-      // Special: Locke half-HP marker
       if (entry.tokenId === 'locke-rakshasa') {
         const marker = document.createElement('div');
         marker.className = 'init-hp-marker';
@@ -125,7 +112,6 @@ function render() {
       info.appendChild(hpBar);
     }
 
-    // Condition badges
     if (entry.conditions && entry.conditions.length > 0) {
       const badges = document.createElement('div');
       badges.className = 'init-conditions';

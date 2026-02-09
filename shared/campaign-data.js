@@ -1,14 +1,8 @@
-// ============================================
-// SINGLE SOURCE OF TRUTH — Campaign Data
-// Imported by: VTT (via vtt/js/data.js shim),
-//              Controller (controller/index.html),
-//              DM Guide (index.html validation)
-//
-// If you edit data here, all three apps pick it up.
+// Single source of truth for campaign data.
+// Imported by: VTT (via vtt/js/data.js), Controller, DM Guide.
 // Do NOT duplicate this data elsewhere.
-// ============================================
 
-// --- SCENES (26 total) ---
+// Scenes (26)
 export const SCENES = [
   // Act 1: The Job Offer
   { id: 'S01', act: 1, title: 'The Rusty Anchor',      art: 'assets/scenes/s01-rusty-anchor.jpg',    overlay: 'A salt-crusted tavern on the docks. Lantern light cuts through harbor fog.' },
@@ -49,7 +43,7 @@ export const SCENES = [
   { id: 'S26', act: 6, title: 'Epilogue — Dawn',        art: 'assets/scenes/s26-epilogue-dawn.png',   overlay: 'The first light of dawn breaks over the Dock District. The warehouse smolders behind you.' },
 ];
 
-// --- ACTS (6 total) ---
+// Acts (6)
 export const ACTS = [
   { number: 1, title: 'The Job Offer',      subtitle: 'A proposition in the Dock District' },
   { number: 2, title: 'Gathering Intel',     subtitle: 'Contacts, rumors, and the estate' },
@@ -59,7 +53,7 @@ export const ACTS = [
   { number: 6, title: 'The Ritual',          subtitle: 'Betrayal and blood' },
 ];
 
-// --- MAPS (6 total) ---
+// Maps (6)
 export const MAPS = [
   { id: 'M01', title: 'Dock District',       image: 'assets/maps/m01-dock-district.png',    gridSize: 5, cols: 40, rows: 30 },
   { id: 'M02', title: 'Estate Grounds',      image: 'assets/maps/m02-estate-grounds.png',   gridSize: 5, cols: 40, rows: 30 },
@@ -69,7 +63,7 @@ export const MAPS = [
   { id: 'M06', title: 'Warehouse',           image: 'assets/maps/m06-warehouse.png',        gridSize: 5, cols: 24, rows: 16 },
 ];
 
-// --- TOKEN DEFINITIONS (17 total) ---
+// Tokens (17)
 export const TOKENS = {
   // PCs
   'martin-storm':  { name: 'Martin Storm',        image: 'assets/tokens/martin-storm.png',  border: 'var(--token-pc)',       size: 1, isPC: true },
@@ -95,7 +89,7 @@ export const TOKENS = {
   'dagger-magic':   { name: '+1 Ornate Dagger',   image: 'assets/tokens/dagger-magic.png',   border: 'var(--gold)',            size: 1, isObject: true },
 };
 
-// --- MAP PRESETS (pre-positioned token layouts) ---
+// Map presets (pre-positioned token layouts)
 export const MAP_PRESETS = {
   'M06-combat': {
     mapId: 'M06',
@@ -130,7 +124,7 @@ export const MAP_PRESETS = {
   }
 };
 
-// --- EFFECT DEFINITIONS (14 total) ---
+// Effects (14)
 export const EFFECTS = {
   'divine-smite':      { name: 'Divine Smite',       type: 'burst',      color: '#FFD700', radius: 1, duration: 600,  shake: true },
   'fireball':          { name: 'Fireball',           type: 'aoe-sphere', color: '#FF4500', radius: 4, duration: 800,  flash: '#FF4500' },
@@ -148,7 +142,7 @@ export const EFFECTS = {
   'invisibility':      { name: 'Invisibility',        type: 'fade',       color: '#48B5E0', duration: 600 },
 };
 
-// --- CONDITIONS (7 total) ---
+// Conditions (7)
 export const CONDITIONS = [
   { id: 'dominated',      label: 'DOM', color: '#7E57C2' },
   { id: 'concentrating',  label: 'CON', color: '#2E86AB' },
@@ -159,12 +153,12 @@ export const CONDITIONS = [
   { id: 'invisible',      label: 'INV', color: '#48B5E0' },
 ];
 
-// Derived lookup: condition id → hex color (for canvas rendering)
+// Condition id -> hex color (for canvas rendering)
 export const CONDITION_COLORS = Object.fromEntries(
   CONDITIONS.map(c => [c.id, c.color])
 );
 
-// --- LOOKUP HELPERS ---
+// Lookup helpers
 
 export function getSceneById(id) {
   return SCENES.find(s => s.id === id) ?? null;
@@ -195,7 +189,7 @@ export function getFirstSceneOfAct(actNumber) {
   return SCENES.findIndex(s => s.act === actNumber);
 }
 
-// --- DATA INTEGRITY CHECK ---
+// Data integrity check
 
 export function validateCampaignData() {
   const errors = [];

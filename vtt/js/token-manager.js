@@ -1,6 +1,4 @@
-// ============================================
 // VTT Token Manager — Rendering, drag-drop, context menu
-// ============================================
 
 import { EventBus, state } from './state.js';
 import { TOKENS, MAP_PRESETS, CONDITIONS, CONDITION_COLORS } from './data.js';
@@ -12,35 +10,28 @@ const TOKEN_RADIUS_FACTOR = 0.35;  // fraction of cellPx for token radius (0.42 
 export class TokenManager {
   constructor(mapRenderer) {
     this.map = mapRenderer;
-    this.tokens = [];       // active tokens: [{id, tokenId, col, row, label, visible, conditions, hp, maxHp}]
+    this.tokens = [];
     this.canvas = null;
     this.ctx = null;
     this.labelsEl = null;
     this.menuEl = null;
 
-    // Drag state
-    this._dragging = null;  // token being dragged
+    this._dragging = null;
     this._dragOffX = 0;
     this._dragOffY = 0;
     this._dragScreenX = 0;
     this._dragScreenY = 0;
 
-    // Token images cache
     this._imageCache = {};
-
-    // Per-map token storage
-    this._tokensByMap = {};   // mapId -> token array snapshot
+    this._tokensByMap = {};
     this._currentMapId = null;
 
-    // Ruler measurement state
-    this._ruler = null;       // { startCol, startRow, endCol, endRow }
+    this._ruler = null;
     this._rulerDragging = false;
-
-    // Token tray / placement state
     this._trayEl = null;
     this._trayOpen = false;
-    this._placing = null;         // tokenId being placed
-    this._placingGhostPos = null; // {x, y} screen coords for ghost preview
+    this._placing = null;
+    this._placingGhostPos = null;
 
     this._nextId = 1;
   }
@@ -53,12 +44,10 @@ export class TokenManager {
 
     const container = $('map-container');
 
-    // Mouse events for drag-and-drop
     container.addEventListener('mousedown', (e) => this.onMouseDown(e));
     window.addEventListener('mousemove', (e) => this.onMouseMove(e));
     window.addEventListener('mouseup', (e) => this.onMouseUp(e));
 
-    // Right-click context menu (only prevent default when over a token)
     container.addEventListener('contextmenu', (e) => {
       const rect = container.getBoundingClientRect();
       const sx = e.clientX - rect.left;
@@ -70,20 +59,15 @@ export class TokenManager {
       }
     });
 
-    // Close menu on click elsewhere or Escape
     document.addEventListener('click', () => this.closeMenu());
     EventBus.on('menu:close', () => {
       this.closeMenu();
       if (this._ruler) { this._ruler = null; this.draw(); }
     });
 
-    // Redraw when camera moves
     EventBus.on('map:redraw', () => this.draw());
-
-    // Listen for preset loading
     EventBus.on('map:load-preset', (presetId) => this.loadPreset(presetId));
 
-    // Brazier token toggle (individual by index from DM guide sync)
     EventBus.on('brazier:toggle', ({ index, lit }) => {
       const braziers = this.getBrazierTokens();
       if (index < braziers.length) {
@@ -98,18 +82,13 @@ export class TokenManager {
       }
     });
 
-    // Toggle all brazier tokens at once (B key)
     EventBus.on('brazier:toggle-all', () => this.toggleAllBraziers());
-
-    // Per-map token state: save/restore tokens when switching maps
     EventBus.on('map:load', (mapId) => this._onMapSwitch(mapId));
 
-    // Remote token control (from DM Guide via BroadcastChannel)
     EventBus.on('token:add', ({ tokenId, x, y, label }) => { this.addToken(tokenId, x, y, { label }); });
     EventBus.on('token:remove-all', () => { this.tokens = []; this.draw(); this._emitTokensChanged(); });
     EventBus.on('token:load-preset', (presetId) => { this.loadPreset(presetId); });
 
-    // Per-token remote control (from Controller via BC)
     EventBus.on('token:update-condition', ({ instanceId, condition, enabled }) => {
       const token = this.tokens.find(t => t.id === instanceId);
       if (!token) return;
@@ -131,18 +110,15 @@ export class TokenManager {
       if (token) { token.visible = visible; this.draw(); this._emitTokensChanged(); }
     });
 
-    // Token tray
     EventBus.on('token-tray:toggle', () => this.toggleTray());
     EventBus.on('token-tray:cancel-placing', () => this.cancelPlacing());
     this.initTray();
 
-    // Preload all token images so tray thumbnails are ready
     for (const tokenId of Object.keys(TOKENS)) {
       this.loadTokenImage(tokenId);
     }
   }
 
-  // Add a token to the map
   addToken(tokenId, col, row, opts = {}) {
     const def = TOKENS[tokenId];
     if (!def) return null;
@@ -179,7 +155,7 @@ export class TokenManager {
       col: t.col, row: t.row, visible: t.visible,
       conditions: [...t.conditions]
     }));
-    // Store triggers broadcastState via subscribeAll
+    // Store subscribeAll auto-broadcasts to controller
   }
 
   swapToken(id, newTokenId) {
@@ -213,7 +189,6 @@ export class TokenManager {
     }
   }
 
-  // Save/restore tokens when switching maps
   _onMapSwitch(mapId) {
     if (this._currentMapId) {
       this._tokensByMap[this._currentMapId] = this.tokens.slice();
@@ -224,7 +199,6 @@ export class TokenManager {
     this._emitTokensChanged();
   }
 
-  // Load a map preset (pre-positioned tokens)
   loadPreset(presetId) {
     const preset = MAP_PRESETS[presetId];
     if (!preset) return;
@@ -240,8 +214,6 @@ export class TokenManager {
     this.draw();
   }
 
-  // --- Token Tray ---
-
   initTray() {
     const trayEl = $('token-tray');
     const closeBtn = trayEl.querySelector('.token-tray__close');
@@ -250,7 +222,6 @@ export class TokenManager {
 
     closeBtn.addEventListener('click', () => this.closeTray());
 
-    // Build sections: PCs, NPCs, Objects
     const groups = { 'Player Characters': [], 'NPCs': [], 'Objects': [] };
     for (const [id, def] of Object.entries(TOKENS)) {
       if (def.isPC) groups['Player Characters'].push({ id, def });
@@ -325,7 +296,6 @@ export class TokenManager {
     this.draw();
   }
 
-  // Load token portrait image
   loadTokenImage(tokenId) {
     if (this._imageCache[tokenId]) return;
 
@@ -338,7 +308,6 @@ export class TokenManager {
       this.draw();
     };
     img.onerror = () => {
-      // Create placeholder token
       this._imageCache[tokenId] = this.generatePlaceholderToken(def);
       this.draw();
     };
@@ -352,13 +321,11 @@ export class TokenManager {
     canvas.height = size;
     const ctx = canvas.getContext('2d');
 
-    // Background circle
     ctx.beginPath();
     ctx.arc(size / 2, size / 2, size / 2 - 4, 0, Math.PI * 2);
     ctx.fillStyle = '#1A1F2B';
     ctx.fill();
 
-    // First letter(s)
     const initials = def.name.split(' ').map(w => w[0]).join('').substring(0, 2);
     ctx.fillStyle = '#E8C55A';
     ctx.font = 'bold 48px "Cinzel", serif';
@@ -371,7 +338,6 @@ export class TokenManager {
     return img;
   }
 
-  // Draw all tokens
   draw() {
     const ctx = this.ctx;
     const cam = this.map.camera;
@@ -380,7 +346,6 @@ export class TokenManager {
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.clearRect(0, 0, 1920, 1080);
 
-    // Clear DOM labels
     this.labelsEl.textContent = '';
 
     cam.applyTransform(ctx);
@@ -399,20 +364,17 @@ export class TokenManager {
       const cy = y + tokenSize / 2;
       const radius = tokenSize * TOKEN_RADIUS_FACTOR;
 
-      // If currently being dragged, use drag position instead
       if (this._dragging && this._dragging.id === token.id) {
         this.drawTokenAt(ctx, token, def, img, this._dragScreenX, this._dragScreenY, radius, cp);
         continue;
       }
 
-      // Border ring
       ctx.beginPath();
       ctx.arc(cx, cy, radius + 2 / cam.zoom, 0, Math.PI * 2);
       ctx.strokeStyle = resolveCSSVar(def.border);
       ctx.lineWidth = 3 / cam.zoom;
       ctx.stroke();
 
-      // Clip to circle for portrait
       ctx.save();
       ctx.beginPath();
       ctx.arc(cx, cy, radius, 0, Math.PI * 2);
@@ -426,27 +388,22 @@ export class TokenManager {
       }
       ctx.restore();
 
-      // Condition indicators (colored dots around the ring)
       if (token.conditions.length > 0) {
         this.drawConditionDots(ctx, cx, cy, radius, token.conditions, cam.zoom);
       }
 
-      // DOM label (positioned in screen space) — prefer displayName for anti-spoiler
       const screenPos = cam.worldToScreen(cx, y + tokenSize + 4);
       const displayLabel = token.label || def.displayName || def.name;
       this.addLabel(displayLabel, screenPos.x, screenPos.y);
 
-      // HP bar (if applicable)
       if (token.hp !== null && token.maxHp) {
         const hpScreen = cam.worldToScreen(cx, y + tokenSize + 18);
         this.addHPBar(token.hp, token.maxHp, hpScreen.x, hpScreen.y);
       }
     }
 
-    // Ruler overlay
     this.drawRuler(ctx, cam, cp);
 
-    // Ghost token during placement mode
     if (this._placing && this._placingGhostPos) {
       const ghostDef = TOKENS[this._placing];
       if (ghostDef) {
@@ -493,13 +450,11 @@ export class TokenManager {
     const x2 = (endCol + 0.5) * cp;
     const y2 = (endRow + 0.5) * cp;
 
-    // D&D Chebyshev distance (diagonal = 5ft, PHB default)
     const dx = Math.abs(endCol - startCol);
     const dy = Math.abs(endRow - startRow);
     const cells = Math.max(dx, dy);
     const feet = cells * gridFt;
 
-    // Dashed gold line
     ctx.beginPath();
     ctx.moveTo(x1, y1);
     ctx.lineTo(x2, y2);
@@ -509,7 +464,6 @@ export class TokenManager {
     ctx.stroke();
     ctx.setLineDash([]);
 
-    // Start/end dots
     for (const [px, py] of [[x1, y1], [x2, y2]]) {
       ctx.beginPath();
       ctx.arc(px, py, 5 / cam.zoom, 0, Math.PI * 2);
@@ -517,7 +471,6 @@ export class TokenManager {
       ctx.fill();
     }
 
-    // Distance label at midpoint
     if (cells > 0) {
       const midX = (x1 + x2) / 2;
       const midY = (y1 + y2) / 2;
@@ -547,7 +500,6 @@ export class TokenManager {
   }
 
   drawTokenAt(ctx, token, def, img, screenX, screenY, radius, cp) {
-    // Draw at screen coordinates during drag (bypass camera transform)
     const cam = this.map.camera;
     cam.resetTransform(ctx);
 
@@ -557,7 +509,6 @@ export class TokenManager {
     const cx = world.x;
     const cy = world.y;
 
-    // Semi-transparent during drag
     ctx.globalAlpha = 0.7;
 
     ctx.beginPath();
@@ -577,7 +528,6 @@ export class TokenManager {
 
     ctx.globalAlpha = 1.0;
 
-    // Snap preview (ghost outline at snap position)
     const snapCol = Math.floor(world.x / cp);
     const snapRow = Math.floor(world.y / cp);
     const snapX = (snapCol + 0.5) * cp;
@@ -594,7 +544,6 @@ export class TokenManager {
 
   drawConditionDots(ctx, cx, cy, radius, conditions, zoom) {
     const dotRadius = 4 / zoom;
-    const colors = CONDITION_COLORS;
 
     conditions.forEach((cond, i) => {
       const angle = (Math.PI * 2 * i) / Math.max(conditions.length, 6) - Math.PI / 2;
@@ -603,7 +552,7 @@ export class TokenManager {
 
       ctx.beginPath();
       ctx.arc(cx + dx, cy + dy, dotRadius, 0, Math.PI * 2);
-      ctx.fillStyle = colors[cond] || '#A0A0A8';
+      ctx.fillStyle = CONDITION_COLORS[cond] || '#A0A0A8';
       ctx.fill();
     });
   }
@@ -635,13 +584,10 @@ export class TokenManager {
     this.labelsEl.appendChild(wrapper);
   }
 
-  // --- Mouse interaction ---
-
   getTokenAt(screenX, screenY) {
     const world = this.map.camera.screenToWorld(screenX, screenY);
     const cp = this.map.cellPx;
 
-    // Check tokens in reverse order (top token first)
     for (let i = this.tokens.length - 1; i >= 0; i--) {
       const token = this.tokens[i];
       if (!token.visible) continue;
@@ -655,15 +601,13 @@ export class TokenManager {
   }
 
   onMouseDown(e) {
-    if (e.button !== 0) return; // left click only
-    // Don't pick up tokens during space+drag pan
+    if (e.button !== 0) return;
     if (this.map.camera.spaceHeld) return;
 
     const rect = $('map-container').getBoundingClientRect();
     const sx = e.clientX - rect.left;
     const sy = e.clientY - rect.top;
 
-    // Shift+click starts ruler measurement
     if (e.shiftKey) {
       const world = this.map.camera.screenToWorld(sx, sy);
       const col = Math.floor(world.x / this.map.cellPx);
@@ -675,13 +619,11 @@ export class TokenManager {
       return;
     }
 
-    // Clear existing ruler on any non-shift click
     if (this._ruler) {
       this._ruler = null;
       this.draw();
     }
 
-    // Token placement from tray
     if (this._placing) {
       const world = this.map.camera.screenToWorld(sx, sy);
       const col = Math.floor(world.x / this.map.cellPx);
@@ -702,7 +644,6 @@ export class TokenManager {
   }
 
   onMouseMove(e) {
-    // Ruler drag
     if (this._rulerDragging) {
       const rect = $('map-container').getBoundingClientRect();
       const sx = e.clientX - rect.left;
@@ -714,7 +655,6 @@ export class TokenManager {
       return;
     }
 
-    // Ghost preview during placement mode
     if (this._placing) {
       const rect = $('map-container').getBoundingClientRect();
       this._placingGhostPos = {
@@ -733,7 +673,6 @@ export class TokenManager {
   }
 
   onMouseUp(e) {
-    // End ruler drag (ruler stays visible until next click or Escape)
     if (this._rulerDragging) {
       this._rulerDragging = false;
       return;
@@ -741,7 +680,6 @@ export class TokenManager {
 
     if (!this._dragging) return;
 
-    // Snap to grid
     const world = this.map.camera.screenToWorld(this._dragScreenX, this._dragScreenY);
     this._dragging.col = Math.floor(world.x / this.map.cellPx);
     this._dragging.row = Math.floor(world.y / this.map.cellPx);
@@ -759,7 +697,6 @@ export class TokenManager {
     menu.style.left = x + 'px';
     menu.style.top = y + 'px';
 
-    // Token name header
     const label = document.createElement('div');
     label.className = 'token-menu__label';
     label.textContent = token.label;
@@ -769,7 +706,6 @@ export class TokenManager {
     divider.className = 'token-menu__divider';
     menu.appendChild(divider);
 
-    // Brazier toggle (Extinguish/Relight)
     if (token.tokenId === 'brazier-lit' || token.tokenId === 'brazier-dead') {
       const isLit = token.tokenId === 'brazier-lit';
       const toggleItem = document.createElement('div');
@@ -787,7 +723,6 @@ export class TokenManager {
       menu.appendChild(div3);
     }
 
-    // Condition toggles
     for (const { id: cond } of CONDITIONS) {
       const has = token.conditions.includes(cond);
       const item = document.createElement('div');
@@ -807,12 +742,10 @@ export class TokenManager {
       menu.appendChild(item);
     }
 
-    // Divider
     const div2 = document.createElement('div');
     div2.className = 'token-menu__divider';
     menu.appendChild(div2);
 
-    // Hide/show
     const toggleVis = document.createElement('div');
     toggleVis.className = 'token-menu__item';
     toggleVis.textContent = token.visible ? 'Hide Token' : 'Show Token';
@@ -825,7 +758,6 @@ export class TokenManager {
     });
     menu.appendChild(toggleVis);
 
-    // Remove
     const remove = document.createElement('div');
     remove.className = 'token-menu__item token-menu__item--danger';
     remove.textContent = 'Remove';

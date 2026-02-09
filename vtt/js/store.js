@@ -1,18 +1,12 @@
-// ============================================
-// VTT Reactive Store — Proxy-based state with subscriptions
-//
-// Philosophy: state change IS notification.
-// Mutating a property automatically calls subscribers.
+// Proxy-based reactive store with per-key subscriptions.
 //
 // IMPORTANT: Only top-level property assignments trigger subscribers.
 // Nested mutation like `state.initiative.round++` is INVISIBLE.
 // Always reassign the full object: `state.initiative = { ...state.initiative, round: n }`
-// ============================================
 
 export function createStore(initial) {
-  const subscribers = new Map();   // key -> Set<fn(newVal, oldVal)>
-  const wildcards = new Set();     // fn(key, newVal, oldVal)
-
+  const subscribers = new Map();
+  const wildcards = new Set();
   const data = JSON.parse(JSON.stringify(initial));
 
   function notify(key, value, old) {
@@ -32,7 +26,6 @@ export function createStore(initial) {
   const proxy = new Proxy(data, {
     set(target, key, value) {
       const old = target[key];
-      // Skip if primitive hasn't changed (typeof null === 'object', so check explicitly)
       if (old === value && (typeof value !== 'object' || value === null)) return true;
       target[key] = value;
       notify(key, value, old);

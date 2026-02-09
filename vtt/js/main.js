@@ -1,6 +1,4 @@
-// ============================================
 // VTT Main — Bootstrap and initialization
-// ============================================
 
 import { EventBus, state, store, initSync } from './state.js';
 import { preloadAll } from './image-cache.js';
@@ -23,9 +21,8 @@ async function boot() {
   const fillEl = loadingEl.querySelector('.loading__fill');
   const statusEl = loadingEl.querySelector('.loading__status');
 
-  // Preload images with progress bar
   statusEl.textContent = 'Loading assets\u2026';
-  await preloadAll(({ loaded, total, failed }) => {
+  await preloadAll(({ loaded, total }) => {
     const pct = Math.round((loaded / total) * 100);
     fillEl.style.width = pct + '%';
     statusEl.textContent = `Loading assets\u2026 ${loaded}/${total}`;
@@ -34,36 +31,27 @@ async function boot() {
   statusEl.textContent = 'Initializing\u2026';
   fillEl.style.width = '100%';
 
-  // Initialize BroadcastChannel sync with DM guide
   initSync();
 
-  // Initialize modules
   theater.init();
   sceneManager.init();
   dmControls.init();
 
-  // Initialize map system
   const mapRenderer = new MapRenderer();
   mapRenderer.init();
   const tokenManager = new TokenManager(mapRenderer);
   tokenManager.init();
 
-  // Initialize combat overlays
   initiativeTracker.init();
   playerControls.init();
   sceneNavigator.init();
 
-  // Initialize effects engine
   const effectsEngine = new EffectsEngine(mapRenderer);
   effectsEngine.init();
 
-  // Expose for debugging and DM guide sync
   window.__vtt = { state, store, mapRenderer, tokenManager, effectsEngine, EventBus };
 
-  // Mark as loaded
   state.loaded = true;
-
-  // Auto-enable presentation mode — DM controls via Controller app
   state.presentationMode = true;
 
   // Fade out loading screen
@@ -73,7 +61,7 @@ async function boot() {
   await new Promise(r => setTimeout(r, 600));
   loadingEl.hidden = true;
 
-  console.log('[VTT] Ready. Press H for controls.');
+  console.log('[VTT] Ready.');
 }
 
 boot().catch(err => {

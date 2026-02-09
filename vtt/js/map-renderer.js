@@ -1,7 +1,4 @@
-// ============================================
 // VTT Map Renderer — Multi-canvas layer stack
-// Background, fog, grid, tokens, effects
-// ============================================
 
 import { EventBus, state, store } from './state.js';
 import { MAPS } from './data.js';
@@ -16,16 +13,10 @@ export class MapRenderer {
     this.camera = new Camera();
     this.currentMap = null;
     this.bgImage = null;
-    this.fogRevealed = new Set(); // "col,row" strings
-
-    // Canvas layers
+    this.fogRevealed = new Set();
     this.layers = {};
     this.contexts = {};
-
-    // Grid config (pixels per cell, derived from map)
-    this.cellPx = 40; // default, recalculated when map loads
-
-    // World dimensions of current map (for fit-to-map reset)
+    this.cellPx = 40;
     this._mapWorldW = 0;
     this._mapWorldH = 0;
   }
@@ -33,7 +24,6 @@ export class MapRenderer {
   init() {
     const container = $('map-container');
 
-    // Initialize canvas layers
     for (const id of ['map-bg', 'map-fog', 'map-grid', 'map-tokens', 'map-effects']) {
       const canvas = $(id);
       canvas.width = VTT_W;
@@ -42,10 +32,8 @@ export class MapRenderer {
       this.contexts[id] = canvas.getContext('2d');
     }
 
-    // Attach camera controls to map container
     this.camera.attachTo(container);
 
-    // Listen for events
     EventBus.on('camera:changed', () => this.redrawAll());
     EventBus.on('map:load', (mapId) => this.loadMap(mapId));
     store.subscribe('gridVisible', () => this.drawGrid());
@@ -61,7 +49,6 @@ export class MapRenderer {
       }
     });
 
-    // Track mouse position for fog toggle
     this._mouseX = 0;
     this._mouseY = 0;
     container.addEventListener('mousemove', (e) => {
@@ -70,7 +57,6 @@ export class MapRenderer {
       this._mouseY = e.clientY - rect.top;
     });
 
-    // Load first map if in map mode
     if (state.mapId) {
       this.loadMap(state.mapId);
     }
@@ -83,18 +69,14 @@ export class MapRenderer {
     this.currentMap = mapDef;
     state.mapId = mapId;
 
-    // Calculate cell size: map image fills the canvas, grid aligns to it
-    // The cell size in pixels depends on how many cells fit in the viewport
     this.cellPx = Math.floor(VTT_W / mapDef.cols);
-    this.gridSizeFt = mapDef.gridSize || 5;  // feet per cell (D&D standard)
+    this.gridSizeFt = mapDef.gridSize || 5;
 
-    // World size is the full grid
     const worldW = mapDef.cols * this.cellPx;
     const worldH = mapDef.rows * this.cellPx;
     this._mapWorldW = worldW;
     this._mapWorldH = worldH;
 
-    // Load fog state for this map (default: fully revealed so map is visible)
     if (state.fog[mapId]) {
       this.fogRevealed = new Set(state.fog[mapId]);
     } else {
@@ -106,7 +88,6 @@ export class MapRenderer {
       }
     }
 
-    // Load background image
     const img = new Image();
     img.onload = () => {
       this.bgImage = img;
@@ -114,7 +95,6 @@ export class MapRenderer {
       this.redrawAll();
     };
     img.onerror = () => {
-      // Generate placeholder map
       this.bgImage = this.generatePlaceholderMap(mapDef);
       this.camera.fitToSize(worldW, worldH);
       this.redrawAll();
@@ -137,7 +117,6 @@ export class MapRenderer {
     ctx.fillStyle = grad;
     ctx.fillRect(0, 0, w, h);
 
-    // Subtle noise texture
     for (let i = 0; i < 2000; i++) {
       const x = Math.random() * w;
       const y = Math.random() * h;
@@ -146,7 +125,6 @@ export class MapRenderer {
       ctx.fillRect(x, y, 1, 1);
     }
 
-    // Map title
     ctx.fillStyle = '#8B7435';
     ctx.font = '600 24px "Cinzel", serif';
     ctx.textAlign = 'center';
@@ -156,7 +134,6 @@ export class MapRenderer {
     ctx.font = '14px "IBM Plex Mono", monospace';
     ctx.fillText(`${mapDef.id} — ${mapDef.cols}x${mapDef.rows} grid`, w / 2, h / 2 + 20);
 
-    // Convert to Image
     const img = new Image();
     img.src = canvas.toDataURL();
     return img;
@@ -166,7 +143,6 @@ export class MapRenderer {
     this.drawBackground();
     this.drawFog();
     this.drawGrid();
-    // Token drawing is handled by token-manager
     EventBus.emit('map:redraw', { camera: this.camera, cellPx: this.cellPx });
   }
 
@@ -196,7 +172,6 @@ export class MapRenderer {
     const { cols, rows } = this.currentMap;
     const cp = this.cellPx;
 
-    // Fine grid lines
     ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
     ctx.lineWidth = 0.5 / this.camera.zoom;
 
@@ -211,7 +186,6 @@ export class MapRenderer {
     }
     ctx.stroke();
 
-    // Bold lines every 5 cells (25ft)
     ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
     ctx.lineWidth = 1 / this.camera.zoom;
 
@@ -241,17 +215,14 @@ export class MapRenderer {
     const { cols, rows } = this.currentMap;
     const cp = this.cellPx;
 
-    // Fill entire map with fog
     ctx.fillStyle = 'rgba(0, 0, 0, 0.85)';
     ctx.fillRect(0, 0, cols * cp, rows * cp);
 
-    // Cut out revealed cells
     ctx.globalCompositeOperation = 'destination-out';
     ctx.fillStyle = 'rgba(0, 0, 0, 1)';
 
     for (const key of this.fogRevealed) {
       const [col, row] = key.split(',').map(Number);
-      // Slightly larger cutout for smooth edges
       ctx.fillRect(col * cp - 1, row * cp - 1, cp + 2, cp + 2);
     }
 
@@ -270,7 +241,6 @@ export class MapRenderer {
 
     const key = `${col},${row}`;
 
-    // Toggle a 3x3 area around cursor for faster reveal
     for (let dc = -1; dc <= 1; dc++) {
       for (let dr = -1; dr <= 1; dr++) {
         const c = col + dc;
@@ -285,12 +255,10 @@ export class MapRenderer {
       }
     }
 
-    // Persist fog state
     state.fog[this.currentMap.id] = [...this.fogRevealed];
     this.drawFog();
   }
 
-  // Reveal all fog cells for current map (remote command from DM Guide)
   revealAllFog() {
     if (!this.currentMap) return;
     const { cols, rows } = this.currentMap;
@@ -303,7 +271,6 @@ export class MapRenderer {
     this.drawFog();
   }
 
-  // Hide all fog cells for current map (remote command from DM Guide)
   hideAllFog() {
     if (!this.currentMap) return;
     this.fogRevealed.clear();
@@ -311,7 +278,6 @@ export class MapRenderer {
     this.drawFog();
   }
 
-  // Get grid cell from screen coordinates
   screenToCell(sx, sy) {
     const world = this.camera.screenToWorld(sx, sy);
     return {
@@ -320,7 +286,6 @@ export class MapRenderer {
     };
   }
 
-  // Get screen center of a grid cell
   cellToScreen(col, row) {
     const worldX = (col + 0.5) * this.cellPx;
     const worldY = (row + 0.5) * this.cellPx;

@@ -1,7 +1,4 @@
-// ============================================
-// VTT Scene Manager — Mode switching
-// Theater <-> Map <-> Initiative transitions
-// ============================================
+// VTT Scene Manager — Mode switching (theater / map / initiative)
 
 import { EventBus, state, store } from './state.js';
 
@@ -21,18 +18,15 @@ export function init() {
   EventBus.on('combat:end', () => switchMode('map'));
 
   store.subscribe('mode', applyMode);
-
-  // Apply initial mode
   applyMode(state.mode);
 }
 
 export function switchMode(mode) {
   if (mode === state.mode) return;
-  state.mode = mode;  // Subscriber calls applyMode, bridge emits 'mode:changed'
+  state.mode = mode;
 }
 
 function applyMode(mode) {
-  // Hide all layers
   theaterEl.hidden = true;
   mapEl.hidden = true;
   initPanel.hidden = true;

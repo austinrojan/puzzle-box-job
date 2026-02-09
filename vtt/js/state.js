@@ -1,10 +1,7 @@
-// ============================================
 // VTT State — Reactive store + EventBus + BroadcastChannel
-// ============================================
 
 import { createStore } from './store.js';
 
-// --- EventBus: command/event dispatch for non-state events ---
 export const EventBus = {
   _listeners: {},
   on(event, fn) { (this._listeners[event] ||= []).push(fn); },
@@ -18,7 +15,6 @@ export const EventBus = {
   }
 };
 
-// --- Create the reactive store ---
 const store = createStore({
   mode: 'theater',
   sceneIndex: 0,
@@ -32,11 +28,8 @@ const store = createStore({
   },
   tokens: [],
   gridVisible: true,
-  fog: {},               // NOTE: nested (mapId -> array). Direct mutation of
-                          // state.fog[mapId] won't trigger subscribers. This is
-                          // intentional — no module needs fog reactivity.
+  fog: {},               // Nested (mapId -> array) — intentionally non-reactive
   titleCardVisible: false,
-  overlayText: null,
   presentationMode: false,
   loaded: false
 });
@@ -44,9 +37,7 @@ const store = createStore({
 export { store };
 export const state = store.state;
 
-// ==============================
 // Bridges: store -> EventBus
-// ==============================
 
 store.subscribe('mode', (mode, prev) => {
   EventBus.emit('mode:changed', { mode, prev });
@@ -73,9 +64,7 @@ store.subscribe('presentationMode', (enabled) => {
   EventBus.emit('presentation:change', enabled);
 });
 
-// ==============================
 // BroadcastChannel
-// ==============================
 
 let channel = null;
 
@@ -89,7 +78,7 @@ export function initSync() {
   }
 }
 
-// Auto-broadcast state on ANY store change (debounced to coalesce)
+// Auto-broadcast on any store change (microtask-debounced)
 let _bcTimer = null;
 store.subscribeAll(() => {
   if (!channel || _bcTimer) return;
@@ -120,7 +109,7 @@ function handleSyncMessage(msg) {
   if (!msg || !msg.type) return;
 
   switch (msg.type) {
-    // --- State changes (bridges handle EventBus emit) ---
+    // State changes (bridges handle EventBus emit)
     case 'heat':
       state.heat = msg.level;
       break;
@@ -159,7 +148,7 @@ function handleSyncMessage(msg) {
       state.presentationMode = msg.enabled;
       break;
 
-    // --- Command events (stay on EventBus) ---
+    // Command events (relayed to EventBus)
     case 'scene':
       EventBus.emit('scene:goto', msg.sceneId);
       break;
