@@ -70,117 +70,50 @@ const REQUIRED_FIELDS = {
 
 // --- Factory functions ---
 
-export function createHeatMsg(level) {
-  return { type: MSG.HEAT, level, _v: PROTOCOL_VERSION };
+function msg(type, payload) {
+  return payload ? { type, ...payload, _v: PROTOCOL_VERSION }
+                 : { type, _v: PROTOCOL_VERSION };
 }
 
-export function createInitiativeMsg(data) {
-  return { type: MSG.INITIATIVE, data, _v: PROTOCOL_VERSION };
-}
+export const createHeatMsg            = (level) => msg(MSG.HEAT, { level });
+export const createInitiativeMsg      = (data) => msg(MSG.INITIATIVE, { data });
+export const createInitiativeNextMsg  = (currentTurn, round) => msg(MSG.INITIATIVE_NEXT, { currentTurn, round });
+export const createCombatStartMsg     = (data) => msg(MSG.COMBAT_START, { data });
+export const createCombatEndMsg       = () => msg(MSG.COMBAT_END);
+export const createGridToggleMsg      = () => msg(MSG.GRID_TOGGLE);
+export const createPresentationMsg    = (enabled) => msg(MSG.PRESENTATION, { enabled });
+export const createSceneMsg           = (sceneId) => msg(MSG.SCENE, { sceneId });
+export const createMapMsg             = (mapId) => msg(MSG.MAP, { mapId });
+export const createTitleCardMsg       = (act) => msg(MSG.TITLE_CARD, { act });
+export const createOverlayTextMsg     = (text) => msg(MSG.OVERLAY_TEXT, { text });
+export const createModeSwitchMsg      = (mode) => msg(MSG.MODE_SWITCH, { mode });
+export const createTokenRemoveAllMsg  = () => msg(MSG.TOKEN_REMOVE_ALL);
+export const createTokenLoadPresetMsg = (presetId) => msg(MSG.TOKEN_LOAD_PRESET, { presetId });
+export const createFogRevealAllMsg    = () => msg(MSG.FOG_REVEAL_ALL);
+export const createFogHideAllMsg      = () => msg(MSG.FOG_HIDE_ALL);
+export const createCameraZoomMsg      = (direction) => msg(MSG.CAMERA_ZOOM, { direction });
+export const createCameraPanMsg       = (dx, dy) => msg(MSG.CAMERA_PAN, { dx, dy });
+export const createCameraResetMsg     = () => msg(MSG.CAMERA_RESET);
+export const createTokenRemoveOneMsg  = (instanceId) => msg(MSG.TOKEN_REMOVE_ONE, { instanceId });
+export const createTokenVisibilityMsg = (instanceId, visible) => msg(MSG.TOKEN_VISIBILITY, { instanceId, visible });
+export const createStateRequestMsg    = () => msg(MSG.STATE_REQUEST);
+export const createStateSyncMsg       = (data) => msg(MSG.STATE_SYNC, { data });
+export const createTokenAddMsg        = ({ tokenId, x, y, label }) => msg(MSG.TOKEN_ADD, { tokenId, x, y, label });
 
-export function createInitiativeNextMsg(currentTurn, round) {
-  return { type: MSG.INITIATIVE_NEXT, currentTurn, round, _v: PROTOCOL_VERSION };
-}
+export const createTokenUpdateConditionMsg = (instanceId, condition, enabled) =>
+  msg(MSG.TOKEN_UPDATE_CONDITION, { instanceId, condition, enabled });
 
-export function createCombatStartMsg(data) {
-  return { type: MSG.COMBAT_START, data, _v: PROTOCOL_VERSION };
-}
-
-export function createCombatEndMsg() {
-  return { type: MSG.COMBAT_END, _v: PROTOCOL_VERSION };
-}
-
-export function createGridToggleMsg() {
-  return { type: MSG.GRID_TOGGLE, _v: PROTOCOL_VERSION };
-}
-
-export function createPresentationMsg(enabled) {
-  return { type: MSG.PRESENTATION, enabled, _v: PROTOCOL_VERSION };
-}
-
-export function createSceneMsg(sceneId) {
-  return { type: MSG.SCENE, sceneId, _v: PROTOCOL_VERSION };
-}
-
-export function createMapMsg(mapId) {
-  return { type: MSG.MAP, mapId, _v: PROTOCOL_VERSION };
-}
-
+// Brazier: conditionally includes fields only if not undefined
 export function createBrazierMsg({ index, lit, braziers } = {}) {
-  const msg = { type: MSG.BRAZIER, _v: PROTOCOL_VERSION };
-  if (index !== undefined) msg.index = index;
-  if (lit !== undefined) msg.lit = lit;
-  if (braziers !== undefined) msg.braziers = braziers;
-  return msg;
+  const m = msg(MSG.BRAZIER);
+  if (index !== undefined) m.index = index;
+  if (lit !== undefined) m.lit = lit;
+  if (braziers !== undefined) m.braziers = braziers;
+  return m;
 }
 
-export function createEffectMsg(effectId, target) {
-  return { type: MSG.EFFECT, effectId, ...target, _v: PROTOCOL_VERSION };
-}
-
-export function createTitleCardMsg(act) {
-  return { type: MSG.TITLE_CARD, act, _v: PROTOCOL_VERSION };
-}
-
-export function createOverlayTextMsg(text) {
-  return { type: MSG.OVERLAY_TEXT, text, _v: PROTOCOL_VERSION };
-}
-
-export function createModeSwitchMsg(mode) {
-  return { type: MSG.MODE_SWITCH, mode, _v: PROTOCOL_VERSION };
-}
-
-export function createTokenAddMsg({ tokenId, x, y, label }) {
-  return { type: MSG.TOKEN_ADD, tokenId, x, y, label, _v: PROTOCOL_VERSION };
-}
-
-export function createTokenRemoveAllMsg() {
-  return { type: MSG.TOKEN_REMOVE_ALL, _v: PROTOCOL_VERSION };
-}
-
-export function createTokenLoadPresetMsg(presetId) {
-  return { type: MSG.TOKEN_LOAD_PRESET, presetId, _v: PROTOCOL_VERSION };
-}
-
-export function createFogRevealAllMsg() {
-  return { type: MSG.FOG_REVEAL_ALL, _v: PROTOCOL_VERSION };
-}
-
-export function createFogHideAllMsg() {
-  return { type: MSG.FOG_HIDE_ALL, _v: PROTOCOL_VERSION };
-}
-
-export function createCameraZoomMsg(direction) {
-  return { type: MSG.CAMERA_ZOOM, direction, _v: PROTOCOL_VERSION };
-}
-
-export function createCameraPanMsg(dx, dy) {
-  return { type: MSG.CAMERA_PAN, dx, dy, _v: PROTOCOL_VERSION };
-}
-
-export function createCameraResetMsg() {
-  return { type: MSG.CAMERA_RESET, _v: PROTOCOL_VERSION };
-}
-
-export function createTokenUpdateConditionMsg(instanceId, condition, enabled) {
-  return { type: MSG.TOKEN_UPDATE_CONDITION, instanceId, condition, enabled, _v: PROTOCOL_VERSION };
-}
-
-export function createTokenRemoveOneMsg(instanceId) {
-  return { type: MSG.TOKEN_REMOVE_ONE, instanceId, _v: PROTOCOL_VERSION };
-}
-
-export function createTokenVisibilityMsg(instanceId, visible) {
-  return { type: MSG.TOKEN_VISIBILITY, instanceId, visible, _v: PROTOCOL_VERSION };
-}
-
-export function createStateRequestMsg() {
-  return { type: MSG.STATE_REQUEST, _v: PROTOCOL_VERSION };
-}
-
-export function createStateSyncMsg(data) {
-  return { type: MSG.STATE_SYNC, data, _v: PROTOCOL_VERSION };
-}
+// Effect: spreads target object (col/row) into message
+export const createEffectMsg = (effectId, target) => msg(MSG.EFFECT, { effectId, ...target });
 
 // --- Validation ---
 
