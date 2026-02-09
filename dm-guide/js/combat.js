@@ -112,20 +112,27 @@ function wireEventListeners(panel) {
   wireCultistButtons(panel);
 }
 
-export function renderCombatPanel() {
-  const panel = $('combat-panel');
-  const { c, braziersOut, immunityLabel, unlockedSpells, bossHpPct, currentPhase, bossHpClass } = computeCombatState();
-  const boss = c.combatants.locke;
-  const cfg = COMBAT_CONFIG;
+function renderHpControls(prefix, index) {
+  if (prefix === 'locke') {
+    return `<div class="flex gap-8 mt-8" style="align-items:center">` +
+      `<button class="btn btn-sm" data-hp-adj="-1">\u22121</button>` +
+      `<button class="btn btn-sm" data-hp-adj="-5">\u22125</button>` +
+      `<button class="btn btn-sm" data-hp-adj="-10">\u221210</button>` +
+      `<input type="number" class="input input-sm" id="locke-amt-input" placeholder="Amt" min="0">` +
+      `<button class="btn btn-sm btn-danger" id="locke-dmg-btn">Dmg</button>` +
+      `<button class="btn btn-sm" id="locke-heal-btn">Heal</button></div>`;
+  }
+  return `<div class="flex gap-4 mt-4" style="align-items:center">` +
+    `<button class="btn btn-sm" data-cf="${index}" data-cf-adj="-1">\u22121</button>` +
+    `<button class="btn btn-sm" data-cf="${index}" data-cf-adj="-5">\u22125</button>` +
+    `<button class="btn btn-sm" data-cf="${index}" data-cf-adj="-10">\u221210</button>` +
+    `<input type="number" class="input input-sm" id="cf-amt-input-${index}" placeholder="Amt" min="0">` +
+    `<button class="btn btn-sm btn-danger" data-cf-dmg="${index}">Dmg</button>` +
+    `<button class="btn btn-sm" data-cf-heal="${index}">Heal</button></div>`;
+}
 
-  panel.textContent = '';
-
-  // All content below is from AppState / COMBAT_CONFIG (escapeHtml'd), not user input
-  const temp = document.createElement('div');
-  temp.innerHTML = // eslint-disable-line no-unsanitized/property -- safe: all values from AppState with escapeHtml
-    `<div class="combat-header"><h2>\u2694 Combat Tracker</h2><span class="combat-close" id="combat-close-btn">\u00D7</span></div>` +
-
-    `<div class="combat-section"><div class="combat-section-title">Braziers</div>` +
+function renderBrazierSection(c, braziersOut, immunityLabel, unlockedSpells) {
+  return `<div class="combat-section"><div class="combat-section-title">Braziers</div>` +
     `<div class="braziers-row">` +
     c.mechanics.braziers.map((lit, i) =>
       `<div class="brazier ${lit ? '' : 'extinguished'}" data-brazier="${i}"><div class="brazier-flame"></div><div class="brazier-bowl"></div></div>`
@@ -135,48 +142,43 @@ export function renderCombatPanel() {
     `<div class="immunity-meter">` +
     c.mechanics.braziers.map((_, i) => `<div class="immunity-segment ${i < (c.mechanics.braziers.length - braziersOut) ? 'active' : 'inactive'}"></div>`).join('') +
     `</div>` +
-    `<div class="text-xs mt-8" style="color:var(--gold)">${escapeHtml(unlockedSpells)}</div></div>` +
+    `<div class="text-xs mt-8" style="color:var(--gold)">${escapeHtml(unlockedSpells)}</div></div>`;
+}
 
-    `<div class="combat-section"><div class="combat-section-title">Locke \u00B7 ${escapeHtml(currentPhase.label)}</div>` +
+function renderLockeSection(boss, bossHpPct, bossHpClass, currentPhase) {
+  return `<div class="combat-section"><div class="combat-section-title">Locke \u00B7 ${escapeHtml(currentPhase.label)}</div>` +
     `<div class="hp-bar-wrap"><div class="hp-bar-fill ${bossHpClass}" style="width:${bossHpPct}%"></div>` +
     `<div class="hp-bar-label">${boss.hp} / ${boss.maxHp}</div>` +
     `<div class="hp-phase-marker" style="left:50%"></div></div>` +
-    `<div class="flex gap-8 mt-8" style="align-items:center">` +
-    `<button class="btn btn-sm" data-hp-adj="-1">\u22121</button>` +
-    `<button class="btn btn-sm" data-hp-adj="-5">\u22125</button>` +
-    `<button class="btn btn-sm" data-hp-adj="-10">\u221210</button>` +
-    `<input type="number" class="input input-sm" id="locke-amt-input" placeholder="Amt" min="0">` +
-    `<button class="btn btn-sm btn-danger" id="locke-dmg-btn">Dmg</button>` +
-    `<button class="btn btn-sm" id="locke-heal-btn">Heal</button>` +
-    `</div>` +
+    renderHpControls('locke') +
     (currentPhase.description ? `<div class="text-xs mt-8" style="color:var(--red-bright)">${escapeHtml(currentPhase.label)} \u2014 ${escapeHtml(currentPhase.description)}</div>` : '') +
-    `</div>` +
+    `</div>`;
+}
 
-    `<div class="combat-section"><div class="combat-section-title">Dominate Person \u2014 ${escapeHtml(cfg.dominate.targetShort)}</div>` +
+function renderDominateSection(c, cfg) {
+  return `<div class="combat-section"><div class="combat-section-title">Dominate Person \u2014 ${escapeHtml(cfg.dominate.targetShort)}</div>` +
     `<div class="dominate-toggle ${c.mechanics.dominate.active ? 'active' : ''}">` +
     `<div class="dominate-switch ${c.mechanics.dominate.active ? 'active' : ''}" id="dominate-btn"></div>` +
     `<span class="text-sm">${c.mechanics.dominate.active ? '<span style="color:var(--red-bright);font-weight:600">DOMINATED</span>' : 'Inactive'}</span></div>` +
     (c.mechanics.dominate.active && cfg.dominate.description.active ? `<div class="text-xs mt-8" style="color:var(--red-light)">\u26A0 ${escapeHtml(cfg.dominate.description.active)}</div>` : '') +
-    `</div>` +
+    `</div>`;
+}
 
-    `<div class="combat-section"><div class="combat-section-title">Cult Fanatics</div>` +
+function renderCultFanaticsSection(c) {
+  return `<div class="combat-section"><div class="combat-section-title">Cult Fanatics</div>` +
     c.combatants.cultFanatics.map((cf, i) => {
       const pct = Math.max(0, cf.hp / cf.maxHp * 100);
       const cls = hpClass(pct);
       return `<div class="mb-8"><div class="text-xs text-muted">Fanatic ${i + 1}</div>` +
         `<div class="hp-bar-wrap" style="height:12px"><div class="hp-bar-fill ${cls}" style="width:${pct}%"></div>` +
         `<div class="hp-bar-label" style="font-size:9px">${cf.hp}/${cf.maxHp}</div></div>` +
-        `<div class="flex gap-4 mt-4" style="align-items:center">` +
-        `<button class="btn btn-sm" data-cf="${i}" data-cf-adj="-1">\u22121</button>` +
-        `<button class="btn btn-sm" data-cf="${i}" data-cf-adj="-5">\u22125</button>` +
-        `<button class="btn btn-sm" data-cf="${i}" data-cf-adj="-10">\u221210</button>` +
-        `<input type="number" class="input input-sm" id="cf-amt-input-${i}" placeholder="Amt" min="0">` +
-        `<button class="btn btn-sm btn-danger" data-cf-dmg="${i}">Dmg</button>` +
-        `<button class="btn btn-sm" data-cf-heal="${i}">Heal</button></div></div>`;
+        renderHpControls('cultist', i) + `</div>`;
     }).join('') +
-    `</div>` +
+    `</div>`;
+}
 
-    `<div class="combat-section"><div class="combat-section-title">Initiative \u00B7 Round ${c.round}</div>` +
+function renderInitiativeSection(c) {
+  return `<div class="combat-section"><div class="combat-section-title">Initiative \u00B7 Round ${c.round}</div>` +
     `<ul class="init-list">` +
     c.initiative.map((entry, i) => {
       const color = entry.type === 'enemy' ? 'var(--red-light)' : entry.type === 'lair' ? 'var(--purple-light)' : 'var(--text-primary)';
@@ -193,6 +195,25 @@ export function renderCombatPanel() {
     `<button class="btn btn-sm" id="reset-round-btn">Reset Round</button>` +
     `<button class="btn btn-gold btn-sm" id="next-turn-btn">Next Turn \u2192</button>` +
     `</div></div>`;
+}
+
+export function renderCombatPanel() {
+  const panel = $('combat-panel');
+  const { c, braziersOut, immunityLabel, unlockedSpells, bossHpPct, currentPhase, bossHpClass } = computeCombatState();
+  const boss = c.combatants.locke;
+  const cfg = COMBAT_CONFIG;
+
+  panel.textContent = '';
+
+  // All content below is from AppState / COMBAT_CONFIG (escapeHtml'd), not user input
+  const temp = document.createElement('div');
+  temp.innerHTML = // eslint-disable-line no-unsanitized/property -- safe: all values from AppState with escapeHtml
+    `<div class="combat-header"><h2>\u2694 Combat Tracker</h2><span class="combat-close" id="combat-close-btn">\u00D7</span></div>` +
+    renderBrazierSection(c, braziersOut, immunityLabel, unlockedSpells) +
+    renderLockeSection(boss, bossHpPct, bossHpClass, currentPhase) +
+    renderDominateSection(c, cfg) +
+    renderCultFanaticsSection(c) +
+    renderInitiativeSection(c);
 
   while (temp.firstChild) { panel.appendChild(temp.firstChild); }
 
