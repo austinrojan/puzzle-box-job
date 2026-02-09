@@ -124,7 +124,7 @@ function renderPresentationPage() {
   } else if (page.type === 'encounter') {
     const div = makeInterstitial('type-encounter', '\u2694 Encounter');
     const body = document.createElement('div');
-    body.textContent = `${page.title ? `${page.title}: ` : ''}${(page.text || '').replace(/\*\*/g, '').substring(0, 300)}`;
+    body.textContent = `${page.title ? `${page.title}: ` : ''}${stripMarkdown(page.text).substring(0, 300)}`;
     div.appendChild(body);
     content.appendChild(div);
   } else if (page.type === 'conditional') {

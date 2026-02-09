@@ -26,7 +26,7 @@ export function createStore(initial) {
   const proxy = new Proxy(data, {
     set(target, key, value) {
       const old = target[key];
-      if (old === value && typeof value !== 'object') return true;
+      if (old === value && (typeof value !== 'object' || value === null)) return true;
       target[key] = value;
       notify(key, value, old);
       return true;
