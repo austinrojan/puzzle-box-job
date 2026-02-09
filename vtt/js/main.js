@@ -2,6 +2,7 @@
 
 import { EventBus, state, store, initSync } from './state.js';
 import { preloadAll } from './image-cache.js';
+import { runPreflight, renderPreflightResults } from './preflight.js';
 import { loadSavedState, validateRestoredState, initAutoSave, saveImmediate, clearSavedState } from './persistence.js';
 import { SCENES } from './data.js';
 import * as theater from './theater.js';
@@ -24,11 +25,21 @@ async function boot() {
   const statusEl = loadingEl.querySelector('.loading__status');
 
   statusEl.textContent = 'Loading assets\u2026';
-  await preloadAll(({ loaded, total }) => {
+  const preloadResults = await preloadAll(({ loaded, total }) => {
     const pct = Math.round((loaded / total) * 100);
     fillEl.style.width = pct + '%';
     statusEl.textContent = `Loading assets\u2026 ${loaded}/${total}`;
   });
+
+  // Pre-flight diagnostic checks
+  statusEl.textContent = 'Running pre-flight checks\u2026';
+  const preflightResults = runPreflight(preloadResults);
+  const preflightOk = renderPreflightResults(preflightResults, loadingEl);
+
+  if (!preflightOk) {
+    statusEl.textContent = 'Issues detected. Continuing in 3s\u2026';
+    await delay(3000);
+  }
 
   statusEl.textContent = 'Initializing\u2026';
   fillEl.style.width = '100%';
