@@ -3,6 +3,10 @@
 //
 // Philosophy: state change IS notification.
 // Mutating a property automatically calls subscribers.
+//
+// IMPORTANT: Only top-level property assignments trigger subscribers.
+// Nested mutation like `state.initiative.round++` is INVISIBLE.
+// Always reassign the full object: `state.initiative = { ...state.initiative, round: n }`
 // ============================================
 
 export function createStore(initial) {
@@ -46,7 +50,7 @@ export function createStore(initial) {
     subscribe(key, fn) {
       if (!subscribers.has(key)) subscribers.set(key, new Set());
       subscribers.get(key).add(fn);
-      return () => subscribers.get(key).delete(fn);
+      return () => subscribers.get(key)?.delete(fn);
     },
 
     subscribeAll(fn) {

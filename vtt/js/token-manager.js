@@ -238,7 +238,6 @@ export class TokenManager {
       this._tokensByMap[this._currentMapId] = this.tokens.slice();
     }
     this.draw();
-    this._emitTokensChanged();
   }
 
   // --- Token Tray ---

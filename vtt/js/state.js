@@ -52,10 +52,6 @@ store.subscribe('mode', (mode, prev) => {
   EventBus.emit('mode:changed', { mode, prev });
 });
 
-store.subscribe('sceneIndex', (index) => {
-  EventBus.emit('scene:loaded', index);
-});
-
 store.subscribe('heat', (level) => {
   EventBus.emit('heat:change', level);
 });

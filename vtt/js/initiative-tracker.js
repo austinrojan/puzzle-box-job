@@ -16,17 +16,7 @@ export function init() {
 
   store.subscribe('initiative', render);
   EventBus.on('initiative:next-turn', nextTurn);
-  EventBus.on('combat:start', (data) => {
-    state.initiative = {
-      ...state.initiative,
-      ...(data || {}),
-      active: true
-    };
-  });
-  EventBus.on('combat:end', () => {
-    state.initiative = { ...state.initiative, active: false };
-    panel.hidden = true;
-  });
+  EventBus.on('combat:end', () => { panel.hidden = true; });
 }
 
 function nextTurn() {

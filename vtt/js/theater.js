@@ -50,7 +50,7 @@ function cycleScene(dir) {
 
   if (nextAct !== currentAct && dir > 0) {
     showTitleCard({ act: nextAct }, () => {
-      state.sceneIndex = next;   // Bridge emits 'scene:loaded'
+      state.sceneIndex = next;
       loadScene(next, true);
     });
   } else {
