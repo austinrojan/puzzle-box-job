@@ -20,7 +20,7 @@ export function vttSync(msg) {
 const VTT_ACTIONS = [
   ['scene', createSceneMsg], ['mode', createModeSwitchMsg], ['map', createMapMsg],
   ['effect', createEffectMsg], ['titleCard', createTitleCardMsg],
-  ['combat', createCombatStartMsg], ['preset', createTokenLoadPresetMsg],
+  ['combat', () => createCombatStartMsg()], ['preset', createTokenLoadPresetMsg],
 ];
 
 export function fireVttActions(vtt) {
