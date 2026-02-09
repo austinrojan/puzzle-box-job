@@ -118,23 +118,26 @@ export class TokenManager {
     }
   }
 
-  addToken(tokenId, col, row, opts = {}) {
-    const def = TOKENS[tokenId];
-    if (!def) return null;
-
-    const token = {
+  _buildToken(tokenId, col, row, def, opts = {}) {
+    return {
       id: 't' + (this._nextId++),
       tokenId,
       col,
       row,
       label: opts.label || def.displayName || def.name,
       visible: opts.visible !== false,
-      conditions: opts.conditions || [],
+      conditions: Array.isArray(opts.conditions) ? [...opts.conditions] : [],
       hp: opts.hp ?? null,
       maxHp: opts.maxHp ?? null,
       size: def.size || 1,
     };
+  }
 
+  addToken(tokenId, col, row, opts = {}) {
+    const def = TOKENS[tokenId];
+    if (!def) return null;
+
+    const token = this._buildToken(tokenId, col, row, def, opts);
     this.tokens.push(token);
     this.loadTokenImage(tokenId);
     this.draw();
@@ -188,10 +191,14 @@ export class TokenManager {
     }
   }
 
-  _onMapSwitch(mapId) {
+  _saveCurrentMapTokens() {
     if (this._currentMapId) {
       this._tokensByMap[this._currentMapId] = this.tokens.slice();
     }
+  }
+
+  _onMapSwitch(mapId) {
+    this._saveCurrentMapTokens();
     this._currentMapId = mapId;
     this.tokens = this._tokensByMap[mapId] ? this._tokensByMap[mapId].slice() : [];
     this.draw();
@@ -211,24 +218,10 @@ export class TokenManager {
     for (const t of serialized) {
       const def = TOKENS[t.tokenId];
       if (!def) continue;
-
-      this.tokens.push({
-        id: 't' + (this._nextId++),
-        tokenId: t.tokenId,
-        col: t.col,
-        row: t.row,
-        label: t.label || def.displayName || def.name,
-        visible: t.visible !== false,
-        conditions: Array.isArray(t.conditions) ? [...t.conditions] : [],
-        hp: t.hp ?? null,
-        maxHp: t.maxHp ?? null,
-        size: def.size || 1,
-      });
+      this.tokens.push(this._buildToken(t.tokenId, t.col, t.row, def, t));
     }
 
-    if (this._currentMapId) {
-      this._tokensByMap[this._currentMapId] = this.tokens.slice();
-    }
+    this._saveCurrentMapTokens();
 
     this.draw();
     this._emitTokensChanged();
@@ -242,10 +235,7 @@ export class TokenManager {
     for (const t of preset.tokens) {
       this.addToken(t.tokenId, t.x, t.y, { label: t.label });
     }
-    // Save to per-map storage
-    if (this._currentMapId) {
-      this._tokensByMap[this._currentMapId] = this.tokens.slice();
-    }
+    this._saveCurrentMapTokens();
     this.draw();
   }
 

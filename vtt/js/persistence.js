@@ -24,7 +24,7 @@ const PERSIST_KEYS = [
 function saveState(snapshot) {
   const toSave = {};
   for (const key of PERSIST_KEYS) {
-    if (key in snapshot) toSave[key] = snapshot[key];
+    toSave[key] = snapshot[key];
   }
   toSave._savedAt = Date.now();
   toSave._version = STATE_VERSION;
@@ -47,11 +47,7 @@ export function initAutoSave(store) {
 /** Immediate save for beforeunload — bypasses debounce. */
 export function saveImmediate(store) {
   clearTimeout(_saveTimer);
-  try {
-    saveState(store.snapshot());
-  } catch (err) {
-    console.warn('[VTT] Immediate save failed:', err);
-  }
+  saveState(store.snapshot());
 }
 
 /**
@@ -67,20 +63,20 @@ export function loadSavedState() {
 
     if (saved._version !== STATE_VERSION) {
       console.warn('[VTT] Saved state version mismatch, discarding');
-      sessionStorage.removeItem(STORAGE_KEY);
+      clearSavedState();
       return null;
     }
 
     if (Date.now() - saved._savedAt > STALENESS_MS) {
       console.warn('[VTT] Saved state is stale (>4h), discarding');
-      sessionStorage.removeItem(STORAGE_KEY);
+      clearSavedState();
       return null;
     }
 
     return saved;
   } catch (err) {
     console.warn('[VTT] State load failed:', err);
-    sessionStorage.removeItem(STORAGE_KEY);
+    clearSavedState();
     return null;
   }
 }
@@ -128,14 +124,10 @@ export function validateRestoredState(saved) {
       currentTurn: Math.max(0, saved.initiative.currentTurn || 0),
       entries: Array.isArray(saved.initiative.entries) ? saved.initiative.entries : []
     };
-    if (clean.initiative.entries.length > 0) {
-      clean.initiative.currentTurn = Math.min(
-        clean.initiative.currentTurn,
-        clean.initiative.entries.length - 1
-      );
-    } else {
-      clean.initiative.currentTurn = 0;
-    }
+    const len = clean.initiative.entries.length;
+    clean.initiative.currentTurn = len > 0
+      ? Math.min(clean.initiative.currentTurn, len - 1)
+      : 0;
   }
 
   if (Array.isArray(saved.tokens)) {

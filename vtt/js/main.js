@@ -14,6 +14,7 @@ import * as sceneNavigator from './scene-navigator.js';
 import { EffectsEngine } from './effects-engine.js';
 
 const $ = id => document.getElementById(id);
+const delay = ms => new Promise(r => setTimeout(r, ms));
 
 async function boot() {
   console.log('[VTT] Booting...');
@@ -94,21 +95,16 @@ async function boot() {
   state.presentationMode = true;
 
   // Fade out loading screen
-  await new Promise(r => setTimeout(r, 300));
+  await delay(300);
   loadingEl.style.transition = 'opacity 600ms ease';
   loadingEl.style.opacity = '0';
-  await new Promise(r => setTimeout(r, 600));
+  await delay(600);
   loadingEl.hidden = true;
 
   console.log('[VTT] Ready.' + (saved ? ' (restored from saved state)' : ''));
 }
 
-boot().catch(err => {
-  console.error('[VTT] Boot failed:', err);
-
-  const loadingEl = document.getElementById('loading');
-  if (loadingEl) loadingEl.hidden = true;
-
+function _createErrorOverlay(err) {
   const overlay = document.createElement('div');
   overlay.style.cssText = `
     position: fixed; inset: 0; z-index: 99999;
@@ -176,7 +172,7 @@ boot().catch(err => {
     font-size: 14px; border-radius: 4px;
   `;
   freshBtn.onclick = () => {
-    sessionStorage.removeItem('puzzlebox-vtt-state');
+    clearSavedState();
     location.reload();
   };
 
@@ -186,5 +182,12 @@ boot().catch(err => {
   overlay.appendChild(msg);
   overlay.appendChild(stack);
   overlay.appendChild(btnRow);
-  document.body.appendChild(overlay);
+  return overlay;
+}
+
+boot().catch(err => {
+  console.error('[VTT] Boot failed:', err);
+  const loadingEl = document.getElementById('loading');
+  if (loadingEl) loadingEl.hidden = true;
+  document.body.appendChild(_createErrorOverlay(err));
 });
