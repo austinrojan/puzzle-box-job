@@ -414,6 +414,15 @@ body {
 import {
   SCENES, ACTS, MAPS, TOKENS, MAP_PRESETS, EFFECTS, CONDITIONS
 } from '../shared/campaign-data.js';
+import {
+  MSG, createStateRequestMsg, createSceneMsg, createMapMsg,
+  createModeSwitchMsg, createCameraPanMsg, createCameraZoomMsg,
+  createCameraResetMsg, createFogRevealAllMsg, createFogHideAllMsg,
+  createGridToggleMsg, createTokenLoadPresetMsg, createTokenRemoveAllMsg,
+  createTokenAddMsg, createTokenUpdateConditionMsg, createTokenVisibilityMsg,
+  createTokenRemoveOneMsg, createEffectMsg, createOverlayTextMsg,
+  createTitleCardMsg, createInitiativeNextMsg
+} from '../shared/protocol.js';
 
 // ============================================
 // BroadcastChannel
@@ -445,7 +454,7 @@ let lastSyncTime = 0;
 // ============================================
 channel.onmessage = (e) => {
   console.log('[Controller] BC received:', e.data.type);
-  if (e.data.type === 'state:sync') {
+  if (e.data.type === MSG.STATE_SYNC) {
     console.log('[Controller] State sync, mode:', e.data.data.mode);
     vttState = e.data.data;
     lastSyncTime = Date.now();
@@ -459,11 +468,11 @@ channel.onmessage = (e) => {
 };
 
 // Request initial state
-send({ type: 'state:request' });
+send(createStateRequestMsg());
 
 // Heartbeat: periodically request state and detect VTT disconnection
 setInterval(() => {
-  send({ type: 'state:request' });
+  send(createStateRequestMsg());
   // If no sync received in 4 seconds, mark as disconnected
   if (connected && lastSyncTime > 0 && (Date.now() - lastSyncTime) > 4000) {
     connected = false;
@@ -514,7 +523,7 @@ function updateMapSelect() {
 // ============================================
 $$('[data-mode]').forEach(btn => {
   btn.addEventListener('click', () => {
-    send({ type: 'mode:switch', mode: btn.dataset.mode });
+    send(createModeSwitchMsg(btn.dataset.mode));
   });
 });
 
@@ -541,7 +550,7 @@ function updateSceneLabel() {
 $('#scene-prev').addEventListener('click', () => {
   if (sceneIndex > 0) {
     sceneIndex--;
-    send({ type: 'scene', sceneId: SCENES[sceneIndex].id });
+    send(createSceneMsg(SCENES[sceneIndex].id));
     updateSceneLabel();
   }
 });
@@ -549,7 +558,7 @@ $('#scene-prev').addEventListener('click', () => {
 $('#scene-next').addEventListener('click', () => {
   if (sceneIndex < SCENES.length - 1) {
     sceneIndex++;
-    send({ type: 'scene', sceneId: SCENES[sceneIndex].id });
+    send(createSceneMsg(SCENES[sceneIndex].id));
     updateSceneLabel();
   }
 });
@@ -578,7 +587,7 @@ $('#scene-list-toggle').addEventListener('click', () => {
     item.textContent = scene.id + '  ' + scene.title;
     item.addEventListener('click', () => {
       sceneIndex = i;
-      send({ type: 'scene', sceneId: scene.id });
+      send(createSceneMsg(scene.id));
       updateSceneLabel();
     });
     body.appendChild(item);
@@ -611,7 +620,7 @@ $('#map-select').addEventListener('change', () => {
 
 $('#map-load').addEventListener('click', () => {
   const val = $('#map-select').value;
-  if (val) send({ type: 'map', mapId: val });
+  if (val) send(createMapMsg(val));
   // Clear dirty flag — next state:sync will confirm the new mapId
   mapSelectDirty = false;
   clearTimeout(mapSelectDirtyTimer);
@@ -623,21 +632,21 @@ $$('[data-cam]').forEach(btn => {
     const dir = btn.dataset.cam;
     const step = 80;
     switch (dir) {
-      case 'up':    send({ type: 'camera:pan', dx: 0, dy: step }); break;
-      case 'down':  send({ type: 'camera:pan', dx: 0, dy: -step }); break;
-      case 'left':  send({ type: 'camera:pan', dx: step, dy: 0 }); break;
-      case 'right': send({ type: 'camera:pan', dx: -step, dy: 0 }); break;
-      case 'reset': send({ type: 'camera:reset' }); break;
+      case 'up':    send(createCameraPanMsg(0, step)); break;
+      case 'down':  send(createCameraPanMsg(0, -step)); break;
+      case 'left':  send(createCameraPanMsg(step, 0)); break;
+      case 'right': send(createCameraPanMsg(-step, 0)); break;
+      case 'reset': send(createCameraResetMsg()); break;
     }
   });
 });
 
-$('#zoom-in').addEventListener('click', () => send({ type: 'camera:zoom', direction: 1 }));
-$('#zoom-out').addEventListener('click', () => send({ type: 'camera:zoom', direction: -1 }));
+$('#zoom-in').addEventListener('click', () => send(createCameraZoomMsg(1)));
+$('#zoom-out').addEventListener('click', () => send(createCameraZoomMsg(-1)));
 
-$('#fog-reveal').addEventListener('click', () => send({ type: 'fog:reveal-all' }));
-$('#fog-hide').addEventListener('click', () => send({ type: 'fog:hide-all' }));
-$('#grid-toggle').addEventListener('click', () => send({ type: 'grid:toggle' }));
+$('#fog-reveal').addEventListener('click', () => send(createFogRevealAllMsg()));
+$('#fog-hide').addEventListener('click', () => send(createFogHideAllMsg()));
+$('#grid-toggle').addEventListener('click', () => send(createGridToggleMsg()));
 
 // ============================================
 // Tokens
@@ -660,10 +669,10 @@ $('#grid-toggle').addEventListener('click', () => send({ type: 'grid:toggle' }))
 
 $('#preset-load').addEventListener('click', () => {
   const val = $('#preset-select').value;
-  if (val) send({ type: 'token:load-preset', presetId: val });
+  if (val) send(createTokenLoadPresetMsg(val));
 });
 
-$('#clear-tokens').addEventListener('click', () => send({ type: 'token:remove-all' }));
+$('#clear-tokens').addEventListener('click', () => send(createTokenRemoveAllMsg()));
 
 // Token placement buttons
 (function buildTokenButtons() {
@@ -696,7 +705,7 @@ $('#clear-tokens').addEventListener('click', () => send({ type: 'token:remove-al
       btn.className = 'token-btn ' + cls;
       btn.textContent = def.name;
       btn.addEventListener('click', () => {
-        send({ type: 'token:add', tokenId: id, x: 10, y: 8, label: def.name });
+        send(createTokenAddMsg({ tokenId: id, x: 10, y: 8, label: def.name }));
       });
       row.appendChild(btn);
     }
@@ -750,7 +759,7 @@ function updateActiveTokens() {
         badge.title = 'Remove ' + cond;
         badge.addEventListener('click', (e) => {
           e.stopPropagation();
-          send({ type: 'token:update-condition', instanceId: token.id, condition: cond, enabled: false });
+          send(createTokenUpdateConditionMsg(token.id, cond, false));
         });
         row.appendChild(badge);
       }
@@ -774,7 +783,7 @@ function updateActiveTokens() {
     vis.title = token.visible ? 'Hide token' : 'Show token';
     vis.addEventListener('click', (e) => {
       e.stopPropagation();
-      send({ type: 'token:visibility', instanceId: token.id, visible: !token.visible });
+      send(createTokenVisibilityMsg(token.id, !token.visible));
     });
     row.appendChild(vis);
 
@@ -785,7 +794,7 @@ function updateActiveTokens() {
     remove.title = 'Remove token';
     remove.addEventListener('click', (e) => {
       e.stopPropagation();
-      send({ type: 'token:remove-one', instanceId: token.id });
+      send(createTokenRemoveOneMsg(token.id));
     });
     row.appendChild(remove);
 
@@ -807,7 +816,7 @@ function showCondPopup(token, anchor) {
     item.className = 'cond-popup__item' + (has ? ' cond-popup__item--active' : '');
     item.textContent = (has ? '\u2713 ' : '') + cond.id;
     item.addEventListener('click', () => {
-      send({ type: 'token:update-condition', instanceId: token.id, condition: cond.id, enabled: !has });
+      send(createTokenUpdateConditionMsg(token.id, cond.id, !has));
       popup.style.display = 'none';
     });
     popup.appendChild(item);
@@ -871,7 +880,7 @@ function updateEffectTarget() {
     btn.textContent = eff.name;
     btn.addEventListener('click', () => {
       const target = getEffectTarget();
-      send({ type: 'effect', effectId: id, ...target });
+      send(createEffectMsg(id, target));
     });
     grid.appendChild(btn);
   }
@@ -884,7 +893,7 @@ function sendOverlay() {
   const input = $('#overlay-input');
   const val = input.value.trim();
   if (val) {
-    send({ type: 'overlay-text', text: val });
+    send(createOverlayTextMsg(val));
     input.value = '';
   }
 }
@@ -895,7 +904,7 @@ $('#overlay-input').addEventListener('keydown', (e) => {
 });
 
 $('#overlay-clear').addEventListener('click', () => {
-  send({ type: 'overlay-text', text: '' });
+  send(createOverlayTextMsg(''));
   $('#overlay-input').value = '';
 });
 
@@ -916,7 +925,7 @@ $('#title-send').addEventListener('click', () => {
   const actNum = parseInt($('#title-act-select').value, 10);
   const act = ACTS[actNum - 1];
   if (act) {
-    send({ type: 'title-card', act: actNum });
+    send(createTitleCardMsg(actNum));
   }
 });
 
@@ -965,7 +974,7 @@ $('#next-turn').addEventListener('click', () => {
     nextTurn = 0;
     nextRound++;
   }
-  send({ type: 'initiative:next', currentTurn: nextTurn, round: nextRound });
+  send(createInitiativeNextMsg(nextTurn, nextRound));
 });
 
 // ============================================
@@ -980,7 +989,7 @@ document.addEventListener('keydown', (e) => {
       e.preventDefault();
       if (sceneIndex < SCENES.length - 1) {
         sceneIndex++;
-        send({ type: 'scene', sceneId: SCENES[sceneIndex].id });
+        send(createSceneMsg(SCENES[sceneIndex].id));
         updateSceneLabel();
       }
       break;
@@ -989,13 +998,13 @@ document.addEventListener('keydown', (e) => {
       e.preventDefault();
       if (sceneIndex > 0) {
         sceneIndex--;
-        send({ type: 'scene', sceneId: SCENES[sceneIndex].id });
+        send(createSceneMsg(SCENES[sceneIndex].id));
         updateSceneLabel();
       }
       break;
-    case '1': send({ type: 'mode:switch', mode: 'theater' }); break;
-    case '2': send({ type: 'mode:switch', mode: 'map' }); break;
-    case '3': send({ type: 'mode:switch', mode: 'initiative' }); break;
+    case '1': send(createModeSwitchMsg('theater')); break;
+    case '2': send(createModeSwitchMsg('map')); break;
+    case '3': send(createModeSwitchMsg('initiative')); break;
   }
 });
 
