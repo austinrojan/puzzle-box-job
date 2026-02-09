@@ -26,12 +26,13 @@ export async function preloadAll(onProgress) {
   const total = sources.length;
   let loaded = 0;
   let failed = 0;
+  const failedSources = [];
 
   const results = await Promise.all(
     sources.map(src =>
       preloadImage(src).then(result => {
         loaded++;
-        if (!result.ok) failed++;
+        if (!result.ok) { failed++; failedSources.push(result.src); }
         if (onProgress) onProgress({ loaded, total, failed, src: result.src });
         return result;
       })
@@ -41,5 +42,5 @@ export async function preloadAll(onProgress) {
   const okCount = results.filter(r => r.ok).length;
   console.log(`[VTT] Images preloaded: ${okCount}/${total} (${failed} missing — placeholders will be used)`);
 
-  return { total, loaded: okCount, failed };
+  return { total, loaded: okCount, failed, failedSources };
 }
