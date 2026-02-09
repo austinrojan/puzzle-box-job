@@ -96,11 +96,13 @@ export function validateRestoredState(saved) {
     clean.sceneIndex = Math.max(0, Math.min(saved.sceneIndex, SCENES.length - 1));
   }
 
-  if (saved.mapId && MAPS.some(m => m.id === saved.mapId)) {
-    clean.mapId = saved.mapId;
-  } else if (saved.mapId) {
-    console.warn(`[VTT] Restored mapId "${saved.mapId}" not found, ignoring`);
-    clean.mapId = null;
+  if (saved.mapId) {
+    if (MAPS.some(m => m.id === saved.mapId)) {
+      clean.mapId = saved.mapId;
+    } else {
+      console.warn(`[VTT] Restored mapId "${saved.mapId}" not found, ignoring`);
+      clean.mapId = null;
+    }
   }
 
   if (typeof saved.heat === 'number') {
@@ -112,16 +114,14 @@ export function validateRestoredState(saved) {
   }
 
   if (saved.initiative && typeof saved.initiative === 'object') {
+    const entries = Array.isArray(saved.initiative.entries) ? saved.initiative.entries : [];
+    const maxTurn = Math.max(0, entries.length - 1);
     clean.initiative = {
       active: !!saved.initiative.active,
       round: Math.max(1, saved.initiative.round || 1),
-      currentTurn: Math.max(0, saved.initiative.currentTurn || 0),
-      entries: Array.isArray(saved.initiative.entries) ? saved.initiative.entries : []
+      currentTurn: Math.min(Math.max(0, saved.initiative.currentTurn || 0), maxTurn),
+      entries
     };
-    const len = clean.initiative.entries.length;
-    clean.initiative.currentTurn = len > 0
-      ? Math.min(clean.initiative.currentTurn, len - 1)
-      : 0;
   }
 
   if (Array.isArray(saved.tokens)) {
