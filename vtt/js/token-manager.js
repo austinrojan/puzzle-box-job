@@ -198,6 +198,42 @@ export class TokenManager {
     this._emitTokensChanged();
   }
 
+  /**
+   * Restore tokens from a serialized snapshot (e.g. from persistence).
+   * Rebuilds the internal tokens array and redraws.
+   */
+  restoreTokens(serialized) {
+    if (!Array.isArray(serialized) || serialized.length === 0) return;
+
+    this.tokens = [];
+    this._nextId = 1;
+
+    for (const t of serialized) {
+      const def = TOKENS[t.tokenId];
+      if (!def) continue;
+
+      this.tokens.push({
+        id: 't' + (this._nextId++),
+        tokenId: t.tokenId,
+        col: t.col,
+        row: t.row,
+        label: t.label || def.displayName || def.name,
+        visible: t.visible !== false,
+        conditions: Array.isArray(t.conditions) ? [...t.conditions] : [],
+        hp: t.hp ?? null,
+        maxHp: t.maxHp ?? null,
+        size: def.size || 1,
+      });
+    }
+
+    if (this._currentMapId) {
+      this._tokensByMap[this._currentMapId] = this.tokens.slice();
+    }
+
+    this.draw();
+    this._emitTokensChanged();
+  }
+
   loadPreset(presetId) {
     const preset = MAP_PRESETS[presetId];
     if (!preset) return;
