@@ -1,5 +1,5 @@
 import { ADVENTURE_DATA, setAdventureData } from './adventure-data.js';
-import { setCombatConfig } from './combat-config.js';
+import { COMBAT_CONFIG, setCombatConfig } from './combat-config.js';
 import { syncIdCounter } from './utils.js';
 import { AppState, loadState, resetState, saveState } from './state.js';
 import { searchIndex } from './search.js';
@@ -25,26 +25,18 @@ window.toggleIntel = toggleIntel;
 
 function init() {
   loadState();
-  // Migrate persisted "Rogue (TBD)" -> "Kallista" in saved initiative
-  for (const e of AppState.combat.initiative) {
-    if (e.name === 'Rogue (TBD)') e.name = 'Kallista';
+  // Apply name migrations from campaign config (e.g. "Rogue (TBD)" → "Kallista")
+  for (const mig of COMBAT_CONFIG.migrations) {
+    for (const e of AppState.combat.initiative) {
+      if (e.name === mig.from) e.name = mig.to;
+    }
   }
   syncIdCounter(AppState.tabs);
   $('app').style.setProperty('--nav-width', `${AppState.navWidth}px`);
   if (AppState.combatPanelOpen) $('app').classList.add('combat-open');
 
   if (AppState.combat.initiative.length === 0) {
-    AppState.combat.initiative = [
-      { name: 'Lair Action', init: 20, type: 'lair', conditions: [] },
-      { name: 'Kallista', init: null, type: 'pc', conditions: [] },
-      { name: 'Martin Storm', init: null, type: 'pc', conditions: [] },
-      { name: 'Locke (Rakshasa)', init: 14, type: 'enemy', conditions: [] },
-      { name: 'Oda (Bearda)', init: null, type: 'pc', conditions: [] },
-      { name: 'Cult Fanatic 1', init: 10, type: 'enemy', conditions: [] },
-      { name: 'Cult Fanatic 2', init: 10, type: 'enemy', conditions: [] },
-      { name: 'Jean LeMarque', init: null, type: 'pc', conditions: [] },
-      { name: 'L\u00F3m\u00EB', init: null, type: 'pc', conditions: [] }
-    ];
+    AppState.combat.initiative = JSON.parse(JSON.stringify(COMBAT_CONFIG.defaultInitiative));
   }
 
   searchIndex.buildIndex();

@@ -1,24 +1,20 @@
 import { debounce } from './utils.js';
 import { CAMPAIGN } from '../../shared/campaign-data.js';
+import { COMBAT_CONFIG } from './combat-config.js';
 
 function getStorageKey() {
   return CAMPAIGN.storagePrefix + '-dm-state';
 }
 
+// Base default state (campaign-agnostic structure).
+// combat.combatants and combat.mechanics are populated from COMBAT_CONFIG at boot.
 export const DEFAULT_STATE = {
   tabs: [{ id: 'welcome', type: 'welcome', label: 'Welcome', closeable: false }],
   activeTabId: 'welcome',
   navExpanded: true,
   navWidth: 280,
   collapsed: {},
-  combat: {
-    active: false, round: 1, currentTurn: 0,
-    initiative: [],
-    braziers: [true, true, true, true, true],
-    locke: { hp: 110, maxHp: 110 },
-    cultFanatics: [{ hp: 33, maxHp: 33 }, { hp: 33, maxHp: 33 }],
-    dominateJean: { active: false, auraWithParty: true }
-  },
+  combat: null,
   heatLevel: 0,
   intelGathered: {},
   foreshadowing: {},
@@ -29,6 +25,10 @@ export const DEFAULT_STATE = {
   scrollPositions: {}
 };
 
+export function buildCombatDefaults() {
+  return JSON.parse(JSON.stringify(COMBAT_CONFIG.defaultState));
+}
+
 export const AppState = JSON.parse(JSON.stringify(DEFAULT_STATE));
 
 function replaceState(source) {
@@ -38,9 +38,13 @@ function replaceState(source) {
 
 export function loadState() {
   try {
+    const defaults = JSON.parse(JSON.stringify(DEFAULT_STATE));
+    defaults.combat = buildCombatDefaults();
     const saved = localStorage.getItem(getStorageKey());
     if (saved) {
-      replaceState(Object.assign(JSON.parse(JSON.stringify(DEFAULT_STATE)), JSON.parse(saved)));
+      replaceState(Object.assign(defaults, JSON.parse(saved)));
+    } else {
+      replaceState(defaults);
     }
   } catch (e) { console.warn('State load failed:', e); }
 }
@@ -53,6 +57,8 @@ export const saveState = debounce(() => {
 }, 300);
 
 export function resetState() {
-  replaceState(JSON.parse(JSON.stringify(DEFAULT_STATE)));
+  const defaults = JSON.parse(JSON.stringify(DEFAULT_STATE));
+  defaults.combat = buildCombatDefaults();
+  replaceState(defaults);
   localStorage.removeItem(getStorageKey());
 }

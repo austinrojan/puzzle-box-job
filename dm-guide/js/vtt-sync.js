@@ -1,4 +1,5 @@
 import { AppState } from './state.js';
+import { COMBAT_CONFIG } from './combat-config.js';
 import { CAMPAIGN } from '../../shared/campaign-data.js';
 import {
   createSceneMsg, createModeSwitchMsg, createMapMsg, createEffectMsg,
@@ -45,28 +46,10 @@ export function syncFullInitiative() {
   }));
 }
 
-const TOKEN_ID_MAP = {
-  'Martin Storm': 'martin-storm',
-  'L\u00F3m\u00EB': 'lome',
-  'Oda (Bearda)': 'oda',
-  'Jean LeMarque': 'jean',
-  'Kallista': 'kallista',
-  'Locke (Rakshasa)': 'locke-rakshasa',
-  'Cult Fanatic 1': 'cult-fanatic',
-  'Cult Fanatic 2': 'cult-fanatic',
-};
-
-const DISPLAY_NAME_MAP = {
-  'Locke (Rakshasa)': 'Locke',
-  'Cult Fanatic 1': 'Cultist 1',
-  'Cult Fanatic 2': 'Cultist 2',
-  'Lair Action': 'Lair Action',
-};
-
 export function nameToTokenId(name) {
-  return TOKEN_ID_MAP[name] ?? null;
+  return COMBAT_CONFIG.tokenMapping[name]?.tokenId ?? null;
 }
 
 export function nameToDisplayName(name) {
-  return DISPLAY_NAME_MAP[name] ?? name;
+  return COMBAT_CONFIG.tokenMapping[name]?.displayName ?? name;
 }

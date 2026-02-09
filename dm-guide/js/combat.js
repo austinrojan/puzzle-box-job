@@ -1,4 +1,5 @@
 import { AppState, saveState } from './state.js';
+import { COMBAT_CONFIG } from './combat-config.js';
 import { escapeHtml } from './utils.js';
 import { vttSync, syncFullInitiative } from './vtt-sync.js';
 import {
@@ -8,14 +9,6 @@ import {
 
 const $ = id => document.getElementById(id);
 
-const IMMUNITY_TABLE = [
-  { label: 'Immune to 3rd level and below',        spells: 'Physical attacks only' },
-  { label: 'Immune to 2nd level and below',        spells: '3rd-level: Counterspell, Fireball, Dispel Magic, Spirit Guardians' },
-  { label: 'Immune to 1st level and below',        spells: '2nd-level+: Hold Person, Suggestion, Heat Metal' },
-  { label: 'Immune to cantrips only \u00B7 Ritual fails', spells: "1st-level+: Command, Tasha's Hideous Laughter" },
-  { label: 'No spell immunity',                    spells: 'Everything works \u2014 full arsenal' },
-];
-
 function hpClass(pct) {
   if (pct > 50) return 'healthy';
   if (pct > 25) return 'wounded';
@@ -24,18 +17,24 @@ function hpClass(pct) {
 
 function computeCombatState() {
   const c = AppState.combat;
-  const braziersOut = c.braziers.filter(b => !b).length;
-  const immunity = IMMUNITY_TABLE[Math.min(braziersOut, 4)];
-  const lockeHpPct = Math.max(0, c.locke.hp / c.locke.maxHp * 100);
+  const cfg = COMBAT_CONFIG;
+  const braziersOut = c.mechanics.braziers.filter(b => !b).length;
+  const immunity = cfg.immunityTable[Math.min(braziersOut, cfg.immunityTable.length - 1)];
+  const boss = c.combatants.locke;
+  const bossHpPct = boss.maxHp > 0 ? Math.max(0, boss.hp / boss.maxHp * 100) : 0;
+
+  const currentPhase = cfg.phases.find(p =>
+    p.above ? bossHpPct > p.hpThreshold * 100 : bossHpPct <= p.hpThreshold * 100
+  ) || cfg.phases[0];
 
   return {
     c,
     braziersOut,
     immunityLabel: immunity.label,
     unlockedSpells: immunity.spells,
-    lockeHpPct,
-    lockePhase: c.locke.hp <= 55 ? 2 : 1,
-    lockeHpClass: hpClass(lockeHpPct),
+    bossHpPct,
+    currentPhase,
+    bossHpClass: hpClass(bossHpPct),
   };
 }
 
@@ -115,30 +114,32 @@ function wireEventListeners(panel) {
 
 export function renderCombatPanel() {
   const panel = $('combat-panel');
-  const { c, braziersOut, immunityLabel, unlockedSpells, lockeHpPct, lockePhase, lockeHpClass } = computeCombatState();
+  const { c, braziersOut, immunityLabel, unlockedSpells, bossHpPct, currentPhase, bossHpClass } = computeCombatState();
+  const boss = c.combatants.locke;
+  const cfg = COMBAT_CONFIG;
 
   panel.textContent = '';
 
-  // All content below is from our own AppState (escapeHtml'd), not user input
+  // All content below is from AppState / COMBAT_CONFIG (escapeHtml'd), not user input
   const temp = document.createElement('div');
   temp.innerHTML = // eslint-disable-line no-unsanitized/property -- safe: all values from AppState with escapeHtml
     `<div class="combat-header"><h2>\u2694 Combat Tracker</h2><span class="combat-close" id="combat-close-btn">\u00D7</span></div>` +
 
     `<div class="combat-section"><div class="combat-section-title">Braziers</div>` +
     `<div class="braziers-row">` +
-    c.braziers.map((lit, i) =>
+    c.mechanics.braziers.map((lit, i) =>
       `<div class="brazier ${lit ? '' : 'extinguished'}" data-brazier="${i}"><div class="brazier-flame"></div><div class="brazier-bowl"></div></div>`
     ).join('') +
     `</div>` +
     `<div class="text-xs text-muted font-mono" style="text-align:center">${escapeHtml(immunityLabel)}</div>` +
     `<div class="immunity-meter">` +
-    [0,1,2,3,4].map(i => `<div class="immunity-segment ${i < (5 - braziersOut) ? 'active' : 'inactive'}"></div>`).join('') +
+    c.mechanics.braziers.map((_, i) => `<div class="immunity-segment ${i < (c.mechanics.braziers.length - braziersOut) ? 'active' : 'inactive'}"></div>`).join('') +
     `</div>` +
     `<div class="text-xs mt-8" style="color:var(--gold)">${escapeHtml(unlockedSpells)}</div></div>` +
 
-    `<div class="combat-section"><div class="combat-section-title">Locke \u00B7 Phase ${lockePhase}</div>` +
-    `<div class="hp-bar-wrap"><div class="hp-bar-fill ${lockeHpClass}" style="width:${lockeHpPct}%"></div>` +
-    `<div class="hp-bar-label">${c.locke.hp} / ${c.locke.maxHp}</div>` +
+    `<div class="combat-section"><div class="combat-section-title">Locke \u00B7 ${escapeHtml(currentPhase.label)}</div>` +
+    `<div class="hp-bar-wrap"><div class="hp-bar-fill ${bossHpClass}" style="width:${bossHpPct}%"></div>` +
+    `<div class="hp-bar-label">${boss.hp} / ${boss.maxHp}</div>` +
     `<div class="hp-phase-marker" style="left:50%"></div></div>` +
     `<div class="flex gap-8 mt-8" style="align-items:center">` +
     `<button class="btn btn-sm" data-hp-adj="-1">\u22121</button>` +
@@ -148,18 +149,18 @@ export function renderCombatPanel() {
     `<button class="btn btn-sm btn-danger" id="locke-dmg-btn">Dmg</button>` +
     `<button class="btn btn-sm" id="locke-heal-btn">Heal</button>` +
     `</div>` +
-    (lockePhase === 2 ? `<div class="text-xs mt-8" style="color:var(--red-bright)">Phase 2: Melee Frenzy \u2014 Drops spellcasting, two claw attacks per turn</div>` : '') +
+    (currentPhase.description ? `<div class="text-xs mt-8" style="color:var(--red-bright)">${escapeHtml(currentPhase.label)} \u2014 ${escapeHtml(currentPhase.description)}</div>` : '') +
     `</div>` +
 
-    `<div class="combat-section"><div class="combat-section-title">Dominate Person \u2014 Jean</div>` +
-    `<div class="dominate-toggle ${c.dominateJean.active ? 'active' : ''}">` +
-    `<div class="dominate-switch ${c.dominateJean.active ? 'active' : ''}" id="dominate-btn"></div>` +
-    `<span class="text-sm">${c.dominateJean.active ? '<span style="color:var(--red-bright);font-weight:600">DOMINATED</span>' : 'Inactive'}</span></div>` +
-    (c.dominateJean.active ? `<div class="text-xs mt-8" style="color:var(--red-light)">\u26A0 Aura of Protection has LEFT the party (+3 saves gone)<br><strong>Break it:</strong> Dispel Magic on Jean (d20+7 vs DC 15, needs 8+), or damage Jean for re-save</div>` : '') +
+    `<div class="combat-section"><div class="combat-section-title">Dominate Person \u2014 ${escapeHtml(cfg.dominate.targetShort)}</div>` +
+    `<div class="dominate-toggle ${c.mechanics.dominate.active ? 'active' : ''}">` +
+    `<div class="dominate-switch ${c.mechanics.dominate.active ? 'active' : ''}" id="dominate-btn"></div>` +
+    `<span class="text-sm">${c.mechanics.dominate.active ? '<span style="color:var(--red-bright);font-weight:600">DOMINATED</span>' : 'Inactive'}</span></div>` +
+    (c.mechanics.dominate.active && cfg.dominate.description.active ? `<div class="text-xs mt-8" style="color:var(--red-light)">\u26A0 ${escapeHtml(cfg.dominate.description.active)}</div>` : '') +
     `</div>` +
 
     `<div class="combat-section"><div class="combat-section-title">Cult Fanatics</div>` +
-    c.cultFanatics.map((cf, i) => {
+    c.combatants.cultFanatics.map((cf, i) => {
       const pct = Math.max(0, cf.hp / cf.maxHp * 100);
       const cls = hpClass(pct);
       return `<div class="mb-8"><div class="text-xs text-muted">Fanatic ${i + 1}</div>` +
@@ -199,29 +200,29 @@ export function renderCombatPanel() {
 }
 
 export function toggleBrazier(i) {
-  AppState.combat.braziers[i] = !AppState.combat.braziers[i];
+  AppState.combat.mechanics.braziers[i] = !AppState.combat.mechanics.braziers[i];
   renderCombatPanel();
   saveState();
-  vttSync(createBrazierMsg({ index: i, lit: AppState.combat.braziers[i], braziers: AppState.combat.braziers.slice() }));
+  vttSync(createBrazierMsg({ index: i, lit: AppState.combat.mechanics.braziers[i], braziers: AppState.combat.mechanics.braziers.slice() }));
 }
 
 export function adjustLockeHp(amt) {
-  const c = AppState.combat;
-  c.locke.hp = Math.max(0, Math.min(c.locke.maxHp, c.locke.hp + amt));
+  const boss = AppState.combat.combatants.locke;
+  boss.hp = Math.max(0, Math.min(boss.maxHp, boss.hp + amt));
   renderCombatPanel();
   saveState();
 }
 
 export function adjustCultistHp(i, amt) {
-  const cf = AppState.combat.cultFanatics[i];
+  const cf = AppState.combat.combatants.cultFanatics[i];
   cf.hp = Math.max(0, Math.min(cf.maxHp, cf.hp + amt));
   renderCombatPanel();
   saveState();
 }
 
 export function toggleDominate() {
-  AppState.combat.dominateJean.active = !AppState.combat.dominateJean.active;
-  AppState.combat.dominateJean.auraWithParty = !AppState.combat.dominateJean.active;
+  AppState.combat.mechanics.dominate.active = !AppState.combat.mechanics.dominate.active;
+  AppState.combat.mechanics.dominate.auraWithParty = !AppState.combat.mechanics.dominate.active;
   renderCombatPanel();
   saveState();
 }
