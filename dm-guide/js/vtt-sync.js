@@ -1,4 +1,9 @@
 import { AppState } from './state.js';
+import {
+  createSceneMsg, createModeSwitchMsg, createMapMsg, createEffectMsg,
+  createTitleCardMsg, createCombatStartMsg, createTokenLoadPresetMsg,
+  createInitiativeMsg
+} from '../../shared/protocol.js';
 
 let _channel = null;
 
@@ -12,34 +17,31 @@ export function vttSync(msg) {
 
 export function fireVttActions(vtt) {
   if (!vtt) return;
-  if (vtt.scene)     vttSync({ type: 'scene', sceneId: vtt.scene });
-  if (vtt.mode)      vttSync({ type: 'mode:switch', mode: vtt.mode });
-  if (vtt.map)       vttSync({ type: 'map', mapId: vtt.map });
-  if (vtt.effect)    vttSync({ type: 'effect', effectId: vtt.effect });
-  if (vtt.titleCard) vttSync({ type: 'title-card', act: vtt.titleCard });
-  if (vtt.combat)    vttSync({ type: 'combat:start' });
-  if (vtt.preset)    vttSync({ type: 'token:load-preset', presetId: vtt.preset });
+  if (vtt.scene)     vttSync(createSceneMsg(vtt.scene));
+  if (vtt.mode)      vttSync(createModeSwitchMsg(vtt.mode));
+  if (vtt.map)       vttSync(createMapMsg(vtt.map));
+  if (vtt.effect)    vttSync(createEffectMsg(vtt.effect));
+  if (vtt.titleCard) vttSync(createTitleCardMsg(vtt.titleCard));
+  if (vtt.combat)    vttSync(createCombatStartMsg());
+  if (vtt.preset)    vttSync(createTokenLoadPresetMsg(vtt.preset));
 }
 
 export function syncFullInitiative() {
-  vttSync({
-    type: 'initiative',
-    data: {
-      active: true,
-      round: AppState.combat.round,
-      currentTurn: AppState.combat.currentTurn,
-      entries: AppState.combat.initiative.map((e) => ({
-        name: e.name,
-        displayName: nameToDisplayName(e.name),
-        init: e.init,
-        tokenId: nameToTokenId(e.name),
-        hp: e.hp,
-        maxHp: e.maxHp,
-        conditions: e.conditions ?? [],
-        isPC: e.type === 'pc',
-      })),
-    },
-  });
+  vttSync(createInitiativeMsg({
+    active: true,
+    round: AppState.combat.round,
+    currentTurn: AppState.combat.currentTurn,
+    entries: AppState.combat.initiative.map((e) => ({
+      name: e.name,
+      displayName: nameToDisplayName(e.name),
+      init: e.init,
+      tokenId: nameToTokenId(e.name),
+      hp: e.hp,
+      maxHp: e.maxHp,
+      conditions: e.conditions ?? [],
+      isPC: e.type === 'pc',
+    })),
+  }));
 }
 
 export function nameToTokenId(name) {

@@ -3,6 +3,7 @@ import { AppState, saveState } from './state.js';
 import { escapeHtml } from './utils.js';
 import { openTab } from './tabs.js';
 import { vttSync } from './vtt-sync.js';
+import { createHeatMsg } from '../../shared/protocol.js';
 
 const $ = id => document.getElementById(id);
 
@@ -12,7 +13,7 @@ export function setHeatLevel(level) {
   AppState.heatLevel = level;
   renderHeatBar();
   saveState();
-  vttSync({ type: 'heat', level });
+  vttSync(createHeatMsg(level));
 }
 
 export function renderHeatBar() {

@@ -1,6 +1,10 @@
 import { AppState, saveState } from './state.js';
 import { escapeHtml } from './utils.js';
 import { vttSync, syncFullInitiative } from './vtt-sync.js';
+import {
+  createBrazierMsg, createInitiativeNextMsg,
+  createCombatStartMsg, createCombatEndMsg
+} from '../../shared/protocol.js';
 
 const $ = id => document.getElementById(id);
 
@@ -170,7 +174,7 @@ export function toggleBrazier(i) {
   AppState.combat.braziers[i] = !AppState.combat.braziers[i];
   renderCombatPanel();
   saveState();
-  vttSync({ type: 'brazier', index: i, lit: AppState.combat.braziers[i], braziers: AppState.combat.braziers.slice() });
+  vttSync(createBrazierMsg({ index: i, lit: AppState.combat.braziers[i], braziers: AppState.combat.braziers.slice() }));
 }
 
 export function adjustLockeHp(amt) {
@@ -201,7 +205,7 @@ export function nextTurn() {
   if (c.currentTurn >= c.initiative.length) { c.currentTurn = 0; c.round++; }
   renderCombatPanel();
   saveState();
-  vttSync({ type: 'initiative:next', currentTurn: c.currentTurn, round: c.round });
+  vttSync(createInitiativeNextMsg(c.currentTurn, c.round));
 }
 
 export function toggleCombatPanel() {
@@ -210,9 +214,9 @@ export function toggleCombatPanel() {
   if (AppState.combatPanelOpen) {
     renderCombatPanel();
     syncFullInitiative();
-    vttSync({ type: 'combat:start' });
+    vttSync(createCombatStartMsg());
   } else {
-    vttSync({ type: 'combat:end' });
+    vttSync(createCombatEndMsg());
   }
   saveState();
 }
