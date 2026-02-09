@@ -63,6 +63,15 @@ initTooltips();
 initKeyboard();
 initNavResize();
 setVttActionsFn(fireVttActions);
+
+// Delegated click handler for VTT cue buttons (replaces inline onclick)
+$('main-content').addEventListener('click', (e) => {
+  const cue = e.target.closest('.block-vtt-cue');
+  if (cue && cue.dataset.vtt) {
+    fireVttActions(JSON.parse(cue.dataset.vtt));
+  }
+});
+
 init();
 
 // Cross-validate VTT scene references

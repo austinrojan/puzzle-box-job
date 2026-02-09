@@ -276,6 +276,7 @@ export class MapRenderer {
 
   _syncFog() {
     state.fog[this.currentMap.id] = [...this.fogRevealed];
+    store.patch({ fog: { ...state.fog } });
     this.drawFog();
   }
 

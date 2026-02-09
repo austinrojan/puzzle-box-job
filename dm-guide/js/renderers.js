@@ -35,8 +35,8 @@ export function renderReadAloud(block) {
 
 export function renderVttCue(block) {
   const icon = block.vtt?.map ? '\uD83D\uDDFA' : '\uD83C\uDFAD';
-  const vttJson = escapeHtml(JSON.stringify(block.vtt));
-  return `<div class="block-vtt-cue" onclick="fireVttActions(${vttJson})"><span class="block-vtt-cue__icon">${icon}</span><span class="block-vtt-cue__label">${escapeHtml(block.label)}</span></div>`;
+  const vttJson = JSON.stringify(block.vtt);
+  return `<div class="block-vtt-cue" data-vtt='${vttJson.replace(/'/g, "&#39;")}'><span class="block-vtt-cue__icon">${icon}</span><span class="block-vtt-cue__label">${escapeHtml(block.label)}</span></div>`;
 }
 
 export function renderDmNote(block) {

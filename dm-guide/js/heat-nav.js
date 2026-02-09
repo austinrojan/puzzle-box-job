@@ -22,7 +22,7 @@ export function renderHeatBar() {
   const labels = ['Unnoticed', 'Suspicious', 'Alarmed'];
   for (const [i, seg] of segs.entries()) {
     seg.classList.toggle('active', i <= AppState.heatLevel);
-    seg.onclick = () => setHeatLevel(i);
+    seg.addEventListener('click', () => setHeatLevel(i));
   }
   statusEl.textContent = labels[AppState.heatLevel];
   statusEl.className = `heat-status${AppState.heatLevel === 2 ? ' alarmed' : ''}`;

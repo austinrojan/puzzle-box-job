@@ -76,6 +76,7 @@ export function detectEntities(container) {
 }
 
 export function showTooltip(target, x, y) {
+  if (!_tooltipEl) return;
   const entity = target.dataset.entity;
   let html = '';
 
