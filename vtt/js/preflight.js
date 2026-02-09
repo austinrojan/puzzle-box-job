@@ -1,6 +1,6 @@
 // VTT Pre-Flight Check — Verify everything before game night
 
-import { SCENES, MAPS, TOKENS, validateCampaignData } from './data.js';
+import { SCENES, MAPS, TOKENS, CAMPAIGN, validateCampaignData } from './data.js';
 
 const MAX_ERRORS = 5;
 
@@ -42,7 +42,7 @@ function checkAssets(items, failedSet) {
 
 function checkBroadcastChannel() {
   try {
-    const ch = new BroadcastChannel('puzzlebox-vtt-preflight');
+    const ch = new BroadcastChannel(CAMPAIGN.broadcastChannel + '-preflight');
     ch.close();
     return { ok: true, errors: [] };
   } catch (err) {

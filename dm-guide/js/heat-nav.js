@@ -34,7 +34,7 @@ export function renderNavTree() {
 
   const title = document.createElement('div');
   title.className = 'nav-title';
-  title.textContent = '\uD83D\uDCCB The Puzzle-Box Job';
+  title.textContent = '\uD83D\uDCCB ' + (ADVENTURE_DATA.meta?.title || 'Campaign');
   nav.appendChild(title);
 
   for (const act of ADVENTURE_DATA.acts) {

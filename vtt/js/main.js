@@ -27,6 +27,8 @@ async function boot() {
   statusEl.textContent = 'Loading campaign\u2026';
   const manifest = await loadCampaign();
   document.title = manifest.title + ' \u2014 VTT';
+  const titleEl = loadingEl.querySelector('.loading__title');
+  if (titleEl) titleEl.textContent = manifest.title;
 
   statusEl.textContent = 'Loading assets\u2026';
   const preloadResults = await preloadAll(({ completed, total }) => {
