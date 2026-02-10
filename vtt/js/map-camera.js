@@ -26,8 +26,11 @@ export class Camera {
     this._panButton = -1;
     this._panDist = 0;
     this.spaceHeld = false;
+    this.viewportScale = 1;
     this._el = null;
   }
+
+  setViewportScale(s) { this.viewportScale = s; }
 
   // Convert screen coordinates to world coordinates
   screenToWorld(sx, sy) {
@@ -141,13 +144,13 @@ export class Camera {
       if (e.ctrlKey || e.metaKey) {
         // Pinch-to-zoom (trackpad) or Ctrl+scroll (mouse)
         const rect = el.getBoundingClientRect();
-        const sx = e.clientX - rect.left;
-        const sy = e.clientY - rect.top;
+        const sx = (e.clientX - rect.left) / this.viewportScale;
+        const sy = (e.clientY - rect.top) / this.viewportScale;
         const direction = e.deltaY < 0 ? 1 : -1;
         this.zoomAt(sx, sy, direction);
       } else {
         // Two-finger scroll (trackpad) or plain scroll (mouse) → pan
-        this.panBy(-e.deltaX, -e.deltaY);
+        this.panBy(-e.deltaX / this.viewportScale, -e.deltaY / this.viewportScale);
       }
     }, { passive: false });
 
@@ -202,9 +205,11 @@ export class Camera {
       }
 
       if (!this._panning) return;
-      const dx = e.clientX - this._panStartX;
-      const dy = e.clientY - this._panStartY;
-      this._panDist = Math.max(this._panDist, Math.abs(dx) + Math.abs(dy));
+      // Convert screen-space delta to internal-space delta
+      const dx = (e.clientX - this._panStartX) / this.viewportScale;
+      const dy = (e.clientY - this._panStartY) / this.viewportScale;
+      // Track distance in screen space for drag threshold comparison
+      this._panDist = Math.max(this._panDist, Math.abs(e.clientX - this._panStartX) + Math.abs(e.clientY - this._panStartY));
       this.x = this._panStartCamX + dx;
       this.y = this._panStartCamY + dy;
       EventBus.emit('camera:changed');

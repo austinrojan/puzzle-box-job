@@ -49,8 +49,9 @@ export class TokenManager {
 
     container.addEventListener('contextmenu', (e) => {
       const rect = container.getBoundingClientRect();
-      const sx = e.clientX - rect.left;
-      const sy = e.clientY - rect.top;
+      const vs = this.map.camera.viewportScale;
+      const sx = (e.clientX - rect.left) / vs;
+      const sy = (e.clientY - rect.top) / vs;
       const token = this.getTokenAt(sx, sy);
       if (token) {
         e.preventDefault();
@@ -626,8 +627,9 @@ export class TokenManager {
     if (this.map.camera.spaceHeld) return;
 
     const rect = $('map-container').getBoundingClientRect();
-    const sx = e.clientX - rect.left;
-    const sy = e.clientY - rect.top;
+    const vs = this.map.camera.viewportScale;
+    const sx = (e.clientX - rect.left) / vs;
+    const sy = (e.clientY - rect.top) / vs;
 
     if (e.shiftKey) {
       const world = this.map.camera.screenToWorld(sx, sy);
@@ -665,10 +667,12 @@ export class TokenManager {
   }
 
   onMouseMove(e) {
+    const vs = this.map.camera.viewportScale;
+
     if (this._rulerDragging) {
       const rect = $('map-container').getBoundingClientRect();
-      const sx = e.clientX - rect.left;
-      const sy = e.clientY - rect.top;
+      const sx = (e.clientX - rect.left) / vs;
+      const sy = (e.clientY - rect.top) / vs;
       const world = this.map.camera.screenToWorld(sx, sy);
       this._ruler.endCol = Math.floor(world.x / this.map.cellPx);
       this._ruler.endRow = Math.floor(world.y / this.map.cellPx);
@@ -679,8 +683,8 @@ export class TokenManager {
     if (this._placing) {
       const rect = $('map-container').getBoundingClientRect();
       this._placingGhostPos = {
-        x: e.clientX - rect.left,
-        y: e.clientY - rect.top
+        x: (e.clientX - rect.left) / vs,
+        y: (e.clientY - rect.top) / vs
       };
       this.draw();
       return;
@@ -688,8 +692,8 @@ export class TokenManager {
 
     if (!this._dragging) return;
     const rect = $('map-container').getBoundingClientRect();
-    this._dragScreenX = e.clientX - rect.left;
-    this._dragScreenY = e.clientY - rect.top;
+    this._dragScreenX = (e.clientX - rect.left) / vs;
+    this._dragScreenY = (e.clientY - rect.top) / vs;
     this.draw();
   }
 
@@ -711,10 +715,15 @@ export class TokenManager {
     this._emitTokensChanged();
   }
 
-  showMenu(token, x, y) {
+  showMenu(token, clientX, clientY) {
     const menu = this.menuEl;
     menu.textContent = '';
     menu.hidden = false;
+    // Convert to internal space — menu is inside the scale container
+    const rect = $('map-container').getBoundingClientRect();
+    const vs = this.map.camera.viewportScale;
+    const x = (clientX - rect.left) / vs;
+    const y = (clientY - rect.top) / vs;
     menu.style.left = x + 'px';
     menu.style.top = y + 'px';
 

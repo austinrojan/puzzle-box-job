@@ -54,8 +54,9 @@ export class MapRenderer {
     this._mouseY = 0;
     container.addEventListener('mousemove', (e) => {
       const rect = container.getBoundingClientRect();
-      this._mouseX = e.clientX - rect.left;
-      this._mouseY = e.clientY - rect.top;
+      const vs = this.camera.viewportScale;
+      this._mouseX = (e.clientX - rect.left) / vs;
+      this._mouseY = (e.clientY - rect.top) / vs;
     });
 
     if (state.mapId) {
