@@ -48,10 +48,7 @@ export class TokenManager {
     window.addEventListener('mouseup', (e) => this.onMouseUp(e));
 
     container.addEventListener('contextmenu', (e) => {
-      const rect = container.getBoundingClientRect();
-      const vs = this.map.camera.viewportScale;
-      const sx = (e.clientX - rect.left) / vs;
-      const sy = (e.clientY - rect.top) / vs;
+      const { x: sx, y: sy } = this._screenCoords(e);
       const token = this.getTokenAt(sx, sy);
       if (token) {
         e.preventDefault();
@@ -85,7 +82,7 @@ export class TokenManager {
     EventBus.on('map:load', (mapId) => this._onMapSwitch(mapId));
 
     EventBus.on('token:add', ({ tokenId, x, y, label }) => { this.addToken(tokenId, x, y, { label }); });
-    EventBus.on('token:remove-all', () => { this.tokens = []; this.draw(); this._emitTokensChanged(); });
+    EventBus.on('token:remove-all', () => { this.tokens = []; this._redraw(); });
     EventBus.on('token:load-preset', (presetId) => { this.loadPreset(presetId); });
 
     EventBus.on('token:update-condition', ({ instanceId, condition, enabled }) => {
@@ -96,8 +93,7 @@ export class TokenManager {
       } else if (!enabled) {
         token.conditions = token.conditions.filter(c => c !== condition);
       }
-      this.draw();
-      this._emitTokensChanged();
+      this._redraw();
     });
 
     EventBus.on('token:remove-one', (instanceId) => {
@@ -106,7 +102,7 @@ export class TokenManager {
 
     EventBus.on('token:visibility', ({ instanceId, visible }) => {
       const token = this.tokens.find(t => t.id === instanceId);
-      if (token) { token.visible = visible; this.draw(); this._emitTokensChanged(); }
+      if (token) { token.visible = visible; this._redraw(); }
     });
 
     EventBus.on('token-tray:toggle', () => this.toggleTray());
@@ -140,15 +136,13 @@ export class TokenManager {
     const token = this._buildToken(tokenId, col, row, def, opts);
     this.tokens.push(token);
     this.loadTokenImage(tokenId);
-    this.draw();
-    this._emitTokensChanged();
+    this._redraw();
     return token;
   }
 
   removeToken(id) {
     this.tokens = this.tokens.filter(t => t.id !== id);
-    this.draw();
-    this._emitTokensChanged();
+    this._redraw();
   }
 
   _emitTokensChanged() {
@@ -160,6 +154,20 @@ export class TokenManager {
     // Store subscribeAll auto-broadcasts to controller
   }
 
+  _screenCoords(e) {
+    const rect = $('map-container').getBoundingClientRect();
+    const vs = this.map.camera.viewportScale;
+    return {
+      x: (e.clientX - rect.left) / vs,
+      y: (e.clientY - rect.top) / vs
+    };
+  }
+
+  _redraw() {
+    this.draw();
+    this._emitTokensChanged();
+  }
+
   swapToken(id, newTokenId) {
     const token = this.tokens.find(t => t.id === id);
     const def = TOKENS[newTokenId];
@@ -168,8 +176,7 @@ export class TokenManager {
     token.label = def.displayName || def.name;
     token.size = def.size || 1;
     this.loadTokenImage(newTokenId);
-    this.draw();
-    this._emitTokensChanged();
+    this._redraw();
   }
 
   getBrazierTokens() {
@@ -201,8 +208,7 @@ export class TokenManager {
     this._saveCurrentMapTokens();
     this._currentMapId = mapId;
     this.tokens = this._tokensByMap[mapId] ? this._tokensByMap[mapId].slice() : [];
-    this.draw();
-    this._emitTokensChanged();
+    this._redraw();
   }
 
   // Restore tokens from a serialized snapshot (e.g. from persistence).
@@ -220,8 +226,7 @@ export class TokenManager {
 
     this._saveCurrentMapTokens();
 
-    this.draw();
-    this._emitTokensChanged();
+    this._redraw();
   }
 
   loadPreset(presetId) {
@@ -626,10 +631,7 @@ export class TokenManager {
     if (e.button !== 0) return;
     if (this.map.camera.spaceHeld) return;
 
-    const rect = $('map-container').getBoundingClientRect();
-    const vs = this.map.camera.viewportScale;
-    const sx = (e.clientX - rect.left) / vs;
-    const sy = (e.clientY - rect.top) / vs;
+    const { x: sx, y: sy } = this._screenCoords(e);
 
     if (e.shiftKey) {
       const world = this.map.camera.screenToWorld(sx, sy);
@@ -667,13 +669,9 @@ export class TokenManager {
   }
 
   onMouseMove(e) {
-    const vs = this.map.camera.viewportScale;
-
     if (this._rulerDragging) {
-      const rect = $('map-container').getBoundingClientRect();
-      const sx = (e.clientX - rect.left) / vs;
-      const sy = (e.clientY - rect.top) / vs;
-      const world = this.map.camera.screenToWorld(sx, sy);
+      const { x, y } = this._screenCoords(e);
+      const world = this.map.camera.screenToWorld(x, y);
       this._ruler.endCol = Math.floor(world.x / this.map.cellPx);
       this._ruler.endRow = Math.floor(world.y / this.map.cellPx);
       this.draw();
@@ -681,19 +679,15 @@ export class TokenManager {
     }
 
     if (this._placing) {
-      const rect = $('map-container').getBoundingClientRect();
-      this._placingGhostPos = {
-        x: (e.clientX - rect.left) / vs,
-        y: (e.clientY - rect.top) / vs
-      };
+      this._placingGhostPos = this._screenCoords(e);
       this.draw();
       return;
     }
 
     if (!this._dragging) return;
-    const rect = $('map-container').getBoundingClientRect();
-    this._dragScreenX = (e.clientX - rect.left) / vs;
-    this._dragScreenY = (e.clientY - rect.top) / vs;
+    const { x, y } = this._screenCoords(e);
+    this._dragScreenX = x;
+    this._dragScreenY = y;
     this.draw();
   }
 
@@ -711,8 +705,7 @@ export class TokenManager {
 
     this._dragging = null;
     $('map-container').classList.remove('dragging-token');
-    this.draw();
-    this._emitTokensChanged();
+    this._redraw();
   }
 
   showMenu(token, clientX, clientY) {
@@ -720,10 +713,7 @@ export class TokenManager {
     menu.textContent = '';
     menu.hidden = false;
     // Convert to internal space — menu is inside the scale container
-    const rect = $('map-container').getBoundingClientRect();
-    const vs = this.map.camera.viewportScale;
-    const x = (clientX - rect.left) / vs;
-    const y = (clientY - rect.top) / vs;
+    const { x, y } = this._screenCoords({ clientX, clientY });
     menu.style.left = x + 'px';
     menu.style.top = y + 'px';
 
@@ -765,8 +755,7 @@ export class TokenManager {
         } else {
           token.conditions.push(cond);
         }
-        this.draw();
-        this._emitTokensChanged();
+        this._redraw();
         this.closeMenu();
       });
       menu.appendChild(item);
@@ -782,8 +771,7 @@ export class TokenManager {
     toggleVis.addEventListener('click', (e) => {
       e.stopPropagation();
       token.visible = !token.visible;
-      this.draw();
-      this._emitTokensChanged();
+      this._redraw();
       this.closeMenu();
     });
     menu.appendChild(toggleVis);
