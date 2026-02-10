@@ -51,7 +51,7 @@
 /* HP bar under token */
 .token-hp {
   position: absolute;
-  width: 2.5rem;
+  width: 40px;
   height: 4px;
   background: var(--bg-4);
   border-radius: 2px;

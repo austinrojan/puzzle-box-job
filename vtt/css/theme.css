@@ -101,7 +101,7 @@
   /* VTT-specific: canvas and layout */
   --vtt-width: 1920px;
   --vtt-height: 1080px;
-  --initiative-width: 18.75rem; /* 300px */
+  --initiative-width: 300px;
   --grid-color: rgba(255, 255, 255, 0.12);
   --grid-color-strong: rgba(255, 255, 255, 0.25);
   --fog-color: rgba(0, 0, 0, 0.92);
