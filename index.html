@@ -240,7 +240,7 @@ body {
   z-index: 90;
 }
 .heat-label { color: var(--text-muted); font-weight: 500; letter-spacing: 0.5px; text-transform: uppercase; }
-.heat-gauge { display: flex; gap: 3px; height: var(--font-size-lg); }
+.heat-gauge { display: flex; gap: 3px; height: 0.875rem; /* 14px */ }
 .heat-segment {
   width: 3rem;
   height: 100%;
@@ -477,7 +477,7 @@ body {
 
 /* VTT Badge — shows on read-aloud blocks that auto-sync */
 .vtt-badge {
-  position: absolute; top: 6px; right: 2.5rem;
+  position: absolute; top: var(--space-2); right: 2.5rem;
   font-size: var(--font-size-xs); color: var(--gold); opacity: 0.6;
   pointer-events: none;
 }
@@ -1132,7 +1132,7 @@ body {
 .btn-gold:hover { background: var(--gold-dim); color: var(--bg-0); }
 .btn-danger { border-color: var(--red-dark); color: var(--red-bright); }
 .btn-danger:hover { background: var(--red-dark); }
-.btn-sm { padding: 3px var(--space-2); font-size: var(--font-size-sm); }
+.btn-sm { padding: var(--space-1) var(--space-2); font-size: var(--font-size-sm); }
 
 /* Inputs */
 .input {
@@ -1141,7 +1141,7 @@ body {
   border-radius: var(--radius-md); color: var(--text-primary); outline: none;
 }
 .input:focus { border-color: var(--gold-dim); }
-.input-sm { padding: 3px var(--space-2); font-size: var(--font-size-sm); width: 3.75rem; }
+.input-sm { padding: var(--space-1) var(--space-2); font-size: var(--font-size-sm); width: 3.75rem; }
 
 /* Checklists */
 .checklist-item {
