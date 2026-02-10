@@ -71,10 +71,37 @@
   --transition-slow: 400ms ease;
   --transition-scene: 800ms ease-in-out;
 
+  /* Spacing tokens (shared) */
+  --space-1: 0.25rem;   /* 4px */
+  --space-2: 0.5rem;    /* 8px */
+  --space-3: 0.75rem;   /* 12px */
+  --space-4: 1rem;      /* 16px */
+  --space-5: 1.25rem;   /* 20px */
+  --space-6: 1.5rem;    /* 24px */
+  --space-8: 2rem;      /* 32px */
+  --space-10: 2.5rem;   /* 40px */
+
+  /* Typography tokens */
+  --font-size-2xs: 0.5625rem;  /* 9px */
+  --font-size-xs: 0.625rem;    /* 10px */
+  --font-size-sm: 0.6875rem;   /* 11px */
+  --font-size-base: 0.75rem;   /* 12px */
+  --font-size-md: 0.8125rem;   /* 13px */
+  --font-size-lg: 0.875rem;    /* 14px */
+  --font-size-xl: 0.9375rem;   /* 15px */
+  --font-size-2xl: 1rem;       /* 16px */
+  --font-size-loading: 2.625rem; /* 42px */
+
+  /* Border radii */
+  --radius-sm: 0.1875rem; /* 3px */
+  --radius-md: 0.25rem;   /* 4px */
+  --radius-lg: 0.375rem;  /* 6px */
+  --radius-xl: 0.5rem;    /* 8px */
+
   /* VTT-specific: canvas and layout */
   --vtt-width: 1920px;
   --vtt-height: 1080px;
-  --initiative-width: 300px;
+  --initiative-width: 18.75rem; /* 300px */
   --grid-color: rgba(255, 255, 255, 0.12);
   --grid-color-strong: rgba(255, 255, 255, 0.25);
   --fog-color: rgba(0, 0, 0, 0.92);

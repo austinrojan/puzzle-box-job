@@ -44,23 +44,23 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 24px;
+  gap: var(--space-6);
 }
 
 .loading[hidden] { display: none; }
 
 .loading__title {
   font-family: var(--font-heading);
-  font-size: 42px;
+  font-size: var(--font-size-loading);
   font-weight: 600;
   color: var(--gold);
-  letter-spacing: 6px;
+  letter-spacing: 0.375rem;
   text-transform: uppercase;
   text-shadow: 0 0 40px rgba(201, 168, 76, 0.3);
 }
 
 .loading__bar {
-  width: 320px;
+  width: 20rem;
   height: 3px;
   background: var(--bg-3);
   border-radius: 2px;
@@ -77,7 +77,7 @@
 
 .loading__status {
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: var(--font-size-sm);
   color: var(--text-muted);
   letter-spacing: 1px;
 }
@@ -85,17 +85,17 @@
 /* Preflight check results (appended to .loading) */
 .preflight__list {
   text-align: left;
-  max-width: 400px;
-  margin: 1rem auto 0;
+  max-width: 25rem;
+  margin: var(--space-4) auto 0;
 }
 
 .preflight__row {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-2);
   font-family: var(--font-mono);
-  font-size: 13px;
-  margin-bottom: 4px;
+  font-size: var(--font-size-md);
+  margin-bottom: var(--space-1);
 }
 
 .preflight__row--pass { color: var(--heat-green); }
@@ -104,9 +104,9 @@
 .preflight__icon { font-weight: bold; }
 
 .preflight__error {
-  font-size: 11px;
+  font-size: var(--font-size-sm);
   color: var(--red-bright);
-  padding-left: 24px;
+  padding-left: var(--space-6);
   opacity: 0.8;
   font-family: var(--font-mono);
 }
@@ -117,8 +117,8 @@
   color: var(--heat-amber);
   font-family: var(--font-read-aloud);
   font-style: italic;
-  margin-top: 0.5rem;
-  font-size: 15px;
+  margin-top: var(--space-2);
+  font-size: var(--font-size-xl);
   text-align: center;
 }
 
