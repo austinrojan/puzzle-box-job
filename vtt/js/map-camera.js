@@ -106,10 +106,7 @@ export class Camera {
     this._panStartCamX = this.x;
     this._panStartCamY = this.y;
     this._panDist = 0;
-    if (this._el) {
-      this._el.classList.add('panning');
-      this._el.style.cursor = 'grabbing';
-    }
+    this._setPanCursor(true);
   }
 
   // Commit a pending left-click pan (after threshold exceeded)
@@ -117,10 +114,7 @@ export class Camera {
     this._panning = true;
     this._pendingPan = false;
     this._panButton = 0;
-    if (this._el) {
-      this._el.classList.add('panning');
-      this._el.style.cursor = 'grabbing';
-    }
+    this._setPanCursor(true);
   }
 
   // Cancel any active or pending pan (safety net for lost focus/mouse)
@@ -128,10 +122,13 @@ export class Camera {
     this._panning = false;
     this._pendingPan = false;
     this._panButton = -1;
-    if (this._el) {
-      this._el.classList.remove('panning');
-      this._el.style.cursor = '';
-    }
+    this._setPanCursor(false);
+  }
+
+  _setPanCursor(active) {
+    if (!this._el) return;
+    this._el.classList.toggle('panning', active);
+    this._el.style.cursor = active ? 'grabbing' : '';
   }
 
   // Attach mouse handlers to an element
