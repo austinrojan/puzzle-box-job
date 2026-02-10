@@ -24,7 +24,7 @@ export class Camera {
     this._panStartCamX = 0;
     this._panStartCamY = 0;
     this._panButton = -1;
-    this._panDist = 0;
+    this._panScreenDist = 0;
     this.spaceHeld = false;
     this.viewportScale = 1;
     this._el = null;
@@ -105,7 +105,7 @@ export class Camera {
     this._panStartY = e.clientY;
     this._panStartCamX = this.x;
     this._panStartCamY = this.y;
-    this._panDist = 0;
+    this._panScreenDist = 0;
     this._setPanCursor(true);
   }
 
@@ -179,7 +179,7 @@ export class Camera {
         this._panStartY = e.clientY;
         this._panStartCamX = this.x;
         this._panStartCamY = this.y;
-        this._panDist = 0;
+        this._panScreenDist = 0;
       }
     });
 
@@ -206,7 +206,7 @@ export class Camera {
       const dx = (e.clientX - this._panStartX) / this.viewportScale;
       const dy = (e.clientY - this._panStartY) / this.viewportScale;
       // Track distance in screen space for drag threshold comparison
-      this._panDist = Math.max(this._panDist, Math.abs(e.clientX - this._panStartX) + Math.abs(e.clientY - this._panStartY));
+      this._panScreenDist = Math.max(this._panScreenDist, Math.abs(e.clientX - this._panStartX) + Math.abs(e.clientY - this._panStartY));
       this.x = this._panStartCamX + dx;
       this.y = this._panStartCamY + dy;
       EventBus.emit('camera:changed');
@@ -226,7 +226,7 @@ export class Camera {
 
     // --- Context menu suppression for right-click drag ---
     el.addEventListener('contextmenu', (e) => {
-      if (this._panDist > DRAG_THRESHOLD) {
+      if (this._panScreenDist > DRAG_THRESHOLD) {
         e.preventDefault();
         e.stopPropagation();
       }
