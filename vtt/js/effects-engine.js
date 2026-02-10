@@ -504,6 +504,7 @@ export class EffectsEngine {
 
   screenShake(duration = 0.4) {
     const viewport = document.getElementById('vtt-viewport');
+    if (!viewport) return;
     viewport.classList.add('shaking');
     viewport.style.animationDuration = duration + 's';
     setTimeout(() => {

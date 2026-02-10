@@ -6,10 +6,13 @@ const VTT_W = 1920;
 const VTT_H = 1080;
 
 let _scale = 1;
+let _initialized = false;
 
 export function getViewportScale() { return _scale; }
 
 export function initViewportScaler() {
+  if (_initialized) return;
+  _initialized = true;
   const container = document.getElementById('vtt-scale-container');
   if (!container) return;
 
