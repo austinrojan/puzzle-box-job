@@ -101,7 +101,7 @@ export function initScaleControl() {
 
   // Close popover on outside click
   document.addEventListener('click', (e) => {
-    if (!popover.hidden && !popover.contains(e.target) && e.target !== toggle) {
+    if (!popover.hidden && !popover.contains(e.target) && !toggle.contains(e.target)) {
       popover.hidden = true;
     }
   });

@@ -510,6 +510,8 @@ details.section[open] > summary .section__label--collapsible::after {
 .section__content {
   padding-top: var(--space-2);
 }
+/* TODO: grid-template-rows animation requires JS toggle helper to work with
+   native <details>; currently snap open/close. Remove or add JS in Phase 3. */
 details.section > .section__content {
   display: grid;
   grid-template-rows: 0fr;
