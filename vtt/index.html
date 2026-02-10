@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=1920">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>VTT</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -19,63 +19,66 @@
 <link rel="stylesheet" href="css/tokens.css?v=1">
 </head>
 <body>
-  <!-- Loading screen -->
+  <!-- Outside scale container: viewport-relative overlays -->
   <div id="loading" class="loading">
     <div class="loading__title" id="loading-title">Loading&hellip;</div>
     <div class="loading__bar"><div class="loading__fill"></div></div>
     <div class="loading__status">Loading assets…</div>
   </div>
-
-  <!-- Theater Mode: full-screen scene art + text overlays -->
-  <div id="theater" class="layer">
-    <img id="theater-bg" class="theater-bg" alt="">
-    <img id="theater-bg-next" class="theater-bg theater-bg--next" alt="">
-    <div id="theater-overlay" class="theater-overlay"></div>
-    <div id="title-card" class="title-card">
-      <div class="title-card__act"></div>
-      <div class="title-card__subtitle"></div>
-    </div>
-  </div>
-
-  <!-- Map Mode: multi-layer canvas stack -->
-  <div id="map-container" class="layer" hidden>
-    <canvas id="map-bg" class="map-canvas"></canvas>
-    <canvas id="map-fog" class="map-canvas"></canvas>
-    <canvas id="map-grid" class="map-canvas"></canvas>
-    <canvas id="map-tokens" class="map-canvas"></canvas>
-    <canvas id="map-effects" class="map-canvas"></canvas>
-    <div id="map-labels" class="map-labels"></div>
-  </div>
-
-  <!-- Initiative Tracker Overlay (shows over map) -->
-  <div id="initiative-panel" class="initiative-panel" hidden></div>
-
-  <!-- Heat Indicator -->
-  <div id="heat-indicator" class="heat-indicator" hidden>
-    <span class="heat-indicator__dot"></span>
-    <span class="heat-indicator__label"></span>
-  </div>
-
-  <!-- Token context menu (right-click) -->
-  <div id="token-menu" class="token-menu" hidden></div>
-
-  <!-- Token Tray (DM tool, T key to toggle) -->
-  <div id="token-tray" class="token-tray" hidden>
-    <div class="token-tray__header">
-      <span class="token-tray__title">Tokens</span>
-      <button class="token-tray__close" aria-label="Close token tray">&times;</button>
-    </div>
-    <div class="token-tray__sections"></div>
-  </div>
-
-  <!-- Screen flash overlay for effects -->
   <div id="screen-flash" class="screen-flash"></div>
 
-  <!-- Scene Navigator Panel (opens from bottom nav) -->
-  <div id="scene-navigator" class="scene-nav"></div>
+  <!-- Viewport wrapper + scale container -->
+  <div id="vtt-viewport">
+    <div id="vtt-scale-container">
+      <!-- Theater Mode: full-screen scene art + text overlays -->
+      <div id="theater" class="layer">
+        <img id="theater-bg" class="theater-bg" alt="">
+        <img id="theater-bg-next" class="theater-bg theater-bg--next" alt="">
+        <div id="theater-overlay" class="theater-overlay"></div>
+        <div id="title-card" class="title-card">
+          <div class="title-card__act"></div>
+          <div class="title-card__subtitle"></div>
+        </div>
+      </div>
 
-  <!-- Player Navigation Bar -->
-  <nav id="player-nav" class="player-nav" aria-label="Navigation"></nav>
+      <!-- Map Mode: multi-layer canvas stack -->
+      <div id="map-container" class="layer" hidden>
+        <canvas id="map-bg" class="map-canvas"></canvas>
+        <canvas id="map-fog" class="map-canvas"></canvas>
+        <canvas id="map-grid" class="map-canvas"></canvas>
+        <canvas id="map-tokens" class="map-canvas"></canvas>
+        <canvas id="map-effects" class="map-canvas"></canvas>
+        <div id="map-labels" class="map-labels"></div>
+      </div>
+
+      <!-- Initiative Tracker Overlay (shows over map) -->
+      <div id="initiative-panel" class="initiative-panel" hidden></div>
+
+      <!-- Heat Indicator -->
+      <div id="heat-indicator" class="heat-indicator" hidden>
+        <span class="heat-indicator__dot"></span>
+        <span class="heat-indicator__label"></span>
+      </div>
+
+      <!-- Token context menu (right-click) -->
+      <div id="token-menu" class="token-menu" hidden></div>
+
+      <!-- Token Tray (DM tool, T key to toggle) -->
+      <div id="token-tray" class="token-tray" hidden>
+        <div class="token-tray__header">
+          <span class="token-tray__title">Tokens</span>
+          <button class="token-tray__close" aria-label="Close token tray">&times;</button>
+        </div>
+        <div class="token-tray__sections"></div>
+      </div>
+
+      <!-- Scene Navigator Panel (opens from bottom nav) -->
+      <div id="scene-navigator" class="scene-nav"></div>
+
+      <!-- Player Navigation Bar -->
+      <nav id="player-nav" class="player-nav" aria-label="Navigation"></nav>
+    </div>
+  </div>
 
   <script type="module" src="js/main.js"></script>
 </body>
