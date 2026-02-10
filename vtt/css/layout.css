@@ -3,6 +3,26 @@
    Fixed 1920x1080 for Discord screenshare
    ============================================ */
 
+/* Viewport wrapper: fills real browser window, centers scaled content */
+#vtt-viewport {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #000;
+  overflow: hidden;
+}
+
+/* Scale container: fixed 1920x1080, CSS-scaled to fit viewport */
+#vtt-scale-container {
+  position: relative;
+  width: var(--vtt-width);
+  height: var(--vtt-height);
+  overflow: hidden;
+  transform-origin: center center;
+}
+
 /* Base layer: absolute fill within viewport */
 .layer {
   position: absolute;

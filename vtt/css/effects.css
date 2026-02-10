@@ -53,7 +53,7 @@
   90% { transform: translate(-2px, 2px); }
 }
 
-body.shaking { animation: screenShake 0.4s ease-in-out; }
+#vtt-viewport.shaking { animation: screenShake 0.4s ease-in-out; }
 
 /* Screen flash */
 .screen-flash.active {
