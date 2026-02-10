@@ -34,11 +34,13 @@ let panelEl = null;
 let bodyEl = null;
 let modeLabelEl = null;
 let isOpen = false;
-let currentMapId = MAPS[0].id;
+let currentMapId = null;
 
 export function init() {
   containerEl = $('scene-navigator');
   if (!containerEl) return;
+
+  currentMapId = MAPS[0]?.id || null;
 
   buildShell();
 
