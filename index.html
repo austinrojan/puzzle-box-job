@@ -62,7 +62,7 @@
   --brazier-dead: #3A3A3A;
 
   /* Text hierarchy */
-  --text-primary: #E8E6E3;
+  --text-primary: #E0E0E0;
   --text-secondary: #A0A0A8;
   --text-muted: #6B6B78;
   --text-heading: #E8C55A;
@@ -90,7 +90,9 @@ body {
   font-family: var(--font-body);
   background: var(--bg-0);
   color: var(--text-primary);
-  line-height: 1.6;
+  line-height: 1.65;
+  letter-spacing: 0.01em;
+  -webkit-font-smoothing: antialiased;
   overflow: hidden;
   height: 100vh;
   width: 100vw;
@@ -493,7 +495,7 @@ body {
 .block-dm-note .block-body.expanded { grid-template-rows: 1fr; }
 .block-dm-note .block-body-inner { overflow: hidden; padding: 0 14px; }
 .block-dm-note .block-body.expanded .block-body-inner { padding-bottom: 14px; }
-.block-dm-note .block-body-inner p { font-size: 13px; color: var(--text-secondary); line-height: 1.6; margin-bottom: 8px; }
+.block-dm-note .block-body-inner p { font-size: 13px; color: var(--text-secondary); line-height: 1.7; margin-bottom: 8px; }
 
 /* DM Tip */
 .block-dm-tip {
@@ -522,7 +524,7 @@ body {
 .block-dm-tip .block-body.expanded { grid-template-rows: 1fr; }
 .block-dm-tip .block-body-inner { overflow: hidden; padding: 0 14px; }
 .block-dm-tip .block-body.expanded .block-body-inner { padding-bottom: 12px; }
-.block-dm-tip .block-body-inner p { font-size: 12px; color: var(--text-secondary); line-height: 1.6; }
+.block-dm-tip .block-body-inner p { font-size: 12px; color: var(--text-secondary); line-height: 1.7; }
 
 /* Skill Check */
 .block-skill-check {
