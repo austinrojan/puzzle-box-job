@@ -108,7 +108,8 @@ async function boot() {
   initAutoSave(store);
   window.addEventListener('beforeunload', () => saveImmediate(store));
 
-  // Wire viewport scale to camera
+  // Wire viewport scale to camera (set current + listen for future changes)
+  mapRenderer.camera.setViewportScale(getViewportScale());
   EventBus.on('viewport:scaled', ({ scale }) => {
     mapRenderer.camera.setViewportScale(scale);
   });
