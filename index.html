@@ -118,9 +118,12 @@
   --transition-fast: 150ms ease;
   --transition-base: 250ms ease;
   --transition-slow: 400ms ease;
+
+  /* UI Scale (modified by scale-control.js) */
+  --ui-scale: 1;
 }
 
-html { font-size: 0.875rem; }
+html { font-size: calc(0.875rem * var(--ui-scale)); }
 body {
   font-family: var(--font-body);
   background: var(--bg-0);

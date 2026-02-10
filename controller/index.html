@@ -57,6 +57,9 @@
   /* Component tokens */
   --scrollbar-size: 0.375rem;  /* 6px */
   --token-dot-size: 0.5rem;   /* 8px — indicator dot, not spacing */
+
+  /* UI Scale (modified by scale-control.js) */
+  --ui-scale: 1;
 }
 
 * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -65,7 +68,7 @@ body {
   font-family: var(--font-body);
   background: var(--bg-0);
   color: var(--text-primary);
-  font-size: 0.8125rem;
+  font-size: calc(0.8125rem * var(--ui-scale));
   line-height: 1.4;
   overflow-x: hidden;
 }
