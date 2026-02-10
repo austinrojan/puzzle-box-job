@@ -10,12 +10,12 @@ let _scale = 1;
 export function getViewportScale() { return _scale; }
 
 export function initViewportScaler() {
-  const viewport = document.getElementById('vtt-viewport');
   const container = document.getElementById('vtt-scale-container');
-  if (!viewport || !container) return;
+  if (!container) return;
 
   function update() {
-    const { clientWidth: vw, clientHeight: vh } = viewport;
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
     if (vw <= 0 || vh <= 0) return;
     const s = Math.min(vw / VTT_W, vh / VTT_H);
     if (Math.abs(s - _scale) < 0.0001) return;
@@ -24,6 +24,6 @@ export function initViewportScaler() {
     EventBus.emit('viewport:scaled', { scale: s });
   }
 
-  new ResizeObserver(update).observe(viewport);
+  window.addEventListener('resize', update);
   update();
 }
