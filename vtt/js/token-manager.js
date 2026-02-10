@@ -708,9 +708,9 @@ export class TokenManager {
     this._redraw();
   }
 
-  _menuItem(menu, label, onClick, extraClass) {
+  _menuItem(menu, label, onClick, modifier) {
     const el = document.createElement('div');
-    el.className = 'token-menu__item' + (extraClass ? ' ' + extraClass : '');
+    el.className = 'token-menu__item' + (modifier ? ' ' + modifier : '');
     el.textContent = label;
     el.addEventListener('click', (e) => {
       e.stopPropagation();
