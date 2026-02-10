@@ -708,6 +708,24 @@ export class TokenManager {
     this._redraw();
   }
 
+  _menuItem(menu, label, onClick, extraClass) {
+    const el = document.createElement('div');
+    el.className = 'token-menu__item' + (extraClass ? ' ' + extraClass : '');
+    el.textContent = label;
+    el.addEventListener('click', (e) => {
+      e.stopPropagation();
+      onClick();
+      this.closeMenu();
+    });
+    menu.appendChild(el);
+  }
+
+  _menuDivider(menu) {
+    const el = document.createElement('div');
+    el.className = 'token-menu__divider';
+    menu.appendChild(el);
+  }
+
   showMenu(token, clientX, clientY) {
     const menu = this.menuEl;
     menu.textContent = '';
@@ -722,69 +740,39 @@ export class TokenManager {
     label.textContent = token.label;
     menu.appendChild(label);
 
-    const divider = document.createElement('div');
-    divider.className = 'token-menu__divider';
-    menu.appendChild(divider);
+    this._menuDivider(menu);
 
     if (token.tokenId === 'brazier-lit' || token.tokenId === 'brazier-dead') {
       const isLit = token.tokenId === 'brazier-lit';
-      const toggleItem = document.createElement('div');
-      toggleItem.className = 'token-menu__item';
-      toggleItem.textContent = isLit ? 'Extinguish' : 'Relight';
-      toggleItem.addEventListener('click', (e) => {
-        e.stopPropagation();
+      this._menuItem(menu, isLit ? 'Extinguish' : 'Relight', () => {
         this.toggleBrazier(token.id);
-        this.closeMenu();
       });
-      menu.appendChild(toggleItem);
-
-      const div3 = document.createElement('div');
-      div3.className = 'token-menu__divider';
-      menu.appendChild(div3);
+      this._menuDivider(menu);
     }
 
     for (const { id: cond } of CONDITIONS) {
       const has = token.conditions.includes(cond);
-      const item = document.createElement('div');
-      item.className = 'token-menu__item';
-      item.textContent = (has ? '\u2713 ' : '') + cond.charAt(0).toUpperCase() + cond.slice(1);
-      item.addEventListener('click', (e) => {
-        e.stopPropagation();
+      const text = (has ? '\u2713 ' : '') + cond.charAt(0).toUpperCase() + cond.slice(1);
+      this._menuItem(menu, text, () => {
         if (has) {
           token.conditions = token.conditions.filter(c => c !== cond);
         } else {
           token.conditions.push(cond);
         }
         this._redraw();
-        this.closeMenu();
       });
-      menu.appendChild(item);
     }
 
-    const div2 = document.createElement('div');
-    div2.className = 'token-menu__divider';
-    menu.appendChild(div2);
+    this._menuDivider(menu);
 
-    const toggleVis = document.createElement('div');
-    toggleVis.className = 'token-menu__item';
-    toggleVis.textContent = token.visible ? 'Hide Token' : 'Show Token';
-    toggleVis.addEventListener('click', (e) => {
-      e.stopPropagation();
+    this._menuItem(menu, token.visible ? 'Hide Token' : 'Show Token', () => {
       token.visible = !token.visible;
       this._redraw();
-      this.closeMenu();
     });
-    menu.appendChild(toggleVis);
 
-    const remove = document.createElement('div');
-    remove.className = 'token-menu__item token-menu__item--danger';
-    remove.textContent = 'Remove';
-    remove.addEventListener('click', (e) => {
-      e.stopPropagation();
+    this._menuItem(menu, 'Remove', () => {
       this.removeToken(token.id);
-      this.closeMenu();
-    });
-    menu.appendChild(remove);
+    }, 'token-menu__item--danger');
   }
 
   closeMenu() {
