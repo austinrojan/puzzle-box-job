@@ -503,10 +503,11 @@ export class EffectsEngine {
   // --- Utilities ---
 
   screenShake(duration = 0.4) {
-    document.body.classList.add('shaking');
-    document.body.style.animationDuration = duration + 's';
+    const viewport = document.getElementById('vtt-viewport');
+    viewport.classList.add('shaking');
+    viewport.style.animationDuration = duration + 's';
     setTimeout(() => {
-      document.body.classList.remove('shaking');
+      viewport.classList.remove('shaking');
     }, duration * 1000);
   }
 
