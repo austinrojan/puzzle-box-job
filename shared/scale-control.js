@@ -83,7 +83,7 @@ export function initScaleControl() {
   const resetBtn = document.getElementById('scale-reset');
 
   // Bail gracefully if UI elements aren't present (e.g., VTT display)
-  if (!toggle || !slider) return;
+  if (!toggle || !popover || !slider) return;
 
   // Load and apply persisted scale
   let currentScale = loadScale();
