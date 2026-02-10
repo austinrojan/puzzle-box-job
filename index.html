@@ -1131,11 +1131,15 @@ body {
   cursor: pointer; transition: all var(--transition-fast);
 }
 .btn:hover { background: var(--bg-4); color: var(--text-primary); }
-.btn-gold { border-color: var(--gold-dim); color: var(--gold); }
-.btn-gold:hover { background: var(--gold-dim); color: var(--bg-0); }
-.btn-danger { border-color: var(--red-dark); color: var(--red-bright); }
-.btn-danger:hover { background: var(--red-dark); }
-.btn-sm { padding: var(--space-1) var(--space-2); font-size: var(--font-size-sm); }
+.btn--gold { border-color: var(--gold-dim); color: var(--gold); }
+.btn--gold:hover { background: var(--gold-dim); color: var(--bg-0); }
+.btn--danger { border-color: var(--red-dark); color: var(--red-bright); }
+.btn--danger:hover { background: var(--red-dark); }
+.btn--sm { padding: var(--space-1) var(--space-2); font-size: var(--font-size-sm); }
+#vtt-controller-btn {
+  font-size: var(--font-size-base);
+  padding: var(--space-1) var(--space-3);
+}
 
 /* Inputs */
 .input {
@@ -1265,10 +1269,10 @@ body {
         <div class="scale-control__readout">
           <span>75%</span><span id="scale-readout">100%</span><span>150%</span>
         </div>
-        <button class="btn btn-sm scale-control__reset" id="scale-reset">Reset</button>
+        <button class="btn btn--sm scale-control__reset" id="scale-reset">Reset</button>
       </div>
     </div>
-    <button class="btn btn-sm" id="vtt-controller-btn" style="margin-left:auto;font-size:12px;padding:4px 12px;cursor:pointer" onclick="window.open('controller/index.html','vtt-controller','width=520,height=900')">VTT Controller &#8599;</button>
+    <button class="btn btn--sm" id="vtt-controller-btn" onclick="window.open('controller/index.html','vtt-controller','width=520,height=900')">VTT Controller &#8599;</button>
   </div>
   <div id="nav-panel">
     <div id="nav-resize"></div>

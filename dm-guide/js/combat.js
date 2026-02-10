@@ -115,20 +115,20 @@ function wireEventListeners(panel) {
 function renderHpControls(prefix, index) {
   if (prefix === 'locke') {
     return `<div class="flex gap-8 mt-8" style="align-items:center">` +
-      `<button class="btn btn-sm" data-hp-adj="-1">\u22121</button>` +
-      `<button class="btn btn-sm" data-hp-adj="-5">\u22125</button>` +
-      `<button class="btn btn-sm" data-hp-adj="-10">\u221210</button>` +
+      `<button class="btn btn--sm" data-hp-adj="-1">\u22121</button>` +
+      `<button class="btn btn--sm" data-hp-adj="-5">\u22125</button>` +
+      `<button class="btn btn--sm" data-hp-adj="-10">\u221210</button>` +
       `<input type="number" class="input input-sm" id="locke-amt-input" placeholder="Amt" min="0">` +
-      `<button class="btn btn-sm btn-danger" id="locke-dmg-btn">Dmg</button>` +
-      `<button class="btn btn-sm" id="locke-heal-btn">Heal</button></div>`;
+      `<button class="btn btn--sm btn--danger" id="locke-dmg-btn">Dmg</button>` +
+      `<button class="btn btn--sm" id="locke-heal-btn">Heal</button></div>`;
   }
   return `<div class="flex gap-4 mt-4" style="align-items:center">` +
-    `<button class="btn btn-sm" data-cf="${index}" data-cf-adj="-1">\u22121</button>` +
-    `<button class="btn btn-sm" data-cf="${index}" data-cf-adj="-5">\u22125</button>` +
-    `<button class="btn btn-sm" data-cf="${index}" data-cf-adj="-10">\u221210</button>` +
+    `<button class="btn btn--sm" data-cf="${index}" data-cf-adj="-1">\u22121</button>` +
+    `<button class="btn btn--sm" data-cf="${index}" data-cf-adj="-5">\u22125</button>` +
+    `<button class="btn btn--sm" data-cf="${index}" data-cf-adj="-10">\u221210</button>` +
     `<input type="number" class="input input-sm" id="cf-amt-input-${index}" placeholder="Amt" min="0">` +
-    `<button class="btn btn-sm btn-danger" data-cf-dmg="${index}">Dmg</button>` +
-    `<button class="btn btn-sm" data-cf-heal="${index}">Heal</button></div>`;
+    `<button class="btn btn--sm btn--danger" data-cf-dmg="${index}">Dmg</button>` +
+    `<button class="btn btn--sm" data-cf-heal="${index}">Heal</button></div>`;
 }
 
 function renderBrazierSection(c, braziersOut, immunityLabel, unlockedSpells) {
@@ -191,9 +191,9 @@ function renderInitiativeSection(c) {
     }).join('') +
     `</ul>` +
     `<div class="flex gap-8 mt-8">` +
-    `<button class="btn btn-sm" id="sort-init-btn" style="background:var(--bg-3);color:var(--gold)">Sort \u2193</button>` +
-    `<button class="btn btn-sm" id="reset-round-btn">Reset Round</button>` +
-    `<button class="btn btn-gold btn-sm" id="next-turn-btn">Next Turn \u2192</button>` +
+    `<button class="btn btn--sm" id="sort-init-btn" style="background:var(--bg-3);color:var(--gold)">Sort \u2193</button>` +
+    `<button class="btn btn--sm" id="reset-round-btn">Reset Round</button>` +
+    `<button class="btn btn--gold btn--sm" id="next-turn-btn">Next Turn \u2192</button>` +
     `</div></div>`;
 }
 
