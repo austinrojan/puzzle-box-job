@@ -56,6 +56,7 @@
 
   /* Component tokens */
   --scrollbar-size: 0.375rem;  /* 6px */
+  --token-dot-size: 0.5rem;   /* 8px — indicator dot, not spacing */
 }
 
 * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -241,7 +242,7 @@ body {
 }
 .active-token:hover { background: var(--bg-3); }
 .active-token__dot {
-  width: var(--space-2); height: var(--space-2);
+  width: var(--token-dot-size); height: var(--token-dot-size);
   border-radius: 50%; flex-shrink: 0;
 }
 .active-token__name {
@@ -347,6 +348,7 @@ body {
 </div>
 
 <!-- Map & Camera -->
+<!-- TODO: inline styles below → CSS classes when extracting to external stylesheet (Phase 3) -->
 <div class="section" id="sec-map">
   <div class="section__label">Map &amp; Camera</div>
   <div class="btn-row" style="margin-bottom:0.5rem">
@@ -380,6 +382,7 @@ body {
 </div>
 
 <!-- Tokens -->
+<!-- TODO: inline style below → CSS class when extracting to external stylesheet (Phase 3) -->
 <div class="section" id="sec-tokens">
   <div class="section__label">Tokens</div>
   <div class="btn-row" style="margin-bottom:0.5rem">
@@ -395,6 +398,7 @@ body {
 </div>
 
 <!-- Effects -->
+<!-- TODO: inline style below → CSS class when extracting to external stylesheet (Phase 3) -->
 <div class="section" id="sec-effects">
   <div class="section__label">Effects</div>
   <div class="btn-row" style="margin-bottom:0.5rem">
