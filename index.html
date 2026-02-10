@@ -108,20 +108,20 @@ body {
 #app {
   display: grid;
   grid-template-rows: var(--tab-height) var(--heat-height) 1fr;
-  grid-template-columns: var(--nav-width) 1fr 0px;
+  grid-template-columns: var(--nav-width) minmax(0, 1fr) 0px;
   height: 100vh;
   width: 100vw;
   overflow: hidden;
   position: relative;
 }
 #app.combat-open {
-  grid-template-columns: var(--nav-width) 1fr var(--combat-width);
+  grid-template-columns: var(--nav-width) minmax(0, 1fr) var(--combat-width);
 }
 #app.nav-collapsed {
-  grid-template-columns: 0px 1fr 0px;
+  grid-template-columns: 0px minmax(0, 1fr) 0px;
 }
 #app.nav-collapsed.combat-open {
-  grid-template-columns: 0px 1fr var(--combat-width);
+  grid-template-columns: 0px minmax(0, 1fr) var(--combat-width);
 }
 
 /* ============================================
@@ -319,8 +319,37 @@ body {
   grid-row: 3;
   overflow-y: auto;
   overflow-x: hidden;
-  padding: 24px 32px 64px;
+  padding: clamp(0.75rem, 2vw, 1.5rem) clamp(1rem, 3vw, 2rem) 4rem;
   scroll-behavior: smooth;
+}
+
+/* Content width constraint — target prose blocks explicitly */
+#main-content > .act-title,
+#main-content > .act-duration,
+#main-content > .section-title,
+#main-content > .subsection-title,
+#main-content > .block-read-aloud,
+#main-content > .block-dm-note,
+#main-content > .block-dm-tip,
+#main-content > .block-skill-check,
+#main-content > .block-encounter,
+#main-content > .block-narrative,
+#main-content > .block-vtt-cue,
+#main-content > .stat-block,
+#main-content > p {
+  max-width: min(65ch, 100%);
+  margin-inline: auto;
+}
+
+/* Conditional blocks keep their left indent */
+#main-content > .block-conditional {
+  max-width: min(65ch, 100%);
+}
+
+/* Tables/stat blocks get wider allowance */
+#main-content > .block-table {
+  max-width: min(80ch, 100%);
+  margin-inline: auto;
 }
 
 /* ============================================
