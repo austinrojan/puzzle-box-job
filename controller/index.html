@@ -317,6 +317,78 @@ body {
   font-size: var(--font-size-sm); color: var(--text-muted);
   font-style: italic; padding: var(--space-1) 0;
 }
+
+/* ---- Scale Control ---- */
+.scale-control {
+  position: relative;
+  margin-left: auto;
+}
+.scale-control__toggle {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: var(--space-1) var(--space-2);
+  background: transparent;
+  border: 1px solid var(--bg-3);
+  border-radius: var(--radius-md);
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: var(--font-size-sm);
+  cursor: pointer;
+  transition: color 150ms ease, border-color 150ms ease;
+}
+.scale-control__toggle:hover {
+  color: var(--text-secondary);
+  border-color: var(--bg-4);
+}
+.scale-control__icon {
+  font-size: var(--font-size-lg);
+}
+.scale-control__popover {
+  position: absolute;
+  top: calc(100% + var(--space-2));
+  right: 0;
+  z-index: 200;
+  background: var(--bg-2);
+  border: 1px solid var(--bg-4);
+  border-radius: var(--radius-lg);
+  padding: var(--space-3);
+  min-width: 12rem;
+  box-shadow: 0 0.5rem 1.5rem rgba(0, 0, 0, 0.4);
+}
+.scale-control__popover[hidden] { display: none; }
+.scale-control__label {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05rem;
+  color: var(--text-muted);
+  margin-bottom: var(--space-2);
+}
+.scale-control__slider {
+  width: 100%;
+  accent-color: var(--gold);
+  cursor: pointer;
+}
+.scale-control__readout {
+  display: flex;
+  justify-content: space-between;
+  font-family: var(--font-mono);
+  font-size: var(--font-size-2xs);
+  color: var(--text-muted);
+  margin-top: var(--space-1);
+  margin-bottom: var(--space-2);
+}
+#scale-readout {
+  color: var(--gold);
+  font-weight: 600;
+}
+.scale-control__reset {
+  width: 100%;
+  text-align: center;
+}
 </style>
 </head>
 <body>
@@ -324,6 +396,22 @@ body {
 <div class="header">
   <span class="header__title">CONTROLLER</span>
   <span class="header__status header__status--waiting" id="conn-status">Waiting&hellip;</span>
+  <div class="scale-control" id="scale-control">
+    <button class="scale-control__toggle" id="scale-toggle"
+            aria-label="Adjust UI scale" title="UI Scale">
+      <span class="scale-control__icon">&#9881;</span>
+      <span class="scale-control__value" id="scale-value">100%</span>
+    </button>
+    <div class="scale-control__popover" id="scale-popover" hidden>
+      <label class="scale-control__label" for="scale-slider">UI Scale</label>
+      <input type="range" id="scale-slider" class="scale-control__slider"
+             min="0.75" max="1.5" step="0.05" value="1">
+      <div class="scale-control__readout">
+        <span>75%</span><span id="scale-readout">100%</span><span>150%</span>
+      </div>
+      <button class="btn btn-sm scale-control__reset" id="scale-reset">Reset</button>
+    </div>
+  </div>
 </div>
 
 <!-- Mode -->
@@ -445,7 +533,10 @@ body {
 <div class="cond-popup" id="cond-popup" style="display:none"></div>
 
 <script type="module" src="js/main.js"></script>
-
+<script type="module">
+  import { initScaleControl } from '../shared/scale-control.js';
+  initScaleControl();
+</script>
 
 </body>
 </html>
