@@ -71,6 +71,9 @@ body {
   font-size: calc(0.8125rem * var(--ui-scale));
   line-height: 1.4;
   overflow-x: hidden;
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
 }
 
 /* Scrollbar */
@@ -103,7 +106,6 @@ body {
 
 /* Sections */
 .section {
-  border-bottom: 1px solid var(--bg-3);
   padding: var(--space-3) var(--space-4);
 }
 .section__label {
@@ -541,8 +543,11 @@ details.section > .section__content > * {
   </div>
 </div>
 
+<div class="controller-body" id="controller-body">
+<div class="control-sections">
+
 <!-- Mode -->
-<div class="section" id="sec-mode">
+<div class="section section--mode" id="sec-mode">
   <div class="section__label">Mode</div>
   <div class="btn-row">
     <button class="btn btn--active" data-mode="theater">Theater</button>
@@ -552,7 +557,7 @@ details.section > .section__content > * {
 </div>
 
 <!-- Scenes -->
-<div class="section" id="sec-scenes">
+<div class="section section--full-width" id="sec-scenes">
   <div class="section__label">Scenes</div>
   <div class="scene-nav">
     <button class="btn btn--icon btn--sm" id="scene-prev">&#9664;</button>
@@ -567,7 +572,7 @@ details.section > .section__content > * {
 
 <!-- Map & Camera -->
 <!-- TODO: inline styles below → CSS classes when extracting to external stylesheet (Phase 3) -->
-<div class="section" id="sec-map">
+<div class="section section--map" id="sec-map">
   <div class="section__label">Map &amp; Camera</div>
   <div class="btn-row" style="margin-bottom:0.5rem">
     <select class="ctrl-select" id="map-select"></select>
@@ -601,7 +606,7 @@ details.section > .section__content > * {
 
 <!-- Tokens -->
 <!-- TODO: inline style below → CSS class when extracting to external stylesheet (Phase 3) -->
-<div class="section" id="sec-tokens">
+<div class="section section--tokens" id="sec-tokens">
   <div class="section__label">Tokens</div>
   <div class="btn-row" style="margin-bottom:0.5rem">
     <select class="ctrl-select" id="preset-select"></select>
@@ -617,7 +622,7 @@ details.section > .section__content > * {
 
 <!-- Effects -->
 <!-- TODO: inline style below → CSS class when extracting to external stylesheet (Phase 3) -->
-<div class="section" id="sec-effects">
+<div class="section section--effects" id="sec-effects">
   <div class="section__label">Effects</div>
   <div class="btn-row" style="margin-bottom:0.5rem">
     <span class="text-xs text-muted" style="white-space:nowrap">Target:</span>
@@ -629,26 +634,30 @@ details.section > .section__content > * {
 </div>
 
 <!-- Overlay -->
-<div class="section" id="sec-overlay">
-  <div class="section__label">Overlay</div>
-  <div class="btn-row">
-    <input type="text" class="ctrl-input" id="overlay-input" placeholder="Overlay text...">
-    <button class="btn btn--sm" id="overlay-send">Send</button>
-    <button class="btn btn--sm btn--danger" id="overlay-clear">&#10005;</button>
+<details class="section section--overlay" id="sec-overlay">
+  <summary class="section__label section__label--collapsible">Overlay</summary>
+  <div class="section__content">
+    <div class="btn-row">
+      <input type="text" class="ctrl-input" id="overlay-input" placeholder="Overlay text...">
+      <button class="btn btn--sm" id="overlay-send">Send</button>
+      <button class="btn btn--sm btn--danger" id="overlay-clear">&#10005;</button>
+    </div>
   </div>
-</div>
+</details>
 
 <!-- Title Card -->
-<div class="section" id="sec-title">
-  <div class="section__label">Title Card</div>
-  <div class="btn-row">
-    <select class="ctrl-select" id="title-act-select"></select>
-    <button class="btn btn--sm" id="title-send">Show</button>
+<details class="section section--title" id="sec-title">
+  <summary class="section__label section__label--collapsible">Title Card</summary>
+  <div class="section__content">
+    <div class="btn-row">
+      <select class="ctrl-select" id="title-act-select"></select>
+      <button class="btn btn--sm" id="title-send">Show</button>
+    </div>
   </div>
-</div>
+</details>
 
 <!-- Combat -->
-<div class="section" id="sec-combat">
+<div class="section section--full-width section--combat" id="sec-combat">
   <div class="section__label">Combat</div>
   <div class="combat-info" id="combat-info"></div>
   <div class="btn-row">
@@ -656,7 +665,10 @@ details.section > .section__content > * {
   </div>
 </div>
 
-<!-- Condition popup (hidden, absolute positioned) -->
+</div><!-- /.control-sections -->
+</div><!-- /.controller-body -->
+
+<!-- Condition popup (hidden, absolute positioned — outside grid) -->
 <div class="cond-popup" id="cond-popup" style="display:none"></div>
 
 <script type="module" src="js/main.js"></script>
