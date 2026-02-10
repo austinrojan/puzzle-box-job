@@ -13,6 +13,7 @@ import * as initiativeTracker from './initiative-tracker.js';
 import * as playerControls from './player-controls.js';
 import * as sceneNavigator from './scene-navigator.js';
 import { EffectsEngine } from './effects-engine.js';
+import { initViewportScaler, getViewportScale } from './viewport-scaler.js';
 
 const $ = id => document.getElementById(id);
 const delay = ms => new Promise(r => setTimeout(r, ms));
@@ -52,6 +53,9 @@ async function boot() {
 
   // Initialize BroadcastChannel
   initSync();
+
+  // Initialize viewport scaler (CSS transform applied before modules measure rects)
+  initViewportScaler();
 
   // Initialize all modules (registers store subscribers)
   theater.init();
@@ -104,8 +108,13 @@ async function boot() {
   initAutoSave(store);
   window.addEventListener('beforeunload', () => saveImmediate(store));
 
+  // Wire viewport scale to camera
+  EventBus.on('viewport:scaled', ({ scale }) => {
+    mapRenderer.camera.setViewportScale(scale);
+  });
+
   // Expose debugging interface
-  window.__vtt = { state, store, mapRenderer, tokenManager, effectsEngine, EventBus, clearSavedState };
+  window.__vtt = { state, store, mapRenderer, tokenManager, effectsEngine, EventBus, clearSavedState, getViewportScale };
 
   // Go live
   state.loaded = true;
