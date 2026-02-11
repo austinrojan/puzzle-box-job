@@ -1,7 +1,7 @@
 import { AppState } from './state.js';
 import { ADVENTURE_DATA } from './adventure-data.js';
 import { openTab, switchTab, closeTab } from './tabs.js';
-import { toggleCombatPanel } from './combat.js';
+import { toggleCombatPanel, isOverlayMode } from './combat.js';
 import { toggleSidebar } from './heat-nav.js';
 import { openPresentation, presentNext, presentPrev, closePresentation } from './presentation.js';
 import { toggleSearch } from './search-ui.js';
@@ -12,6 +12,7 @@ export function initKeyboard() {
     if (e.key === 'Escape') {
       if (AppState.searchOpen) { toggleSearch(); return; }
       if (AppState.presentationBlock) { closePresentation(); return; }
+      if (AppState.combatPanelOpen && isOverlayMode()) { toggleCombatPanel(); return; }
       return;
     }
     if (AppState.presentationBlock) {

@@ -258,14 +258,47 @@ export function nextTurn() {
   vttSync(createInitiativeNextMsg(c.currentTurn, c.round));
 }
 
+const DRAWER_MQ = '(max-width: 1199px)';
+let previousFocus = null;
+
+export function isOverlayMode() {
+  return window.matchMedia(DRAWER_MQ).matches;
+}
+
+function applyDrawerOverlay() {
+  previousFocus = document.activeElement;
+  const panel = $('combat-panel');
+  panel.setAttribute('role', 'dialog');
+  panel.setAttribute('aria-modal', 'true');
+  $('main-content')?.setAttribute('inert', '');
+  $('nav-panel')?.setAttribute('inert', '');
+  // Focus first focusable element in the panel
+  const first = panel.querySelector('button, [tabindex], input, select');
+  if (first) first.focus();
+}
+
+function removeDrawerOverlay() {
+  const panel = $('combat-panel');
+  panel.removeAttribute('role');
+  panel.removeAttribute('aria-modal');
+  $('main-content')?.removeAttribute('inert');
+  $('nav-panel')?.removeAttribute('inert');
+  if (previousFocus && previousFocus.isConnected) {
+    previousFocus.focus();
+  }
+  previousFocus = null;
+}
+
 export function toggleCombatPanel() {
   AppState.combatPanelOpen = !AppState.combatPanelOpen;
   $('app').classList.toggle('combat-open', AppState.combatPanelOpen);
   if (AppState.combatPanelOpen) {
     renderCombatPanel();
+    if (isOverlayMode()) applyDrawerOverlay();
     syncFullInitiative();
     vttSync(createCombatStartMsg());
   } else {
+    if (isOverlayMode()) removeDrawerOverlay();
     vttSync(createCombatEndMsg());
   }
   saveState();

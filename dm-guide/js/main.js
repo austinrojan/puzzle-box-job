@@ -5,7 +5,7 @@ import { AppState, loadState, resetState, saveState } from './state.js';
 import { searchIndex } from './search.js';
 import { toggleCollapse } from './renderers.js';
 import { renderTabBar, renderMainContent, toggleForeshadowing, toggleIntel } from './tabs.js';
-import { renderCombatPanel, toggleCombatPanel } from './combat.js';
+import { renderCombatPanel, toggleCombatPanel, isOverlayMode } from './combat.js';
 import { initVttSync, fireVttActions } from './vtt-sync.js';
 import { initPresentation, openPresentation, setVttActionsFn } from './presentation.js';
 import { initSearchUI, toggleSearch } from './search-ui.js';
@@ -74,7 +74,30 @@ async function boot() {
   // 4. Sidebar toggle
   $('sidebar-toggle').addEventListener('click', toggleSidebar);
 
-  // 5. Delegated click handler for VTT cue buttons (replaces inline onclick)
+  // 5. Backdrop click-to-close for combat drawer
+  $('combat-backdrop').addEventListener('click', () => {
+    if (AppState.combatPanelOpen) toggleCombatPanel();
+  });
+
+  // 6. Re-evaluate overlay attributes on viewport resize
+  window.matchMedia('(max-width: 1199px)').addEventListener('change', () => {
+    // If combat is open and we've resized across the breakpoint, clean up overlay attributes
+    if (!AppState.combatPanelOpen) return;
+    const panel = $('combat-panel');
+    if (isOverlayMode()) {
+      panel.setAttribute('role', 'dialog');
+      panel.setAttribute('aria-modal', 'true');
+      $('main-content')?.setAttribute('inert', '');
+      $('nav-panel')?.setAttribute('inert', '');
+    } else {
+      panel.removeAttribute('role');
+      panel.removeAttribute('aria-modal');
+      $('main-content')?.removeAttribute('inert');
+      $('nav-panel')?.removeAttribute('inert');
+    }
+  });
+
+  // 7. Delegated click handler for VTT cue buttons (replaces inline onclick)
   $('main-content').addEventListener('click', (e) => {
     const cue = e.target.closest('.block-vtt-cue');
     if (cue && cue.dataset.vtt) {

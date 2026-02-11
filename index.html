@@ -97,6 +97,8 @@ body {
 html[data-sidebar="collapsed"] #app:not([data-sidebar]) { --sidebar-w: 3.5rem; }
 html[data-sidebar="hidden"] #app:not([data-sidebar]) { --sidebar-w: 0px; }
 
+#combat-backdrop { display: none; }
+
 /* ── Drawer overlay mode (narrow viewports) ── */
 @media (max-width: 1199px) {
   #app.combat-open { --combat-w: 0px; }
@@ -443,7 +445,6 @@ html[data-sidebar="hidden"] #app:not([data-sidebar]) { --sidebar-w: 0px; }
   overflow-x: hidden;
   min-width: 0;
 }
-#combat-backdrop { display: none; }
 
 .combat-header {
   position: sticky;
