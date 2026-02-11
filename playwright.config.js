@@ -12,6 +12,7 @@ export default defineConfig({
     trace: 'on-first-retry',
   },
   projects: [
+    { name: 'half-screen-960', use: { viewport: { width: 960, height: 1080 } } },
     { name: 'desktop-1024', use: { viewport: { width: 1024, height: 768 } } },
     { name: 'desktop-1440', use: { viewport: { width: 1440, height: 900 } } },
     { name: 'desktop-1920', use: { viewport: { width: 1920, height: 1080 } } },
