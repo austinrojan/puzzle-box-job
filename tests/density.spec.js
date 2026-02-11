@@ -126,4 +126,22 @@ test.describe('Density token system', () => {
     );
     expect(compactPad).toBeLessThan(defaultPad);
   });
+
+  test('DM Guide: compact reduces init-item padding', async ({ page }) => {
+    await page.goto('/');
+    // Open combat panel
+    await page.keyboard.press('b');
+    await page.waitForSelector('.init-item');
+    const defaultPad = await page.locator('.init-item').first().evaluate(
+      (el) => parseFloat(getComputedStyle(el).paddingTop)
+    );
+    await page.evaluate(() => localStorage.setItem('ui-density', 'compact'));
+    await page.reload();
+    await page.keyboard.press('b');
+    await page.waitForSelector('.init-item');
+    const compactPad = await page.locator('.init-item').first().evaluate(
+      (el) => parseFloat(getComputedStyle(el).paddingTop)
+    );
+    expect(compactPad).toBeLessThan(defaultPad);
+  });
 });

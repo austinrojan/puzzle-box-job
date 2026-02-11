@@ -483,7 +483,7 @@ html[data-sidebar="hidden"] #app:not([data-sidebar]) { --sidebar-w: 0px; }
   color: var(--gold-dim);
   letter-spacing: 1px;
   text-transform: uppercase;
-  margin-bottom: var(--space-3);
+  margin-bottom: calc(var(--space-3) * var(--density-factor));
 }
 
 /* ============================================
@@ -979,7 +979,7 @@ html[data-sidebar="hidden"] #app:not([data-sidebar]) { --sidebar-w: 0px; }
 /* ============================================
    SECTION: Brazier Animations
    ============================================ */
-.braziers-row { display: flex; gap: var(--space-3); justify-content: center; margin: var(--space-2) 0 var(--space-4); }
+.braziers-row { display: flex; gap: calc(var(--space-3) * var(--density-factor)); justify-content: center; margin: calc(var(--space-2) * var(--density-factor)) 0 calc(var(--space-4) * var(--density-factor)); }
 .brazier {
   width: 3rem; height: 3.5rem;
   display: flex; flex-direction: column; align-items: center;
@@ -1064,7 +1064,7 @@ html[data-sidebar="hidden"] #app:not([data-sidebar]) { --sidebar-w: 0px; }
 .init-list { list-style: none; }
 .init-item {
   display: flex; align-items: center; gap: var(--space-2);
-  padding: var(--space-2) var(--space-2); border-radius: var(--radius-md); font-size: var(--font-size-base);
+  padding: calc(var(--space-2) * var(--density-factor)) calc(var(--space-2) * var(--density-factor)); border-radius: var(--radius-md); font-size: var(--font-size-base);
   transition: background var(--transition-fast);
 }
 .init-item.active-turn { background: rgba(201, 168, 76, 0.12); border-left: 3px solid var(--gold); }
@@ -1083,7 +1083,7 @@ html[data-sidebar="hidden"] #app:not([data-sidebar]) { --sidebar-w: 0px; }
 /* Dominate toggle */
 .dominate-toggle {
   display: flex; align-items: center; gap: var(--space-3);
-  padding: var(--space-3); background: var(--bg-3); border-radius: var(--radius-lg); margin: var(--space-2) 0;
+  padding: calc(var(--space-3) * var(--density-factor)); background: var(--bg-3); border-radius: var(--radius-lg); margin: calc(var(--space-2) * var(--density-factor)) 0;
 }
 .dominate-toggle.active { background: rgba(192, 57, 43, 0.15); border: 1px solid var(--red-dark); }
 .dominate-switch {
