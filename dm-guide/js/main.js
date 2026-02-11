@@ -74,7 +74,19 @@ async function boot() {
   // 4. Sidebar toggle
   $('sidebar-toggle').addEventListener('click', toggleSidebar);
 
-  // 5. Backdrop click-to-close for combat drawer
+  // 5. Density toggle
+  $('density-toggle').addEventListener('click', () => {
+    const html = document.documentElement;
+    if (html.dataset.density === 'compact') {
+      delete html.dataset.density;
+      localStorage.removeItem('ui-density');
+    } else {
+      html.dataset.density = 'compact';
+      localStorage.setItem('ui-density', 'compact');
+    }
+  });
+
+  // 6. Backdrop click-to-close for combat drawer
   $('combat-backdrop').addEventListener('click', () => {
     if (AppState.combatPanelOpen) toggleCombatPanel();
   });

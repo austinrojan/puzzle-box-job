@@ -31,6 +31,34 @@ test.describe('Density token system', () => {
     expect(compactPad).toBeLessThan(defaultPad);
   });
 
+  test('DM Guide: density toggle button exists', async ({ page }) => {
+    await page.goto('/');
+    await expect(page.locator('#density-toggle')).toBeVisible();
+  });
+
+  test('DM Guide: clicking toggle sets compact, second click restores', async ({ page }) => {
+    await page.goto('/');
+    const toggle = page.locator('#density-toggle');
+    const html = page.locator('html');
+
+    await expect(html).not.toHaveAttribute('data-density');
+    await toggle.click();
+    await expect(html).toHaveAttribute('data-density', 'compact');
+    await toggle.click();
+    await expect(html).not.toHaveAttribute('data-density');
+  });
+
+  test('Controller: default --density-factor is 1', async ({ page }) => {
+    await page.goto('/controller/');
+    expect(await getCSSToken(page, '--density-factor')).toBe('1');
+  });
+
+  test('Controller: compact --density-factor is 0.625', async ({ page }) => {
+    await page.goto('/controller/');
+    await page.evaluate(() => document.documentElement.dataset.density = 'compact');
+    expect(await getCSSToken(page, '--density-factor')).toBe('0.625');
+  });
+
   test('DM Guide: compact respects touch-target floor', async ({ page }) => {
     await page.goto('/');
     await page.evaluate(() => document.documentElement.dataset.density = 'compact');

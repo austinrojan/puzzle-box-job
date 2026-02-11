@@ -486,12 +486,21 @@ details.section[open] > summary .section__label--collapsible::after {
 }
 }
 </style>
+<script>
+(function() {
+  try {
+    var d = localStorage.getItem('ui-density');
+    if (d) document.documentElement.dataset.density = d;
+  } catch(e) {}
+})();
+</script>
 </head>
 <body>
 
 <div class="header">
   <span class="header__title">CONTROLLER</span>
   <span class="header__status header__status--waiting" id="conn-status">Waiting&hellip;</span>
+  <button class="btn btn--sm" id="density-toggle" aria-label="Toggle compact mode" title="Density">&#9638;</button>
   <div class="scale-control" id="scale-control">
     <button class="scale-control__toggle" id="scale-toggle"
             aria-label="Adjust UI scale" title="UI Scale">
@@ -642,6 +651,16 @@ details.section[open] > summary .section__label--collapsible::after {
 <script type="module">
   import { initScaleControl } from '../shared/scale-control.js';
   initScaleControl();
+  document.getElementById('density-toggle').addEventListener('click', () => {
+    const html = document.documentElement;
+    if (html.dataset.density === 'compact') {
+      delete html.dataset.density;
+      localStorage.removeItem('ui-density');
+    } else {
+      html.dataset.density = 'compact';
+      localStorage.setItem('ui-density', 'compact');
+    }
+  });
 </script>
 
 </body>
