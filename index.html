@@ -149,6 +149,8 @@ html[data-sidebar="hidden"] #app:not([data-sidebar]) { --sidebar-w: 0px; }
   left: 0;
   width: var(--tab-height);
   height: var(--tab-height);
+  min-width: var(--active-floor);
+  min-height: var(--active-floor);
   z-index: calc(var(--z-tab-bar) + 1);
   display: flex;
   align-items: center;
@@ -185,6 +187,7 @@ html[data-sidebar="hidden"] #app:not([data-sidebar]) { --sidebar-w: 0px; }
   padding: 0 var(--space-3);
   min-width: var(--tab-min-width);
   max-width: var(--tab-max-width);
+  min-height: var(--active-floor);
   height: 100%;
   font-size: var(--font-size-base);
   font-weight: 500;
@@ -297,6 +300,7 @@ html[data-sidebar="hidden"] #app:not([data-sidebar]) { --sidebar-w: 0px; }
   align-items: center;
   gap: var(--space-2);
   padding: var(--space-2) var(--space-4);
+  min-height: var(--active-floor);
   font-size: var(--font-size-md);
   font-weight: 500;
   color: var(--text-secondary);
@@ -327,6 +331,9 @@ html[data-sidebar="hidden"] #app:not([data-sidebar]) { --sidebar-w: 0px; }
 .nav-children-inner { overflow: hidden; }
 .nav-child {
   padding: var(--space-1) var(--space-4) var(--space-1) var(--nav-child-indent);
+  min-height: var(--active-floor);
+  display: flex;
+  align-items: center;
   font-size: var(--font-size-base);
   color: var(--text-muted);
   cursor: pointer;
@@ -464,7 +471,7 @@ html[data-sidebar="hidden"] #app:not([data-sidebar]) { --sidebar-w: 0px; }
   letter-spacing: 0.5px;
 }
 .combat-close {
-  width: 1.5rem; height: 1.5rem;
+  min-width: var(--active-floor); min-height: var(--active-floor);
   display: flex; align-items: center; justify-content: center;
   color: var(--text-muted); cursor: pointer; border-radius: var(--radius-md); font-size: var(--font-size-2xl);
 }
@@ -1169,7 +1176,7 @@ html[data-sidebar="hidden"] #app:not([data-sidebar]) { --sidebar-w: 0px; }
 @layer components {
 .btn {
   display: inline-flex; align-items: center; gap: var(--space-2);
-  padding: var(--space-2) var(--space-3); font-family: var(--font-body);
+  padding: var(--space-2) var(--space-3); min-height: var(--active-floor); font-family: var(--font-body);
   font-size: var(--font-size-base); font-weight: 500;
   border: 1px solid var(--bg-4); border-radius: var(--radius-md);
   background: var(--bg-3); color: var(--text-secondary);

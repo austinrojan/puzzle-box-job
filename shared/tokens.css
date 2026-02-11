@@ -98,10 +98,17 @@
     --transition-fast: 150ms ease;
     --transition-base: 250ms ease;
     --transition-slow: 400ms ease;
+
+    /* ── Touch Target Floors (WCAG 2.5.8) ── */
+    --active-floor: max(1.5rem, 24px);
   }
 }
 
 @layer base {
+  @media (any-pointer: coarse) {
+    :where(html) { --active-floor: max(2.75rem, 44px); }
+  }
+
   @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after {
       transition-duration: 0s !important;
