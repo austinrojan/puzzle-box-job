@@ -266,7 +266,7 @@ body {
   right: -3px;
   top: 0;
   bottom: 0;
-  width: 6px;
+  width: 0.375rem;
   cursor: col-resize;
   z-index: 50;
 }
@@ -748,10 +748,10 @@ body {
 #presentation-frame::after {
   content: '\u25C6';
   position: absolute;
-  top: -20px; left: 50%;
+  top: calc(-1 * var(--space-5)); left: 50%;
   transform: translateX(-50%);
   color: var(--gold);
-  font-size: 16px; font-style: normal;
+  font-size: var(--font-size-2xl); font-style: normal;
 }
 #presentation-content {
   font-family: var(--font-read-aloud);
@@ -969,11 +969,11 @@ body {
 .dominate-switch.active { background: var(--red); }
 .dominate-switch::after {
   content: ''; position: absolute; top: 2px; left: 2px;
-  width: 16px; height: 16px;
+  width: 1rem; height: 1rem;
   background: var(--text-primary); border-radius: 50%;
   transition: transform var(--transition-fast);
 }
-.dominate-switch.active::after { transform: translateX(16px); }
+.dominate-switch.active::after { transform: translateX(1rem); }
 
 /* ============================================
    SECTION: Stat Block
