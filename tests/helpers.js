@@ -38,3 +38,27 @@ export const APPS = [
   { name: 'Controller', url: '/controller/' },
   { name: 'VTT', url: '/vtt/' },
 ];
+
+/**
+ * Assert that compact density reduces a CSS property value on a given selector.
+ * Uses localStorage + reload for reliable Chromium custom-property resolution.
+ * @param {import('@playwright/test').Page} page
+ * @param {import('@playwright/test').expect} expect
+ * @param {string} selector - CSS selector for the element to measure
+ * @param {string} property - camelCase CSS property name (e.g. 'paddingRight', 'marginTop')
+ * @param {(page: import('@playwright/test').Page) => Promise<void>} [setup] - optional setup before measurement (e.g. navigate to content)
+ */
+export async function expectDensityReduces(page, expect, selector, property, setup) {
+  await page.goto('/');
+  if (setup) await setup(page);
+  const defaultVal = await page.locator(selector).first().evaluate(
+    (el, prop) => parseFloat(getComputedStyle(el)[prop]), property
+  );
+  await page.evaluate(() => localStorage.setItem('ui-density', 'compact'));
+  await page.reload();
+  if (setup) await setup(page);
+  const compactVal = await page.locator(selector).first().evaluate(
+    (el, prop) => parseFloat(getComputedStyle(el)[prop]), property
+  );
+  expect(compactVal).toBeLessThan(defaultVal);
+}

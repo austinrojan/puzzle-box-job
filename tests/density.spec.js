@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { getCSSToken } from './helpers.js';
+import { getCSSToken, expectDensityReduces } from './helpers.js';
 
 test.describe('Density token system', () => {
   test('DM Guide: default --density-factor is 1', async ({ page }) => {
@@ -14,21 +14,7 @@ test.describe('Density token system', () => {
   });
 
   test('DM Guide: compact reduces nav-section-header padding', async ({ page }) => {
-    // Load default → measure padding
-    await page.goto('/');
-    const defaultPad = await page.locator('.nav-section-header').first().evaluate(
-      (el) => parseFloat(getComputedStyle(el).paddingTop)
-    );
-    // Set compact density via localStorage and reload so the blocking <head>
-    // script applies data-density="compact" before first paint — matching how
-    // real users experience density. Avoids Chromium's deferred custom-property
-    // recalculation when toggling data attributes dynamically.
-    await page.evaluate(() => localStorage.setItem('ui-density', 'compact'));
-    await page.reload();
-    const compactPad = await page.locator('.nav-section-header').first().evaluate(
-      (el) => parseFloat(getComputedStyle(el).paddingTop)
-    );
-    expect(compactPad).toBeLessThan(defaultPad);
+    await expectDensityReduces(page, expect, '.nav-section-header', 'paddingTop');
   });
 
   test('DM Guide: density toggle button exists', async ({ page }) => {
@@ -69,79 +55,31 @@ test.describe('Density token system', () => {
   });
 
   test('DM Guide: compact reduces tab horizontal padding', async ({ page }) => {
-    await page.goto('/');
-    const defaultPad = await page.locator('.tab').first().evaluate(
-      (el) => parseFloat(getComputedStyle(el).paddingRight)
-    );
-    await page.evaluate(() => localStorage.setItem('ui-density', 'compact'));
-    await page.reload();
-    const compactPad = await page.locator('.tab').first().evaluate(
-      (el) => parseFloat(getComputedStyle(el).paddingRight)
-    );
-    expect(compactPad).toBeLessThan(defaultPad);
+    await expectDensityReduces(page, expect, '.tab', 'paddingRight');
   });
 
   test('DM Guide: compact reduces heat-bar padding', async ({ page }) => {
-    await page.goto('/');
-    const defaultPad = await page.locator('#heat-bar').evaluate(
-      (el) => parseFloat(getComputedStyle(el).paddingRight)
-    );
-    await page.evaluate(() => localStorage.setItem('ui-density', 'compact'));
-    await page.reload();
-    const compactPad = await page.locator('#heat-bar').evaluate(
-      (el) => parseFloat(getComputedStyle(el).paddingRight)
-    );
-    expect(compactPad).toBeLessThan(defaultPad);
+    await expectDensityReduces(page, expect, '#heat-bar', 'paddingRight');
   });
 
   test('DM Guide: compact reduces block-dm-note margin', async ({ page }) => {
-    await page.goto('/');
-    // Open Act 1 to ensure a dm-note block exists
-    await page.locator('.nav-section-header').first().click();
-    await page.locator('.nav-child').first().click();
-    await page.waitForSelector('.block-dm-note');
-    const defaultMargin = await page.locator('.block-dm-note').first().evaluate(
-      (el) => parseFloat(getComputedStyle(el).marginTop)
-    );
-    await page.evaluate(() => localStorage.setItem('ui-density', 'compact'));
-    await page.reload();
-    await page.locator('.nav-section-header').first().click();
-    await page.locator('.nav-child').first().click();
-    await page.waitForSelector('.block-dm-note');
-    const compactMargin = await page.locator('.block-dm-note').first().evaluate(
-      (el) => parseFloat(getComputedStyle(el).marginTop)
-    );
-    expect(compactMargin).toBeLessThan(defaultMargin);
+    const openAct1 = async (p) => {
+      await p.locator('.nav-section-header').first().click();
+      await p.locator('.nav-child').first().click();
+      await p.waitForSelector('.block-dm-note');
+    };
+    await expectDensityReduces(page, expect, '.block-dm-note', 'marginTop', openAct1);
   });
 
   test('DM Guide: compact reduces nav-title padding', async ({ page }) => {
-    await page.goto('/');
-    const defaultPad = await page.locator('.nav-title').evaluate(
-      (el) => parseFloat(getComputedStyle(el).paddingTop)
-    );
-    await page.evaluate(() => localStorage.setItem('ui-density', 'compact'));
-    await page.reload();
-    const compactPad = await page.locator('.nav-title').evaluate(
-      (el) => parseFloat(getComputedStyle(el).paddingTop)
-    );
-    expect(compactPad).toBeLessThan(defaultPad);
+    await expectDensityReduces(page, expect, '.nav-title', 'paddingTop');
   });
 
   test('DM Guide: compact reduces init-item padding', async ({ page }) => {
-    await page.goto('/');
-    // Open combat panel
-    await page.keyboard.press('b');
-    await page.waitForSelector('.init-item');
-    const defaultPad = await page.locator('.init-item').first().evaluate(
-      (el) => parseFloat(getComputedStyle(el).paddingTop)
-    );
-    await page.evaluate(() => localStorage.setItem('ui-density', 'compact'));
-    await page.reload();
-    await page.keyboard.press('b');
-    await page.waitForSelector('.init-item');
-    const compactPad = await page.locator('.init-item').first().evaluate(
-      (el) => parseFloat(getComputedStyle(el).paddingTop)
-    );
-    expect(compactPad).toBeLessThan(defaultPad);
+    const openCombat = async (p) => {
+      await p.keyboard.press('b');
+      await p.waitForSelector('.init-item');
+    };
+    await expectDensityReduces(page, expect, '.init-item', 'paddingTop', openCombat);
   });
 });

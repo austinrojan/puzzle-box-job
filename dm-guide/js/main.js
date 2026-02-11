@@ -86,14 +86,16 @@ async function boot() {
     }
   });
 
-  // 6. Backdrop click-to-close for combat drawer
+  // 6. Backdrop click-to-close for combat drawer (overlay mode)
   $('combat-backdrop').addEventListener('click', () => {
     if (AppState.combatPanelOpen) toggleCombatPanel();
   });
 
-  // 6. Re-evaluate overlay attributes on viewport resize
+  // 7. Re-evaluate overlay attributes on viewport resize
+  // Note: intentionally duplicates attribute logic from combat.js applyDrawerOverlay/
+  // removeDrawerOverlay rather than calling them — those functions include focus
+  // management (save/restore previousFocus) which is inappropriate for resize events.
   window.matchMedia('(max-width: 1199px)').addEventListener('change', () => {
-    // If combat is open and we've resized across the breakpoint, clean up overlay attributes
     if (!AppState.combatPanelOpen) return;
     const panel = $('combat-panel');
     if (isOverlayMode()) {
@@ -109,7 +111,7 @@ async function boot() {
     }
   });
 
-  // 7. Delegated click handler for VTT cue buttons (replaces inline onclick)
+  // 8. Delegated click handler for VTT cue buttons (replaces inline onclick)
   $('main-content').addEventListener('click', (e) => {
     const cue = e.target.closest('.block-vtt-cue');
     if (cue && cue.dataset.vtt) {
@@ -117,10 +119,10 @@ async function boot() {
     }
   });
 
-  // 5. Run existing init (loads state, builds UI)
+  // 9. Run existing init (loads state, builds UI)
   init();
 
-  // 6. Cross-validate VTT scene references
+  // 10. Cross-validate VTT scene references
   const errors = [];
   for (const act of ADVENTURE_DATA.acts) {
     for (const section of act.sections || []) {
