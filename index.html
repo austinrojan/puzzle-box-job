@@ -7,6 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Crimson+Text:ital,wght@0,400;0,600;1,400;1,600&family=Inter:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="shared/tokens.css">
 <style>
 /* ============================================
    SECTION: CSS Reset & Custom Properties
@@ -14,112 +15,24 @@
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {
-  /* Elevation backgrounds (darkest to lightest) */
-  --bg-0: #0D0F14;
-  --bg-1: #141820;
-  --bg-2: #1A1F2B;
-  --bg-3: #212738;
-  --bg-4: #2A3148;
+  /* ── DM Guide: Layout Dimensions ── */
+  --nav-width: 17.5rem;
+  --combat-width: 22.5rem;
+  --tab-height: 2.375rem;
+  --heat-height: 2rem;
+  --nav-child-indent: 2.75rem;
+  --tab-min-width: 7.5rem;
+  --tab-max-width: 12.5rem;
+  --scrollbar-size: 0.5rem;
 
-  /* Gold accent spectrum */
-  --gold-dim: #8B7435;
-  --gold: #C9A84C;
-  --gold-bright: #E8C55A;
-  --gold-glow: #F5D76E;
-  --gold-light: #FFE89A;
+  /* ── DM Guide: Extended Spacing ── */
+  --space-12: 3rem;
+  --space-16: 4rem;
 
-  /* Parchment (dark-mode adapted read-aloud) */
-  --parchment-bg: #2C2518;
-  --parchment-text: #E8DCC8;
-  --parchment-border: #5C4A2A;
+  /* ── DM Guide: Font Sizes ── */
+  --font-size-heading-hero: 2.625rem;
 
-  /* Danger / Red */
-  --red-dark: #5C1A1A;
-  --red: #C0392B;
-  --red-bright: #E74C3C;
-  --red-light: #FF6B6B;
-
-  /* Info / Blue */
-  --blue-dark: #1A3A4A;
-  --blue: #2E86AB;
-  --blue-bright: #48B5E0;
-
-  /* Magic / Purple */
-  --purple: #7E57C2;
-  --purple-light: #B39DDB;
-  --purple-bright: #CE93D8;
-
-  /* Heat tracker */
-  --heat-green: #27AE60;
-  --heat-amber: #E8A84C;
-  --heat-red: #E74C3C;
-
-  /* Brazier colors */
-  --brazier-blue: #4A9EFF;
-  --brazier-purple: #7B68EE;
-  --brazier-amber: #E8A84C;
-  --brazier-red: #C0392B;
-  --brazier-dead: #3A3A3A;
-
-  /* Text hierarchy */
-  --text-primary: #E8E6E3;
-  --text-secondary: #A0A0A8;
-  --text-muted: #6B6B78;
-  --text-heading: #E8C55A;
-
-  /* Typography */
-  --font-heading: 'Cinzel', serif;
-  --font-read-aloud: 'Crimson Text', serif;
-  --font-body: 'Inter', system-ui, sans-serif;
-  --font-mono: 'IBM Plex Mono', monospace;
-
-  /* Layout */
-  --nav-width: 17.5rem;     /* 280px */
-  --combat-width: 22.5rem;  /* 360px */
-  --tab-height: 2.375rem;   /* 38px */
-  --heat-height: 2rem;      /* 32px */
-
-  /* Spacing tokens (4px grid) */
-  --space-1: 0.25rem;   /* 4px */
-  --space-2: 0.5rem;    /* 8px */
-  --space-3: 0.75rem;   /* 12px */
-  --space-4: 1rem;      /* 16px */
-  --space-5: 1.25rem;   /* 20px */
-  --space-6: 1.5rem;    /* 24px */
-  --space-8: 2rem;      /* 32px */
-  --space-10: 2.5rem;   /* 40px */
-  --space-12: 3rem;     /* 48px */
-  --space-16: 4rem;     /* 64px */
-
-  /* Typography tokens */
-  --font-size-2xs: 0.5625rem;  /* 9px */
-  --font-size-xs: 0.625rem;    /* 10px */
-  --font-size-sm: 0.6875rem;   /* 11px */
-  --font-size-base: 0.75rem;   /* 12px */
-  --font-size-md: 0.8125rem;   /* 13px */
-  --font-size-lg: 0.875rem;    /* 14px */
-  --font-size-xl: 0.9375rem;   /* 15px */
-  --font-size-2xl: 1rem;       /* 16px */
-  --font-size-heading-hero: 2.625rem; /* 42px */
-
-  /* Border radii */
-  --radius-sm: 0.1875rem; /* 3px */
-  --radius-md: 0.25rem;   /* 4px */
-  --radius-lg: 0.375rem;  /* 6px */
-  --radius-xl: 0.5rem;    /* 8px */
-
-  /* Component tokens */
-  --nav-child-indent: 2.75rem; /* 44px */
-  --tab-min-width: 7.5rem;     /* 120px */
-  --tab-max-width: 12.5rem;    /* 200px */
-  --scrollbar-size: 0.5rem;    /* 8px */
-
-  /* Transitions */
-  --transition-fast: 150ms ease;
-  --transition-base: 250ms ease;
-  --transition-slow: 400ms ease;
-
-  /* UI Scale (modified by scale-control.js) */
+  /* ── DM Guide: UI Scale ── */
   --ui-scale: 1;
 }
 
