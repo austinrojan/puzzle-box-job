@@ -23,6 +23,10 @@
 
 .player-nav *, .player-nav button { pointer-events: auto; }
 
+/* @layer migration (Phase 3): Move to @layer components.
+   !important overrides pointer-events:auto from earlier rule.
+   Once layered, higher-layer selector wins without !important. */
+
 /* Hidden during title cards */
 .player-nav.hidden-for-title {
   opacity: 0;

@@ -131,6 +131,10 @@
   opacity: 0;
 }
 
+/* @layer migration (Phase 3): Move to @layer overrides.
+   !important overrides inline styles on DM-only elements.
+   Once layered, layer priority replaces !important. */
+
 /* Presentation Mode — hide all DM-only UI for Discord screenshare */
 body.presentation #player-nav,
 body.presentation #token-tray,
