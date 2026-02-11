@@ -3,60 +3,64 @@
    Ported from DM Guide + VTT-specific additions
    ============================================ */
 
-*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+@layer tokens {
+  :root {
+    /* ── VTT-Only: Transitions ── */
+    --transition-cinematic: 600ms ease;
+    --transition-scene: 800ms ease-in-out;
 
-:root {
-  /* ── VTT-Only: Transitions ── */
-  --transition-cinematic: 600ms ease;
-  --transition-scene: 800ms ease-in-out;
+    /* ── VTT-Only: Canvas Dimensions ── */
+    --vtt-width: 1920px;
+    --vtt-height: 1080px;
+    --initiative-width: 300px;
 
-  /* ── VTT-Only: Canvas Dimensions ── */
-  --vtt-width: 1920px;
-  --vtt-height: 1080px;
-  --initiative-width: 300px;
+    /* ── VTT-Only: Canvas Colors ── */
+    --grid-color: rgba(255, 255, 255, 0.12);
+    --grid-color-strong: rgba(255, 255, 255, 0.25);
+    --fog-color: rgba(0, 0, 0, 0.92);
 
-  /* ── VTT-Only: Canvas Colors ── */
-  --grid-color: rgba(255, 255, 255, 0.12);
-  --grid-color-strong: rgba(255, 255, 255, 0.25);
-  --fog-color: rgba(0, 0, 0, 0.92);
+    /* ── VTT-Only: Token Border Colors ── */
+    --token-pc: var(--gold);
+    --token-enemy: var(--red-bright);
+    --token-npc-friendly: var(--heat-green);
+    --token-npc-neutral: var(--blue-bright);
+    --token-npc-hostile: #FF8C00;
+    --token-object: var(--text-muted);
 
-  /* ── VTT-Only: Token Border Colors ── */
-  --token-pc: var(--gold);
-  --token-enemy: var(--red-bright);
-  --token-npc-friendly: var(--heat-green);
-  --token-npc-neutral: var(--blue-bright);
-  --token-npc-hostile: #FF8C00;
-  --token-object: var(--text-muted);
+    /* ── VTT-Only: Z-Index Layers ── */
+    --z-theater: 1;
+    --z-map: 1;
+    --z-map-labels: 10;
+    --z-player-nav: 150;
+    --z-scene-nav: 180;
+    --z-initiative: 100;
+    --z-heat: 100;
+    --z-token-menu: 200;
+    --z-screen-flash: 500;
+    --z-title-card: 600;
+    --z-dm-controls: 900;
+    --z-loading: 1000;
 
-  /* ── VTT-Only: Z-Index Layers ── */
-  --z-theater: 1;
-  --z-map: 1;
-  --z-map-labels: 10;
-  --z-player-nav: 150;
-  --z-scene-nav: 180;
-  --z-initiative: 100;
-  --z-heat: 100;
-  --z-token-menu: 200;
-  --z-screen-flash: 500;
-  --z-title-card: 600;
-  --z-dm-controls: 900;
-  --z-loading: 1000;
-
-  /* ── VTT-Only: Font Sizes ── */
-  --font-size-loading: 2.625rem;
+    /* ── VTT-Only: Font Sizes ── */
+    --font-size-loading: 2.625rem;
+  }
 }
 
-html, body {
-  width: 100%;
-  height: 100%;
-  overflow: hidden;
-  font-family: var(--font-body);
-  background: var(--bg-0);
-  color: var(--text-primary);
-  line-height: 1.6;
-  cursor: default;
-  user-select: none;
-}
+@layer base {
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-/* Disable image dragging globally */
-img { -webkit-user-drag: none; user-select: none; pointer-events: none; }
+  html, body {
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    font-family: var(--font-body);
+    background: var(--bg-0);
+    color: var(--text-primary);
+    line-height: 1.6;
+    cursor: default;
+    user-select: none;
+  }
+
+  /* Disable image dragging globally */
+  img { -webkit-user-drag: none; user-select: none; pointer-events: none; }
+}

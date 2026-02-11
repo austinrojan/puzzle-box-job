@@ -2,6 +2,8 @@
    VTT Effects — Spell animations & VFX
    ============================================ */
 
+@layer components {
+
 /* Heat indicator */
 .heat-indicator {
   position: absolute;
@@ -63,4 +65,6 @@
 @keyframes flashPulse {
   0% { opacity: 0.8; }
   100% { opacity: 0; }
+}
+
 }

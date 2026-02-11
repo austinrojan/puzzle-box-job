@@ -10,6 +10,7 @@
 /* ============================================
    DM Controller — CSS
    ============================================ */
+@layer tokens {
 :root {
   /* ── Controller: Color Overrides ── */
   --red: #E74C3C; /* Intentionally brighter than shared --red (#C0392B) */
@@ -26,7 +27,9 @@
   /* ── Controller: UI Scale ── */
   --ui-scale: 1;
 }
+}
 
+@layer base {
 * { margin: 0; padding: 0; box-sizing: border-box; }
 
 html { font-size: calc(0.8125rem * var(--ui-scale)); }
@@ -47,8 +50,10 @@ body {
 ::-webkit-scrollbar-track { background: var(--bg-1); }
 ::-webkit-scrollbar-thumb { background: var(--bg-3); border-radius: var(--radius-sm); }
 ::-webkit-scrollbar-thumb:hover { background: var(--bg-4); }
+}
 
 /* Header */
+@layer components {
 .header {
   display: flex; align-items: center; justify-content: space-between;
   padding: var(--space-3) var(--space-4);
@@ -357,11 +362,13 @@ body {
   width: 100%;
   text-align: center;
 }
+}
 
 /* ============================================
    Controller Layout: Container-Query Grid
    ============================================ */
 
+@layer layout {
 .controller-body {
   container-type: inline-size;
   container-name: controller;
@@ -444,8 +451,10 @@ body {
     grid-column: 3;
   }
 }
+}
 
 /* ---- Collapsible sections (native <details>/<summary>) ---- */
+@layer components {
 details.section > summary {
   list-style: none;
   cursor: pointer;
@@ -471,6 +480,7 @@ details.section[open] > summary .section__label--collapsible::after {
 }
 .section__content {
   padding-top: var(--space-2);
+}
 }
 </style>
 </head>

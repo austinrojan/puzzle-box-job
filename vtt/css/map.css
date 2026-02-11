@@ -2,6 +2,8 @@
    VTT Map Mode — Canvas layers + grid controls
    ============================================ */
 
+@layer components {
+
 #map-container {
   z-index: var(--z-map);
   background: var(--bg-0);
@@ -87,3 +89,5 @@
 }
 
 .grid-info.visible { opacity: 1; }
+
+}

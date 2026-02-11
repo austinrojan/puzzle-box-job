@@ -3,6 +3,8 @@
    Full-screen art, crossfade, title cards
    ============================================ */
 
+@layer components {
+
 #theater {
   z-index: var(--z-theater);
   background: var(--bg-0);
@@ -153,4 +155,6 @@
   color: var(--text-muted);
   opacity: 0.4;
   letter-spacing: 1px;
+}
+
 }

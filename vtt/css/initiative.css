@@ -3,6 +3,8 @@
    Semi-transparent panel over map during combat
    ============================================ */
 
+@layer components {
+
 .initiative-panel {
   position: absolute;
   top: 0;
@@ -205,4 +207,6 @@
 
 .init-entry--active .init-roll {
   color: var(--gold);
+}
+
 }

@@ -3,6 +3,8 @@
    Grouped scene/map browser from bottom nav
    ============================================ */
 
+@layer components {
+
 /* Container: fills viewport, invisible when closed */
 .scene-nav {
   position: absolute;
@@ -296,4 +298,6 @@
   font-size: 9px;
   color: var(--text-muted);
   opacity: 0.6;
+}
+
 }

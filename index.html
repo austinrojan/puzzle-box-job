@@ -12,29 +12,33 @@
 /* ============================================
    SECTION: CSS Reset & Custom Properties
    ============================================ */
-*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-:root {
-  /* ── DM Guide: Layout Dimensions ── */
-  --nav-width: 17.5rem;
-  --combat-width: 22.5rem;
-  --tab-height: 2.375rem;
-  --heat-height: 2rem;
-  --nav-child-indent: 2.75rem;
-  --tab-min-width: 7.5rem;
-  --tab-max-width: 12.5rem;
-  --scrollbar-size: 0.5rem;
+@layer tokens {
+  :root {
+    /* ── DM Guide: Layout Dimensions ── */
+    --nav-width: 17.5rem;
+    --combat-width: 22.5rem;
+    --tab-height: 2.375rem;
+    --heat-height: 2rem;
+    --nav-child-indent: 2.75rem;
+    --tab-min-width: 7.5rem;
+    --tab-max-width: 12.5rem;
+    --scrollbar-size: 0.5rem;
 
-  /* ── DM Guide: Extended Spacing ── */
-  --space-12: 3rem;
-  --space-16: 4rem;
+    /* ── DM Guide: Extended Spacing ── */
+    --space-12: 3rem;
+    --space-16: 4rem;
 
-  /* ── DM Guide: Font Sizes ── */
-  --font-size-heading-hero: 2.625rem;
+    /* ── DM Guide: Font Sizes ── */
+    --font-size-heading-hero: 2.625rem;
 
-  /* ── DM Guide: UI Scale ── */
-  --ui-scale: 1;
+    /* ── DM Guide: UI Scale ── */
+    --ui-scale: 1;
+  }
 }
+
+@layer base {
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 html { font-size: calc(0.875rem * var(--ui-scale)); }
 body {
@@ -54,10 +58,12 @@ body {
 ::-webkit-scrollbar-track { background: var(--bg-1); }
 ::-webkit-scrollbar-thumb { background: var(--bg-4); border-radius: var(--radius-md); }
 ::-webkit-scrollbar-thumb:hover { background: var(--gold-dim); }
+}
 
 /* ============================================
    SECTION: App Layout (CSS Grid)
    ============================================ */
+@layer layout {
 #app {
   display: grid;
   grid-template-rows: var(--tab-height) var(--heat-height) 1fr;
@@ -76,10 +82,12 @@ body {
 #app.nav-collapsed.combat-open {
   grid-template-columns: 0px minmax(0, 1fr) var(--combat-width);
 }
+}
 
 /* ============================================
    SECTION: Tab Bar
    ============================================ */
+@layer components {
 #tab-bar {
   grid-column: 1 / -1;
   grid-row: 1;
@@ -1021,6 +1029,9 @@ body {
   text-align: center; min-width: 3rem;
 }
 
+}
+
+@layer utilities {
 /* Utility classes */
 .flex { display: flex; }
 .gap-4 { gap: var(--space-1); }
@@ -1033,8 +1044,10 @@ body {
 .text-xs { font-size: var(--font-size-sm); }
 .text-sm { font-size: var(--font-size-base); }
 .font-mono { font-family: var(--font-mono); }
+}
 
 /* Buttons */
+@layer components {
 .btn {
   display: inline-flex; align-items: center; gap: var(--space-2);
   padding: var(--space-2) var(--space-3); font-family: var(--font-body);
@@ -1153,6 +1166,7 @@ body {
 .scale-control__reset {
   width: 100%;
   text-align: center;
+}
 }
 </style>
 </head>

@@ -2,6 +2,8 @@
    VTT Token Tray — Add-token panel + placement
    ============================================ */
 
+@layer components {
+
 .token-tray {
   position: absolute;
   top: 60px;
@@ -85,3 +87,5 @@
 
 /* Placement mode cursor */
 #map-container.placing-token { cursor: crosshair; }
+
+}
