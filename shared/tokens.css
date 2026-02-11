@@ -100,3 +100,12 @@
     --transition-slow: 400ms ease;
   }
 }
+
+@layer base {
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      transition-duration: 0s !important;
+      animation-duration: 0s !important;
+    }
+  }
+}
