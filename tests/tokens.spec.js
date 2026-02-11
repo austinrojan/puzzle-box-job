@@ -1,29 +1,16 @@
 import { test, expect } from '@playwright/test';
+import { getCSSToken } from './helpers.js';
 
-test.describe('Shared token resolution', () => {
-  for (const [app, url] of [['DM Guide', '/'], ['Controller', '/controller/']]) {
-    test(`${app} resolves shared tokens from shared/tokens.css`, async ({ page }) => {
-      await page.goto(url);
-      const bg0 = await page.evaluate(() =>
-        getComputedStyle(document.documentElement).getPropertyValue('--bg-0').trim()
-      );
-      expect(bg0).toBe('#0D0F14');
-    });
-  }
+const tokenTests = [
+  { name: 'DM Guide resolves shared tokens',  url: '/',            token: '--bg-0',      expected: '#0D0F14' },
+  { name: 'Controller resolves shared tokens', url: '/controller/', token: '--bg-0',      expected: '#0D0F14' },
+  { name: 'Controller overrides --red',        url: '/controller/', token: '--red',       expected: '#E74C3C' },
+  { name: 'VTT retains VTT-specific tokens',   url: '/vtt/',        token: '--vtt-width', expected: '1920px' },
+];
 
-  test('Controller overrides --red to brighter value', async ({ page }) => {
-    await page.goto('/controller/');
-    const red = await page.evaluate(() =>
-      getComputedStyle(document.documentElement).getPropertyValue('--red').trim()
-    );
-    expect(red).toBe('#E74C3C');
+for (const { name, url, token, expected } of tokenTests) {
+  test(name, async ({ page }) => {
+    await page.goto(url);
+    expect(await getCSSToken(page, token)).toBe(expected);
   });
-
-  test('VTT retains VTT-specific tokens', async ({ page }) => {
-    await page.goto('/vtt/');
-    const vttWidth = await page.evaluate(() =>
-      getComputedStyle(document.documentElement).getPropertyValue('--vtt-width').trim()
-    );
-    expect(vttWidth).toBe('1920px');
-  });
-});
+}

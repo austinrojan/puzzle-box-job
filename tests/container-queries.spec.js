@@ -1,34 +1,17 @@
 import { test, expect } from '@playwright/test';
+import { waitForFonts, getGridColumnCount } from './helpers.js';
 
-test.describe('Controller container queries', () => {
-  test('single column at narrow width', async ({ page }) => {
-    await page.setViewportSize({ width: 480, height: 800 });
-    await page.goto('/controller/');
-    await page.evaluate(() => document.fonts.ready);
-    const cols = await page.locator('.control-sections').evaluate(el =>
-      getComputedStyle(el).gridTemplateColumns
-    );
-    // At <500px, should be single column (1fr)
-    expect(cols.split(' ').length).toBe(1);
-  });
+const breakpoints = [
+  { width: 480, columns: 1, label: 'single column at narrow width' },
+  { width: 600, columns: 2, label: 'two columns at 500px+' },
+  { width: 900, columns: 3, label: 'three columns at 800px+' },
+];
 
-  test('two columns at 500px+', async ({ page }) => {
-    await page.setViewportSize({ width: 600, height: 800 });
+for (const { width, columns, label } of breakpoints) {
+  test(`Controller: ${label}`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 800 });
     await page.goto('/controller/');
-    await page.evaluate(() => document.fonts.ready);
-    const cols = await page.locator('.control-sections').evaluate(el =>
-      getComputedStyle(el).gridTemplateColumns
-    );
-    expect(cols.split(' ').length).toBe(2);
+    await waitForFonts(page);
+    expect(await getGridColumnCount(page, '.control-sections')).toBe(columns);
   });
-
-  test('three columns at 800px+', async ({ page }) => {
-    await page.setViewportSize({ width: 900, height: 800 });
-    await page.goto('/controller/');
-    await page.evaluate(() => document.fonts.ready);
-    const cols = await page.locator('.control-sections').evaluate(el =>
-      getComputedStyle(el).gridTemplateColumns
-    );
-    expect(cols.split(' ').length).toBe(3);
-  });
-});
+}

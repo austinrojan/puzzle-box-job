@@ -1,25 +1,38 @@
 import { test, expect } from '@playwright/test';
 
-test.describe('@layer cascade ordering', () => {
-  test('VTT: overrides layer beats components layer', async ({ page }) => {
-    await page.goto('/vtt/');
-    // Presentation mode: body.presentation hides #player-nav via @layer overrides
-    await page.evaluate(() => document.body.classList.add('presentation'));
-    const display = await page.locator('#player-nav').evaluate(el =>
-      getComputedStyle(el).display
-    );
-    expect(display).toBe('none');
-    await page.evaluate(() => document.body.classList.remove('presentation'));
-  });
+const layerTests = [
+  {
+    name: 'VTT: overrides layer beats components layer',
+    setup: { selector: 'body', addClass: 'presentation' },
+    assert: { selector: '#player-nav', property: 'display', expected: 'none' },
+    cleanup: { selector: 'body', removeClass: 'presentation' },
+  },
+  {
+    name: 'VTT: hidden-for-title disables pointer-events via @layer overrides',
+    setup: { selector: '.player-nav', addClass: 'hidden-for-title' },
+    assert: { selector: '.player-nav', property: 'pointerEvents', expected: 'none' },
+  },
+];
 
-  test('VTT: hidden-for-title disables pointer-events via @layer overrides', async ({ page }) => {
-    await page.goto('/vtt/');
-    await page.evaluate(() =>
-      document.querySelector('.player-nav')?.classList.add('hidden-for-title')
-    );
-    const pe = await page.locator('.player-nav').evaluate(el =>
-      getComputedStyle(el).pointerEvents
-    );
-    expect(pe).toBe('none');
-  });
+test.describe('@layer cascade ordering', () => {
+  for (const { name, setup, assert: a, cleanup } of layerTests) {
+    test(name, async ({ page }) => {
+      await page.goto('/vtt/');
+      await page.evaluate(
+        ({ sel, cls }) => document.querySelector(sel)?.classList.add(cls),
+        { sel: setup.selector, cls: setup.addClass }
+      );
+      const value = await page.locator(a.selector).evaluate(
+        (el, prop) => getComputedStyle(el)[prop],
+        a.property
+      );
+      expect(value).toBe(a.expected);
+      if (cleanup) {
+        await page.evaluate(
+          ({ sel, cls }) => document.querySelector(sel)?.classList.remove(cls),
+          { sel: cleanup.selector, cls: cleanup.removeClass }
+        );
+      }
+    });
+  }
 });
