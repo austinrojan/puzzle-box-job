@@ -67,4 +67,43 @@ test.describe('Density token system', () => {
     );
     expect(height).toBeGreaterThanOrEqual(24);
   });
+
+  test('DM Guide: compact reduces tab horizontal padding', async ({ page }) => {
+    await page.goto('/');
+    const defaultPad = await page.locator('.tab').first().evaluate(
+      (el) => parseFloat(getComputedStyle(el).paddingRight)
+    );
+    await page.evaluate(() => localStorage.setItem('ui-density', 'compact'));
+    await page.reload();
+    const compactPad = await page.locator('.tab').first().evaluate(
+      (el) => parseFloat(getComputedStyle(el).paddingRight)
+    );
+    expect(compactPad).toBeLessThan(defaultPad);
+  });
+
+  test('DM Guide: compact reduces heat-bar padding', async ({ page }) => {
+    await page.goto('/');
+    const defaultPad = await page.locator('#heat-bar').evaluate(
+      (el) => parseFloat(getComputedStyle(el).paddingRight)
+    );
+    await page.evaluate(() => localStorage.setItem('ui-density', 'compact'));
+    await page.reload();
+    const compactPad = await page.locator('#heat-bar').evaluate(
+      (el) => parseFloat(getComputedStyle(el).paddingRight)
+    );
+    expect(compactPad).toBeLessThan(defaultPad);
+  });
+
+  test('DM Guide: compact reduces nav-title padding', async ({ page }) => {
+    await page.goto('/');
+    const defaultPad = await page.locator('.nav-title').evaluate(
+      (el) => parseFloat(getComputedStyle(el).paddingTop)
+    );
+    await page.evaluate(() => localStorage.setItem('ui-density', 'compact'));
+    await page.reload();
+    const compactPad = await page.locator('.nav-title').evaluate(
+      (el) => parseFloat(getComputedStyle(el).paddingTop)
+    );
+    expect(compactPad).toBeLessThan(defaultPad);
+  });
 });
