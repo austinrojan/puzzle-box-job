@@ -32,7 +32,7 @@
 @layer base {
 * { margin: 0; padding: 0; box-sizing: border-box; }
 
-html { font-size: calc(0.8125rem * var(--ui-scale)); }
+html { font-size: calc(clamp(0.8125rem, 0.6696rem + 0.2232vw, 0.9375rem) * var(--ui-scale)); }
 
 body {
   font-family: var(--font-body);

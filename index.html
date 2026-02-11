@@ -40,7 +40,7 @@
 @layer base {
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-html { font-size: calc(0.875rem * var(--ui-scale)); }
+html { font-size: calc(clamp(0.875rem, 0.7321rem + 0.2232vw, 1rem) * var(--ui-scale)); }
 body {
   font-family: var(--font-body);
   background: var(--bg-0);

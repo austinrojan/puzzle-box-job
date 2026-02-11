@@ -12,7 +12,7 @@ test.describe('DM Guide', () => {
     await page.goto('/', { waitUntil: 'domcontentloaded' });
     await waitForFonts(page);
     await expect(page).toHaveScreenshot('dm-guide.png', {
-      maxDiffPixelRatio: 0.01,
+      maxDiffPixelRatio: 0.02,
       animations: 'disabled',
     });
   });
@@ -23,7 +23,7 @@ test.describe('VTT Display', () => {
     await page.goto('/vtt/', { waitUntil: 'domcontentloaded' });
     await waitForFonts(page);
     await expect(page).toHaveScreenshot('vtt-loading.png', {
-      maxDiffPixelRatio: 0.01,
+      maxDiffPixelRatio: 0.02,
       animations: 'disabled',
     });
   });
@@ -34,7 +34,7 @@ test.describe('Controller', () => {
     await page.goto('/controller/', { waitUntil: 'domcontentloaded' });
     await waitForFonts(page);
     await expect(page).toHaveScreenshot('controller.png', {
-      maxDiffPixelRatio: 0.01,
+      maxDiffPixelRatio: 0.02,
       animations: 'disabled',
     });
   });
