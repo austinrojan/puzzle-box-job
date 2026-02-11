@@ -34,7 +34,8 @@ export function renderNavTree() {
 
   const title = document.createElement('div');
   title.className = 'nav-title';
-  title.textContent = '\uD83D\uDCCB ' + (ADVENTURE_DATA.meta?.title || 'Campaign');
+  // Safe: title from hardcoded ADVENTURE_DATA, escapeHtml applied
+  title.innerHTML = `<span class="nav-icon">\uD83D\uDCCB</span> <span class="nav-label">${escapeHtml(ADVENTURE_DATA.meta?.title || 'Campaign')}</span>`;
   nav.appendChild(title);
 
   for (const act of ADVENTURE_DATA.acts) {
@@ -82,7 +83,7 @@ function addNavSection(parent, icon, title, items, expanded) {
   const header = document.createElement('div');
   header.className = `nav-section-header${expanded ? ' expanded' : ''}`;
   // Content from our own hardcoded data, all titles escapeHtml'd
-  header.innerHTML = `<span class="nav-icon">${icon}</span><span>${escapeHtml(title)}</span><span class="nav-chevron">\u25B6</span>`;
+  header.innerHTML = `<span class="nav-icon">${icon}</span><span class="nav-label" title="${escapeHtml(title)}">${escapeHtml(title)}</span><span class="nav-chevron">\u25B6</span>`;
   header.addEventListener('click', () => toggleNavSection(header));
   sec.appendChild(header);
 
