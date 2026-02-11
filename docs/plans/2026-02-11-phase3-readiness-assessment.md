@@ -47,15 +47,39 @@
 - DM Guide base: 14px (0.875rem), Controller base: 13px (0.8125rem)
 - App-specific tokens: --nav-width, --vtt-width, --token-dot-size, etc.
 
-## Phase 3 Recommended Sequence
-1. Extract shared/tokens.css from three :root blocks
-2. Introduce @layer (reset, tokens, base, layouts, components, utilities, overrides)
-3. Redesign --ui-scale to multiply individual semantic tokens
-4. Replace static rem with Utopia clamp() (1024px-1920px range)
-5. Playwright visual regression tests
-6. CUBE CSS methodology
+## Phase 3 Implementation Status
+
+| Deliverable | Status | Commit |
+|-------------|--------|--------|
+| Shared tokens extraction (`shared/tokens.css`, 62 tokens) | DONE | `1bf7ed2` |
+| @layer introduction (7-layer cascade across all 3 apps) | DONE | `22c8164` |
+| !important removal (3 declarations → @layer overrides) | DONE | `22c8164` |
+| Playwright tests (45 tests: visual, tokens, layers, a11y, container queries) | DONE | `2f821b1` |
+| Fluid typography — DM Guide (14px@1024 → 16px@1920) | DONE | `49ad0b7` |
+| Fluid typography — Controller (13px@1024 → 15px@1920) | DONE | `49ad0b7` |
+| px-to-rem migration (DM Guide: 4 conversions, Controller: 0 needed) | DONE | `48dbcf8` |
+
+### Not in Phase 3 scope (future enhancements)
+- Enhanced Utopia type scale: per-step clamp() tokens for amplified heading scaling
+- Utopia fluid spacing: one-up pairs (--space-s-l) for dramatic whitespace scaling
+- CUBE CSS methodology: reclassify into Composition/Utility/Block/Exception
+- rgba() tokenization: use color-mix(in srgb, ...) for alpha variants
+- DM Guide z-index tokenization
+- --ui-scale redesign: multiply individual semantic tokens instead of root font-size
+- Shared reset.css / base.css extraction
+
+### Pre-existing accessibility issues (documented, not Phase 3 regressions)
+- color-contrast: --text-muted (#6b6b78) on dark backgrounds = 3.38:1 (below 4.5:1 AA)
+- select-name: Controller <select> elements without accessible labels
+- scrollable-region-focusable: DM Guide scrollable panels
+
+### Test infrastructure notes
+- Snapshot baselines tagged `darwin` (macOS-generated) — regeneration needed for Linux CI
+- Visual regression threshold: maxDiffPixelRatio 0.02 (accommodates sub-pixel font rendering)
+- Accessibility tests exclude 3 pre-existing violations (see above)
 
 ## Risks
 - Theater title-card uses ease vs --transition-scene ease-in-out (documented)
 - rgba() colors in VTT are hardcoded alpha variants (acceptable)
 - min-width: var(--space-8) on Controller .btn--icon is a gray-area spacing-as-dimension usage (not changed, low risk)
+- Presentation diamond offset (--space-5) now scales with fluid root: 17.5px@1024 vs 20px@1920 (decorative, no visual impact)
