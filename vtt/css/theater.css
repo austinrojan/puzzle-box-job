@@ -39,7 +39,7 @@
   );
   opacity: 0;
   transform: translateY(20px);
-  transition: opacity 600ms ease, transform 600ms ease;
+  transition: opacity var(--transition-cinematic), transform var(--transition-cinematic);
   pointer-events: none;
 }
 
@@ -85,7 +85,7 @@
   gap: 20px;
   opacity: 0;
   pointer-events: none;
-  transition: opacity 600ms ease;
+  transition: opacity var(--transition-cinematic);
 }
 
 .title-card.visible {

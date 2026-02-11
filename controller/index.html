@@ -135,7 +135,7 @@ body {
   font-size: var(--font-size-base);
   font-family: var(--font-mono);
   cursor: pointer;
-  transition: background 0.15s, color 0.15s, border-color 0.15s;
+  transition: background var(--transition-fast), color var(--transition-fast), border-color var(--transition-fast);
   white-space: nowrap;
 }
 .btn:hover { background: var(--bg-3); color: var(--text-primary); }
@@ -211,13 +211,13 @@ body {
 /* Camera grid */
 .camera-grid {
   display: grid;
-  grid-template-columns: repeat(3, var(--space-8));
-  grid-template-rows: repeat(3, var(--space-8));
+  grid-template-columns: repeat(3, 2rem);
+  grid-template-rows: repeat(3, 2rem);
   gap: var(--space-1);
   justify-items: center;
   align-items: center;
 }
-.camera-grid .btn--icon { width: var(--space-8); height: var(--space-8); padding: 0; }
+.camera-grid .btn--icon { width: 2rem; height: 2rem; padding: 0; }
 
 /* Token groups */
 .token-group { margin-top: var(--space-2); }

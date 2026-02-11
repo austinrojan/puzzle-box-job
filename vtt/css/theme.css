@@ -69,6 +69,7 @@
   --transition-fast: 150ms ease;
   --transition-base: 250ms ease;
   --transition-slow: 400ms ease;
+  --transition-cinematic: 600ms ease;
   --transition-scene: 800ms ease-in-out;
 
   /* Spacing tokens (shared) */

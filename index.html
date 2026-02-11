@@ -983,14 +983,14 @@ body {
   50% { opacity: 0.1; transform: translateX(-50%) translateY(-6px); }
 }
 
-.immunity-meter { display: flex; gap: 2px; height: var(--space-2); margin: var(--space-2) 0; }
+.immunity-meter { display: flex; gap: 2px; height: 0.5rem; margin: var(--space-2) 0; }
 .immunity-segment { flex: 1; border-radius: 2px; transition: all var(--transition-base); }
 .immunity-segment.active { background: var(--brazier-blue); }
 .immunity-segment.inactive { background: var(--bg-4); }
 
 /* HP Bars */
 .hp-bar-wrap {
-  height: var(--space-4); background: var(--bg-3);
+  height: 1rem; background: var(--bg-3);
   border-radius: var(--radius-md); overflow: hidden;
   position: relative; margin: var(--space-1) 0;
 }
@@ -1021,7 +1021,7 @@ body {
   transition: background var(--transition-fast);
 }
 .init-item.active-turn { background: rgba(201, 168, 76, 0.12); border-left: 3px solid var(--gold); }
-.init-value { font-family: var(--font-mono); font-weight: 600; width: var(--space-6); text-align: center; color: var(--text-muted); }
+.init-value { font-family: var(--font-mono); font-weight: 600; width: 1.5rem; text-align: center; color: var(--text-muted); }
 .init-input {
   font-family: var(--font-mono); font-weight: 600; width: 2.25rem; text-align: center;
   background: var(--bg-3); border: 1px solid var(--bg-4); border-radius: var(--radius-sm);
@@ -1040,7 +1040,7 @@ body {
 }
 .dominate-toggle.active { background: rgba(192, 57, 43, 0.15); border: 1px solid var(--red-dark); }
 .dominate-switch {
-  width: 2.25rem; height: var(--space-5);
+  width: 2.25rem; height: 1.25rem;
   background: var(--bg-4); border-radius: 0.625rem;
   cursor: pointer; position: relative;
   transition: background var(--transition-fast);
