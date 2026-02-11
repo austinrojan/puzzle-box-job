@@ -99,12 +99,17 @@
     --transition-base: 250ms ease;
     --transition-slow: 400ms ease;
 
+    /* ── Density ── */
+    --density-factor: 1;
+
     /* ── Touch Target Floors (WCAG 2.5.8) ── */
     --active-floor: max(1.5rem, 24px);
   }
 }
 
 @layer base {
+  html[data-density="compact"] { --density-factor: 0.625; }
+
   @media (any-pointer: coarse) {
     :where(html) { --active-floor: max(2.75rem, 44px); }
   }
