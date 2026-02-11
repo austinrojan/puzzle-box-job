@@ -94,6 +94,26 @@ test.describe('Density token system', () => {
     expect(compactPad).toBeLessThan(defaultPad);
   });
 
+  test('DM Guide: compact reduces block-dm-note margin', async ({ page }) => {
+    await page.goto('/');
+    // Open Act 1 to ensure a dm-note block exists
+    await page.locator('.nav-section-header').first().click();
+    await page.locator('.nav-child').first().click();
+    await page.waitForSelector('.block-dm-note');
+    const defaultMargin = await page.locator('.block-dm-note').first().evaluate(
+      (el) => parseFloat(getComputedStyle(el).marginTop)
+    );
+    await page.evaluate(() => localStorage.setItem('ui-density', 'compact'));
+    await page.reload();
+    await page.locator('.nav-section-header').first().click();
+    await page.locator('.nav-child').first().click();
+    await page.waitForSelector('.block-dm-note');
+    const compactMargin = await page.locator('.block-dm-note').first().evaluate(
+      (el) => parseFloat(getComputedStyle(el).marginTop)
+    );
+    expect(compactMargin).toBeLessThan(defaultMargin);
+  });
+
   test('DM Guide: compact reduces nav-title padding', async ({ page }) => {
     await page.goto('/');
     const defaultPad = await page.locator('.nav-title').evaluate(
