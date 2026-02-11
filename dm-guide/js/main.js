@@ -11,7 +11,7 @@ import { initPresentation, openPresentation, setVttActionsFn } from './presentat
 import { initSearchUI, toggleSearch } from './search-ui.js';
 import { initTooltips } from './tooltips.js';
 import { initKeyboard } from './keyboard.js';
-import { renderHeatBar, renderNavTree, initNavResize } from './heat-nav.js';
+import { renderHeatBar, renderNavTree, initNavResize, initSidebar, toggleSidebar } from './heat-nav.js';
 import { loadCampaign, CAMPAIGN, getSceneById } from '../../shared/campaign-data.js';
 
 const $ = id => document.getElementById(id);
@@ -24,6 +24,7 @@ window.toggleForeshadowing = toggleForeshadowing;
 window.toggleIntel = toggleIntel;
 
 function init() {
+  initSidebar();
   loadState();
   // Apply name migrations from campaign config (e.g. "Rogue (TBD)" → "Kallista")
   for (const mig of COMBAT_CONFIG.migrations) {
@@ -70,7 +71,10 @@ async function boot() {
   initNavResize();
   setVttActionsFn(fireVttActions);
 
-  // 4. Delegated click handler for VTT cue buttons (replaces inline onclick)
+  // 4. Sidebar toggle
+  $('sidebar-toggle').addEventListener('click', toggleSidebar);
+
+  // 5. Delegated click handler for VTT cue buttons (replaces inline onclick)
   $('main-content').addEventListener('click', (e) => {
     const cue = e.target.closest('.block-vtt-cue');
     if (cue && cue.dataset.vtt) {

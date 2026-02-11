@@ -11,7 +11,6 @@ function getStorageKey() {
 export const DEFAULT_STATE = {
   tabs: [{ id: 'welcome', type: 'welcome', label: 'Welcome', closeable: false }],
   activeTabId: 'welcome',
-  navExpanded: true,
   navWidth: 280,
   collapsed: {},
   combat: null,

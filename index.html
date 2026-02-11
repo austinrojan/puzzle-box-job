@@ -93,12 +93,36 @@ body {
 #app[data-sidebar="collapsed"] { --sidebar-w: 3.5rem; }
 #app[data-sidebar="hidden"]    { --sidebar-w: 0px; }
 #app.combat-open { --combat-w: var(--combat-width); }
+/* Fallback: blocking script sets data-sidebar on <html> before JS moves it to #app */
+html[data-sidebar="collapsed"] #app:not([data-sidebar]) { --sidebar-w: 3.5rem; }
+html[data-sidebar="hidden"] #app:not([data-sidebar]) { --sidebar-w: 0px; }
 }
 
 /* ============================================
    SECTION: Tab Bar
    ============================================ */
 @layer components {
+
+/* Sidebar toggle button */
+#sidebar-toggle {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: var(--tab-height);
+  height: var(--tab-height);
+  z-index: calc(var(--z-tab-bar) + 1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  font-size: var(--font-size-xl);
+  cursor: pointer;
+  transition: color var(--transition-fast);
+}
+#sidebar-toggle:hover { color: var(--gold); }
+
 #tab-bar {
   grid-column: 1 / -1;
   grid-row: 1;
@@ -111,6 +135,7 @@ body {
   scrollbar-width: none;
   user-select: none;
   z-index: var(--z-tab-bar);
+  padding-left: var(--tab-height);
 }
 #tab-bar::-webkit-scrollbar { display: none; }
 
@@ -1225,10 +1250,22 @@ body {
 }
 }
 </style>
+<script>
+// Blocking script: read UI preferences from localStorage before first paint (FOUC prevention)
+(function() {
+  var sb = localStorage.getItem('dm-sidebar-state');
+  if (sb) document.documentElement.dataset.sidebar = sb;
+  var d = localStorage.getItem('ui-density');
+  if (d) document.documentElement.dataset.density = d;
+})();
+</script>
 </head>
 <body>
 
 <div id="app">
+  <button id="sidebar-toggle" class="sidebar-toggle"
+    aria-label="Collapse sidebar" aria-expanded="true"
+    aria-controls="nav-panel">&#9776;</button>
   <div id="tab-bar"></div>
   <div id="nav-heat-spacer"></div>
   <div id="heat-bar">

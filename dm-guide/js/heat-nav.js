@@ -110,6 +110,50 @@ function toggleNavSection(headerEl) {
   headerEl.nextElementSibling?.classList.toggle('expanded');
 }
 
+const SIDEBAR_KEY = 'dm-sidebar-state';
+const SIDEBAR_CYCLE = [null, 'collapsed', 'hidden']; // expanded → collapsed → hidden → expanded
+
+export function getSidebarState() {
+  return document.getElementById('app').dataset.sidebar || null;
+}
+
+export function setSidebarState(state) {
+  const app = document.getElementById('app');
+  const toggle = document.getElementById('sidebar-toggle');
+  if (state) {
+    app.dataset.sidebar = state;
+    localStorage.setItem(SIDEBAR_KEY, state);
+  } else {
+    delete app.dataset.sidebar;
+    localStorage.removeItem(SIDEBAR_KEY);
+  }
+  // Clean up <html> attribute from blocking script
+  delete document.documentElement.dataset.sidebar;
+
+  // Update ARIA
+  if (toggle) {
+    const visible = state !== 'hidden';
+    toggle.setAttribute('aria-expanded', String(visible));
+    const labels = { null: 'Collapse sidebar', collapsed: 'Hide sidebar', hidden: 'Show sidebar' };
+    toggle.setAttribute('aria-label', labels[state] || labels[null]);
+  }
+}
+
+export function toggleSidebar() {
+  const current = getSidebarState();
+  const idx = SIDEBAR_CYCLE.indexOf(current);
+  const next = SIDEBAR_CYCLE[(idx + 1) % SIDEBAR_CYCLE.length];
+  setSidebarState(next);
+}
+
+export function initSidebar() {
+  // Move attribute from <html> (blocking script) to #app
+  const htmlState = document.documentElement.dataset.sidebar;
+  if (htmlState) {
+    setSidebarState(htmlState);
+  }
+}
+
 export function initNavResize() {
   const handle = $('nav-resize');
   let _dragging = false;

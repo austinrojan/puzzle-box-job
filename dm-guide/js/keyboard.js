@@ -2,6 +2,7 @@ import { AppState } from './state.js';
 import { ADVENTURE_DATA } from './adventure-data.js';
 import { openTab, switchTab, closeTab } from './tabs.js';
 import { toggleCombatPanel } from './combat.js';
+import { toggleSidebar } from './heat-nav.js';
 import { openPresentation, presentNext, presentPrev, closePresentation } from './presentation.js';
 import { toggleSearch } from './search-ui.js';
 
@@ -24,6 +25,7 @@ export function initKeyboard() {
       if (act) openTab('act', act.id, `Act ${act.number}: ${act.title}`);
       return;
     }
+    if ((e.metaKey || e.ctrlKey) && (e.key === 'b' || e.key === 'B')) { e.preventDefault(); toggleSidebar(); return; }
     if (e.key === 'b' || e.key === 'B') { toggleCombatPanel(); return; }
     if (e.key === 'p' || e.key === 'P') {
       const blocks = document.querySelectorAll('.block-read-aloud');

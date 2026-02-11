@@ -64,3 +64,53 @@ test.describe('DM Guide sidebar states', () => {
     expect(transition).toContain('grid-template-columns');
   });
 });
+
+test.describe('DM Guide sidebar toggle', () => {
+  test('toggle button exists with aria attributes', async ({ page }) => {
+    await page.goto('/');
+    const toggle = page.locator('#sidebar-toggle');
+    await expect(toggle).toBeVisible();
+    await expect(toggle).toHaveAttribute('aria-expanded', 'true');
+    await expect(toggle).toHaveAttribute('aria-controls', 'nav-panel');
+  });
+
+  test('clicking toggle cycles expanded > collapsed > hidden > expanded', async ({ page }) => {
+    await page.goto('/');
+    const toggle = page.locator('#sidebar-toggle');
+    const app = page.locator('#app');
+
+    await expect(app).not.toHaveAttribute('data-sidebar');
+    await toggle.click();
+    await expect(app).toHaveAttribute('data-sidebar', 'collapsed');
+    await toggle.click();
+    await expect(app).toHaveAttribute('data-sidebar', 'hidden');
+    await toggle.click();
+    await expect(app).not.toHaveAttribute('data-sidebar');
+  });
+
+  test('aria-expanded reflects sidebar visibility correctly', async ({ page }) => {
+    await page.goto('/');
+    const toggle = page.locator('#sidebar-toggle');
+
+    await expect(toggle).toHaveAttribute('aria-expanded', 'true');
+    await toggle.click();
+    await expect(toggle).toHaveAttribute('aria-expanded', 'true');
+    await toggle.click();
+    await expect(toggle).toHaveAttribute('aria-expanded', 'false');
+    await toggle.click();
+    await expect(toggle).toHaveAttribute('aria-expanded', 'true');
+  });
+
+  test('aria-label updates per sidebar state', async ({ page }) => {
+    await page.goto('/');
+    const toggle = page.locator('#sidebar-toggle');
+
+    await expect(toggle).toHaveAttribute('aria-label', 'Collapse sidebar');
+    await toggle.click();
+    await expect(toggle).toHaveAttribute('aria-label', 'Hide sidebar');
+    await toggle.click();
+    await expect(toggle).toHaveAttribute('aria-label', 'Show sidebar');
+    await toggle.click();
+    await expect(toggle).toHaveAttribute('aria-label', 'Collapse sidebar');
+  });
+});
