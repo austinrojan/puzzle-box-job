@@ -121,6 +121,36 @@ test.describe('Camera math — world-space model', () => {
     expect(Math.abs(result - (-50))).toBeLessThan(0.01);
   });
 
+  test('zoomAt clamps at MAX_ZOOM (5.0)', async ({ page }) => {
+    const zoom = await page.evaluate(() => {
+      const cam = window.__vtt?.mapRenderer?.camera;
+      if (!cam) return null;
+      cam.x = 0; cam.y = 0; cam.zoom = 4.5;
+      cam.viewportW = 1920; cam.viewportH = 1080;
+      // Zoom in repeatedly — should not exceed 5.0
+      for (let i = 0; i < 50; i++) cam.zoomAt(960, 540, 1, 1.15);
+      return cam.zoom;
+    });
+    expect(zoom).not.toBeNull();
+    expect(zoom).toBeLessThanOrEqual(5.0);
+    expect(zoom).toBeCloseTo(5.0);
+  });
+
+  test('zoomAt clamps at MIN_ZOOM (0.1)', async ({ page }) => {
+    const zoom = await page.evaluate(() => {
+      const cam = window.__vtt?.mapRenderer?.camera;
+      if (!cam) return null;
+      cam.x = 0; cam.y = 0; cam.zoom = 0.2;
+      cam.viewportW = 1920; cam.viewportH = 1080;
+      // Zoom out repeatedly — should not drop below 0.1
+      for (let i = 0; i < 50; i++) cam.zoomAt(960, 540, -1, 1.15);
+      return cam.zoom;
+    });
+    expect(zoom).not.toBeNull();
+    expect(zoom).toBeGreaterThanOrEqual(0.1);
+    expect(zoom).toBeCloseTo(0.1);
+  });
+
   test('serialize/deserialize roundtrip', async ({ page }) => {
     const result = await page.evaluate(() => {
       const cam = window.__vtt?.mapRenderer?.camera;

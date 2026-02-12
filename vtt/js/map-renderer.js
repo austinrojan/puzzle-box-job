@@ -155,12 +155,15 @@ export class MapRenderer {
     }
 
     const img = new Image();
+    const expectedMapId = mapId;
     img.onload = () => {
+      if (this.currentMap?.id !== expectedMapId) return; // stale — a newer loadMap() superseded
       this.bgImage = img;
       this.camera.setMapSize(worldW, worldH);
       this.redrawAll();
     };
     img.onerror = () => {
+      if (this.currentMap?.id !== expectedMapId) return;
       this.bgImage = this.generatePlaceholderMap(mapDef);
       this.camera.setMapSize(worldW, worldH);
       this.redrawAll();
@@ -306,7 +309,9 @@ export class MapRenderer {
 
     if (col < 0 || col >= this.currentMap.cols || row < 0 || row >= this.currentMap.rows) return;
 
-    const key = `${col},${row}`;
+    // Uniform brush: decide reveal/hide once from the center cell, then apply
+    // to the entire 3x3 area. Per-cell toggling would flicker (some on, some off).
+    const shouldHide = this.fogRevealed.has(`${col},${row}`);
 
     for (let dc = -1; dc <= 1; dc++) {
       for (let dr = -1; dr <= 1; dr++) {
@@ -314,7 +319,7 @@ export class MapRenderer {
         const r = row + dr;
         if (c < 0 || c >= this.currentMap.cols || r < 0 || r >= this.currentMap.rows) continue;
         const k = `${c},${r}`;
-        if (this.fogRevealed.has(key)) {
+        if (shouldHide) {
           this.fogRevealed.delete(k);
         } else {
           this.fogRevealed.add(k);

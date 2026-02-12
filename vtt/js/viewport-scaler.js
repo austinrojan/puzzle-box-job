@@ -8,6 +8,7 @@ const VTT_H = 1080;
 let _scale = 1;
 let _initialized = false;
 let _mode = 'theater';
+let _appliedMode = null;
 let _container = null;
 
 export function getViewportScale() { return _scale; }
@@ -35,14 +36,17 @@ function update() {
 
   if (_mode === 'theater') {
     const s = Math.min(vw / VTT_W, vh / VTT_H);
-    if (Math.abs(s - _scale) < 0.0001) return;
+    if (_appliedMode === _mode && Math.abs(s - _scale) < 0.0001) return;
     _scale = s;
+    _appliedMode = _mode;
     _container.style.transform = `scale(${s})`;
     _container.style.width = VTT_W + 'px';
     _container.style.height = VTT_H + 'px';
     EventBus.emit('viewport:scaled', { scale: s });
   } else {
+    if (_appliedMode === _mode && _scale === 1) return;
     _scale = 1;
+    _appliedMode = _mode;
     _container.style.transform = '';
     _container.style.width = '100%';
     _container.style.height = '100%';

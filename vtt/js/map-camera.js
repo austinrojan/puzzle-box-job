@@ -283,6 +283,7 @@ export class Camera {
   // -------------------------------------------------------------------
 
   attachTo(el) {
+    if (this._el) return; // idempotency guard — prevents duplicate window listeners
     this._el = el;
 
     // --- Wheel: pinch/Ctrl+scroll = zoom, regular scroll = pan ---
