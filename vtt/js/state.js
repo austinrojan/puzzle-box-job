@@ -214,6 +214,14 @@ function handleSyncMessage(msg) {
       EventBus.emit('camera:reset');
       break;
 
+    case MSG.CAMERA_STATE:
+      EventBus.emit('camera:set-state', {
+        x: msg.x,
+        y: msg.y,
+        zoom: msg.zoom
+      });
+      break;
+
     case MSG.TOKEN_UPDATE_CONDITION:
       EventBus.emit('token:update-condition', {
         instanceId: msg.instanceId, condition: msg.condition, enabled: msg.enabled

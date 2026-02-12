@@ -10,7 +10,7 @@
   top: 0;
   left: 0;
   width: var(--initiative-width);
-  height: var(--vtt-height);
+  height: 100%;
   z-index: var(--z-initiative);
   background: linear-gradient(
     to right,

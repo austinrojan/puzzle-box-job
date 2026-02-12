@@ -155,12 +155,7 @@ export class TokenManager {
   }
 
   _screenCoords(e) {
-    const rect = $('map-container').getBoundingClientRect();
-    const vs = this.map.camera.viewportScale;
-    return {
-      x: (e.clientX - rect.left) / vs,
-      y: (e.clientY - rect.top) / vs
-    };
+    return this.map.camera.eventToScreen(e);
   }
 
   _redraw() {
@@ -371,7 +366,7 @@ export class TokenManager {
     const cp = this.map.cellPx;
 
     ctx.setTransform(1, 0, 0, 1, 0, 0);
-    ctx.clearRect(0, 0, 1920, 1080);
+    ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
 
     this.labelsEl.textContent = '';
 

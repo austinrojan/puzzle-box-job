@@ -5,8 +5,6 @@ import { MAPS } from './data.js';
 import { Camera } from './map-camera.js';
 
 const $ = id => document.getElementById(id);
-const VTT_W = 1920;
-const VTT_H = 1080;
 
 export class MapRenderer {
   constructor() {
@@ -20,6 +18,11 @@ export class MapRenderer {
     this.gridSizeFt = 5;
     this._mapWorldW = 0;
     this._mapWorldH = 0;
+    this._canvasW = 0;
+    this._canvasH = 0;
+    this._el = null;
+    this._rafPending = false;
+    this._resizeObserver = null;
   }
 
   init() {
@@ -27,40 +30,101 @@ export class MapRenderer {
 
     for (const id of ['map-bg', 'map-fog', 'map-grid', 'map-tokens', 'map-effects']) {
       const canvas = $(id);
-      canvas.width = VTT_W;
-      canvas.height = VTT_H;
       this.layers[id] = canvas;
-      this.contexts[id] = canvas.getContext('2d');
+      const ctxOptions = id === 'map-bg' ? { alpha: false } : undefined;
+      this.contexts[id] = canvas.getContext('2d', ctxOptions);
     }
+    this._el = container;
+    this._resizeCanvases();
+
+    this._resizeObserver = new ResizeObserver((entries) => {
+      const entry = entries[0];
+      let w, h;
+      if (entry.borderBoxSize) {
+        const box = entry.borderBoxSize[0];
+        w = box.inlineSize;
+        h = box.blockSize;
+      } else {
+        w = entry.contentRect.width;
+        h = entry.contentRect.height;
+      }
+      this._onContainerResize(w, h);
+    });
+    this._resizeObserver.observe(container);
 
     this.camera.attachTo(container);
 
-    EventBus.on('camera:changed', () => this.redrawAll());
+    this._rafPending = false;
+    EventBus.on('camera:changed', () => {
+      if (this._rafPending) return;
+      this._rafPending = true;
+      requestAnimationFrame(() => {
+        this._rafPending = false;
+        this.redrawAll();
+      });
+    });
     EventBus.on('map:load', (mapId) => this.loadMap(mapId));
     store.subscribe('gridVisible', () => this.drawGrid());
     EventBus.on('fog:toggle', () => this.toggleFogAtCursor());
     EventBus.on('fog:reveal-all', () => this.revealAllFog());
     EventBus.on('fog:hide-all', () => this.hideAllFog());
     EventBus.on('mode:changed', ({ mode }) => {
-      if (mode === 'map' || mode === 'initiative') this.redrawAll();
+      if (mode === 'map' || mode === 'initiative') {
+        requestAnimationFrame(() => {
+          this._onContainerResize(
+            this._el.clientWidth,
+            this._el.clientHeight
+          );
+        });
+      }
     });
     EventBus.on('camera:reset', () => {
       if (this._mapWorldW && this._mapWorldH) {
-        this.camera.fitToSize(this._mapWorldW, this._mapWorldH);
+        this.camera.fitCover();
       }
     });
 
     this._mouseX = 0;
     this._mouseY = 0;
     container.addEventListener('mousemove', (e) => {
-      const rect = container.getBoundingClientRect();
-      const vs = this.camera.viewportScale;
-      this._mouseX = (e.clientX - rect.left) / vs;
-      this._mouseY = (e.clientY - rect.top) / vs;
+      const screen = this.camera.eventToScreen(e);
+      this._mouseX = screen.x;
+      this._mouseY = screen.y;
     });
 
     if (state.mapId) {
       this.loadMap(state.mapId);
+    }
+  }
+
+  _onContainerResize(w, h) {
+    if (w <= 0 || h <= 0) return;
+    const canvasW = Math.round(w);
+    const canvasH = Math.round(h);
+    if (canvasW === this._canvasW && canvasH === this._canvasH) return;
+    this._canvasW = canvasW;
+    this._canvasH = canvasH;
+    this._resizeCanvases();
+    const actualW = Object.values(this.layers)[0].width;
+    const actualH = Object.values(this.layers)[0].height;
+    const capScale = canvasW / actualW;
+    this.camera.setViewportScale(capScale);
+    this.camera.setViewportSize(actualW, actualH);
+    this.redrawAll();
+  }
+
+  _resizeCanvases() {
+    const w = this._canvasW || window.innerWidth;
+    const h = this._canvasH || window.innerHeight;
+    const MAX_CANVAS_DIM = 4096;
+    const scale = Math.min(1, MAX_CANVAS_DIM / w, MAX_CANVAS_DIM / h);
+    const cappedW = Math.round(w * scale);
+    const cappedH = Math.round(h * scale);
+    for (const canvas of Object.values(this.layers)) {
+      if (canvas.width !== cappedW || canvas.height !== cappedH) {
+        canvas.width = cappedW;
+        canvas.height = cappedH;
+      }
     }
   }
 
@@ -71,7 +135,7 @@ export class MapRenderer {
     this.currentMap = mapDef;
     state.mapId = mapId;
 
-    this.cellPx = Math.floor(VTT_W / mapDef.cols);
+    this.cellPx = 1920 / mapDef.cols;
     this.gridSizeFt = mapDef.gridSize || 5;
 
     const worldW = mapDef.cols * this.cellPx;
@@ -150,10 +214,13 @@ export class MapRenderer {
 
   drawBackground() {
     const ctx = this.contexts['map-bg'];
-    ctx.setTransform(1, 0, 0, 1, 0, 0);
-    ctx.clearRect(0, 0, VTT_W, VTT_H);
+    this.camera.resetTransform(ctx);
+    ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
 
     if (!this.bgImage || !this.currentMap) return;
+
+    ctx.fillStyle = '#0D0F14';
+    ctx.fillRect(0, 0, ctx.canvas.width, ctx.canvas.height);
 
     this.camera.applyTransform(ctx);
     const w = this.currentMap.cols * this.cellPx;
@@ -164,8 +231,8 @@ export class MapRenderer {
 
   drawGrid() {
     const ctx = this.contexts['map-grid'];
-    ctx.setTransform(1, 0, 0, 1, 0, 0);
-    ctx.clearRect(0, 0, VTT_W, VTT_H);
+    this.camera.resetTransform(ctx);
+    ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
 
     if (!state.gridVisible || !this.currentMap) return;
 
@@ -205,8 +272,8 @@ export class MapRenderer {
 
   drawFog() {
     const ctx = this.contexts['map-fog'];
-    ctx.setTransform(1, 0, 0, 1, 0, 0);
-    ctx.clearRect(0, 0, VTT_W, VTT_H);
+    this.camera.resetTransform(ctx);
+    ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
 
     if (!this.currentMap) return;
 

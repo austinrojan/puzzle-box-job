@@ -10,7 +10,7 @@ function getStorageKey() {
 }
 const SAVE_DEBOUNCE_MS = 500;
 const STALENESS_MS = 4 * 60 * 60 * 1000; // 4 hours
-const STATE_VERSION = 1;
+const STATE_VERSION = 2;
 
 let _saveTimer = null;
 

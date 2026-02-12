@@ -6,8 +6,6 @@ import { EventBus, state } from './state.js';
 import { EFFECTS } from './data.js';
 
 const $ = id => document.getElementById(id);
-const VTT_W = 1920;
-const VTT_H = 1080;
 
 // --- Particle ---
 class Particle {
@@ -567,7 +565,7 @@ export class EffectsEngine {
       // Clear the canvas one final time
       const ctx = this.ctx;
       ctx.setTransform(1, 0, 0, 1, 0, 0);
-      ctx.clearRect(0, 0, VTT_W, VTT_H);
+      ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
     }
   }
 
@@ -576,7 +574,7 @@ export class EffectsEngine {
     const cam = this.map.camera;
 
     ctx.setTransform(1, 0, 0, 1, 0, 0);
-    ctx.clearRect(0, 0, VTT_W, VTT_H);
+    ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
 
     // Draw persistent effects (AoE highlights, auras, ripples)
     this.persistentEffects = this.persistentEffects.filter(e => {

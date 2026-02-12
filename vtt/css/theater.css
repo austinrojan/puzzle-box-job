@@ -8,6 +8,8 @@
 #theater {
   z-index: var(--z-theater);
   background: var(--bg-0);
+  width: var(--vtt-width);
+  height: var(--vtt-height);
 }
 
 /* Scene artwork — dual-image crossfade system */
