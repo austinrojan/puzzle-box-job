@@ -5,6 +5,8 @@ import { MAPS } from './data.js';
 import { Camera } from './map-camera.js';
 
 const $ = id => document.getElementById(id);
+// Map art is designed for 1920px world-space width
+const MAP_ART_WIDTH = 1920;
 
 export class MapRenderer {
   constructor() {
@@ -54,7 +56,6 @@ export class MapRenderer {
 
     this.camera.attachTo(container);
 
-    this._rafPending = false;
     EventBus.on('camera:changed', () => {
       if (this._rafPending) return;
       this._rafPending = true;
@@ -104,13 +105,11 @@ export class MapRenderer {
     if (canvasW === this._canvasW && canvasH === this._canvasH) return;
     this._canvasW = canvasW;
     this._canvasH = canvasH;
-    this._resizeCanvases();
-    const actualW = Object.values(this.layers)[0].width;
-    const actualH = Object.values(this.layers)[0].height;
+    const { w: actualW, h: actualH } = this._resizeCanvases();
     const capScale = canvasW / actualW;
     this.camera.setViewportScale(capScale);
+    // setViewportSize emits camera:changed → rAF handler coalesces redraw
     this.camera.setViewportSize(actualW, actualH);
-    this.redrawAll();
   }
 
   _resizeCanvases() {
@@ -126,6 +125,7 @@ export class MapRenderer {
         canvas.height = cappedH;
       }
     }
+    return { w: cappedW, h: cappedH };
   }
 
   loadMap(mapId) {
@@ -135,7 +135,7 @@ export class MapRenderer {
     this.currentMap = mapDef;
     state.mapId = mapId;
 
-    this.cellPx = 1920 / mapDef.cols;
+    this.cellPx = MAP_ART_WIDTH / mapDef.cols;
     this.gridSizeFt = mapDef.gridSize || 5;
 
     const worldW = mapDef.cols * this.cellPx;
@@ -157,12 +157,12 @@ export class MapRenderer {
     const img = new Image();
     img.onload = () => {
       this.bgImage = img;
-      this.camera.fitToSize(worldW, worldH);
+      this.camera.setMapSize(worldW, worldH);
       this.redrawAll();
     };
     img.onerror = () => {
       this.bgImage = this.generatePlaceholderMap(mapDef);
-      this.camera.fitToSize(worldW, worldH);
+      this.camera.setMapSize(worldW, worldH);
       this.redrawAll();
     };
     img.src = mapDef.image;

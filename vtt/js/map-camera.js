@@ -4,14 +4,6 @@
 //
 // This camera operates in WORLD SPACE. camera.x and camera.y represent
 // the world-coordinate position of the viewport's top-left corner.
-// This is the universal camera model used by Figma, Leaflet, tldraw,
-// Google Maps, and every game engine. It enables intuitive reasoning
-// about "what part of the map am I looking at?"
-//
-// The previous camera used SCREEN-SPACE OFFSETS, where x/y represented
-// how far the world origin was displaced on screen. Both models are
-// mathematically equivalent, but world-space makes boundary clamping,
-// cross-window sync, and saved presets far more natural.
 
 import { EventBus } from './state.js';
 
@@ -21,6 +13,8 @@ const MAX_ZOOM = 5.0;              // absolute ceiling
 const ZOOM_FACTOR = 1.04;          // per-tick scroll/pinch (4%)
 const ZOOM_FACTOR_KEY = 1.15;      // per-press keyboard/button (15%)
 const DRAG_THRESHOLD = 3;          // px before click becomes drag
+// Prevents false positives when comparing floating-point zoom to cover zoom
+const COVER_ZOOM_EPSILON = 0.001;
 
 export class Camera {
   constructor() {
@@ -157,12 +151,12 @@ export class Camera {
 
     // If the camera was sitting at (or below) the old cover zoom,
     // snap to the new floor and re-center.
-    if (oldCoverZoom > 0 && this.zoom <= oldCoverZoom + 0.001) {
+    if (oldCoverZoom > 0 && this.zoom <= oldCoverZoom + COVER_ZOOM_EPSILON) {
       this.zoom = this._coverZoom;
       this._centerMap();
     }
 
-    EventBus.emit('camera:changed');
+    this._notifyChanged();
   }
 
   /**
@@ -202,28 +196,7 @@ export class Camera {
   fitCover() {
     this.zoom = this._coverZoom;
     this._centerMap();
-    EventBus.emit('camera:changed');
-  }
-
-  /**
-   * Fit the entire map in view (contain mode). May show black bars.
-   */
-  fitContain() {
-    if (this.mapW <= 0 || this.mapH <= 0) return;
-    this.zoom = Math.min(
-      this.viewportW / this.mapW,
-      this.viewportH / this.mapH,
-      MAX_ZOOM
-    );
-    this._centerMap();
-    EventBus.emit('camera:changed');
-  }
-
-  /**
-   * Backward-compatible fitToSize. Maps the old API to the new model.
-   */
-  fitToSize(worldW, worldH) {
-    this.setMapSize(worldW, worldH);
+    this._notifyChanged();
   }
 
   /**
@@ -266,7 +239,7 @@ export class Camera {
     this.x += worldBefore.x - worldAfter.x;
     this.y += worldBefore.y - worldAfter.y;
 
-    EventBus.emit('camera:changed');
+    this._notifyChanged();
   }
 
   /**
@@ -291,7 +264,7 @@ export class Camera {
   panBy(dx, dy) {
     this.x -= dx / this.zoom;
     this.y -= dy / this.zoom;
-    EventBus.emit('camera:changed');
+    this._notifyChanged();
   }
 
   /**
@@ -302,7 +275,7 @@ export class Camera {
     this.x = x;
     this.y = y;
     if (zoom !== undefined) this.zoom = zoom;
-    EventBus.emit('camera:changed');
+    this._notifyChanged();
   }
 
   // -------------------------------------------------------------------
@@ -393,7 +366,7 @@ export class Camera {
       this.x = this._panStartCamX - dxScreen / (this.zoom * this.viewportScale);
       this.y = this._panStartCamY - dyScreen / (this.zoom * this.viewportScale);
 
-      EventBus.emit('camera:changed');
+      this._notifyChanged();
     });
 
     // --- Mouse up: end pan ---
@@ -484,6 +457,14 @@ export class Camera {
   }
 
   // -------------------------------------------------------------------
+  // Change notification
+  // -------------------------------------------------------------------
+
+  _notifyChanged() {
+    EventBus.emit('camera:changed');
+  }
+
+  // -------------------------------------------------------------------
   // Serialization (for BroadcastChannel sync and persistence)
   // -------------------------------------------------------------------
 
@@ -512,6 +493,6 @@ export class Camera {
       this.mapH = data.mapH;
       this._updateCoverZoom();
     }
-    EventBus.emit('camera:changed');
+    this._notifyChanged();
   }
 }

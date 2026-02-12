@@ -2,9 +2,15 @@ import { test, expect } from '@playwright/test';
 
 test.describe('Camera math — world-space model', () => {
 
-  test('screenToWorld and worldToScreen are inverses', async ({ page }) => {
+  test.beforeEach(async ({ page }) => {
     await page.goto('/vtt/');
-    await page.waitForFunction(() => document.getElementById('loading')?.hidden === true, { timeout: 15000 });
+    await page.waitForFunction(
+      () => document.getElementById('loading')?.hidden === true,
+      { timeout: 15000 }
+    );
+  });
+
+  test('screenToWorld and worldToScreen are inverses', async ({ page }) => {
     const result = await page.evaluate(() => {
       const cam = window.__vtt?.mapRenderer?.camera;
       if (!cam) return null;
@@ -20,8 +26,6 @@ test.describe('Camera math — world-space model', () => {
   });
 
   test('cover zoom: 16:9 viewport + 16:9 map → zoom ≈ 1.0', async ({ page }) => {
-    await page.goto('/vtt/');
-    await page.waitForFunction(() => document.getElementById('loading')?.hidden === true, { timeout: 15000 });
     const coverZoom = await page.evaluate(() => {
       const cam = window.__vtt?.mapRenderer?.camera;
       if (!cam) return null;
@@ -34,8 +38,6 @@ test.describe('Camera math — world-space model', () => {
   });
 
   test('cover zoom: wider viewport → zoom > 1', async ({ page }) => {
-    await page.goto('/vtt/');
-    await page.waitForFunction(() => document.getElementById('loading')?.hidden === true, { timeout: 15000 });
     const coverZoom = await page.evaluate(() => {
       const cam = window.__vtt?.mapRenderer?.camera;
       if (!cam) return null;
@@ -48,8 +50,6 @@ test.describe('Camera math — world-space model', () => {
   });
 
   test('cover zoom: taller viewport → zoom > 1', async ({ page }) => {
-    await page.goto('/vtt/');
-    await page.waitForFunction(() => document.getElementById('loading')?.hidden === true, { timeout: 15000 });
     const coverZoom = await page.evaluate(() => {
       const cam = window.__vtt?.mapRenderer?.camera;
       if (!cam) return null;
@@ -62,8 +62,6 @@ test.describe('Camera math — world-space model', () => {
   });
 
   test('zoomAt preserves world point under cursor', async ({ page }) => {
-    await page.goto('/vtt/');
-    await page.waitForFunction(() => document.getElementById('loading')?.hidden === true, { timeout: 15000 });
     const result = await page.evaluate(() => {
       const cam = window.__vtt?.mapRenderer?.camera;
       if (!cam) return null;
@@ -80,8 +78,6 @@ test.describe('Camera math — world-space model', () => {
   });
 
   test('applyTransform produces correct matrix', async ({ page }) => {
-    await page.goto('/vtt/');
-    await page.waitForFunction(() => document.getElementById('loading')?.hidden === true, { timeout: 15000 });
     const result = await page.evaluate(() => {
       const cam = window.__vtt?.mapRenderer?.camera;
       if (!cam) return null;
@@ -99,8 +95,6 @@ test.describe('Camera math — world-space model', () => {
   });
 
   test('fitCover centers the map', async ({ page }) => {
-    await page.goto('/vtt/');
-    await page.waitForFunction(() => document.getElementById('loading')?.hidden === true, { timeout: 15000 });
     const result = await page.evaluate(() => {
       const cam = window.__vtt?.mapRenderer?.camera;
       if (!cam) return null;
@@ -110,12 +104,12 @@ test.describe('Camera math — world-space model', () => {
     });
     expect(result).not.toBeNull();
     expect(Math.abs(result.x - 0)).toBeLessThan(1);
+    // At cover zoom (2560/1920 ≈ 1.333), visible height = 1080/1.333 ≈ 810px.
+    // Centering: y = (1080 - 810) / 2 = 135
     expect(Math.abs(result.y - 135)).toBeLessThan(1);
   });
 
   test('panBy converts screen delta to world displacement', async ({ page }) => {
-    await page.goto('/vtt/');
-    await page.waitForFunction(() => document.getElementById('loading')?.hidden === true, { timeout: 15000 });
     const result = await page.evaluate(() => {
       const cam = window.__vtt?.mapRenderer?.camera;
       if (!cam) return null;
@@ -128,8 +122,6 @@ test.describe('Camera math — world-space model', () => {
   });
 
   test('serialize/deserialize roundtrip', async ({ page }) => {
-    await page.goto('/vtt/');
-    await page.waitForFunction(() => document.getElementById('loading')?.hidden === true, { timeout: 15000 });
     const result = await page.evaluate(() => {
       const cam = window.__vtt?.mapRenderer?.camera;
       if (!cam) return null;

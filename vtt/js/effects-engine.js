@@ -2,7 +2,7 @@
 // VTT Effects Engine — Particles, AoE, spell VFX
 // ============================================
 
-import { EventBus, state } from './state.js';
+import { EventBus } from './state.js';
 import { EFFECTS } from './data.js';
 
 const $ = id => document.getElementById(id);

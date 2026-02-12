@@ -78,7 +78,10 @@ test.describe('Viewport-filling maps', () => {
     await page.evaluate(() => {
       window.__vtt.EventBus.emit('mode:switch', 'theater');
     });
-    await page.waitForTimeout(500);
+    await page.waitForFunction(() => {
+      const el = document.getElementById('vtt-scale-container');
+      return el && getComputedStyle(el).transform !== 'none';
+    }, { timeout: 5000 });
     const backTransform = await page.evaluate(() =>
       getComputedStyle(document.getElementById('vtt-scale-container')).transform
     );
