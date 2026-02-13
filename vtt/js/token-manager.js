@@ -3,6 +3,7 @@
 import { EventBus, state } from './state.js';
 import { TOKENS, MAP_PRESETS, CONDITIONS, CONDITION_COLORS } from './data.js';
 import { resolveCSSVar } from './utils.js';
+import { EdgePanManager } from './edge-pan.js';
 
 const $ = id => document.getElementById(id);
 const TOKEN_RADIUS_FACTOR = 0.35;  // fraction of cellPx for token radius (0.42 was original)
@@ -33,6 +34,7 @@ export class TokenManager {
     this._placingGhostPos = null;
 
     this._nextId = 1;
+    this._edgePan = null;
   }
 
   init() {
@@ -112,6 +114,8 @@ export class TokenManager {
     for (const tokenId of Object.keys(TOKENS)) {
       this.loadTokenImage(tokenId);
     }
+
+    this._edgePan = new EdgePanManager(this.map.camera);
   }
 
   _buildToken(tokenId, col, row, def, opts = {}) {
@@ -661,6 +665,7 @@ export class TokenManager {
     this._dragScreenX = sx;
     this._dragScreenY = sy;
     $('map-container').classList.add('dragging-token');
+    if (this._edgePan) this._edgePan.startTracking();
   }
 
   onMouseMove(e) {
@@ -683,6 +688,7 @@ export class TokenManager {
     const { x, y } = this._screenCoords(e);
     this._dragScreenX = x;
     this._dragScreenY = y;
+    if (this._edgePan) this._edgePan.updateCursor(x, y);
     this.draw();
   }
 
@@ -693,6 +699,7 @@ export class TokenManager {
     }
 
     if (!this._dragging) return;
+    if (this._edgePan) this._edgePan.stopTracking();
 
     const world = this.map.camera.screenToWorld(this._dragScreenX, this._dragScreenY);
     this._dragging.col = Math.floor(world.x / this.map.cellPx);
