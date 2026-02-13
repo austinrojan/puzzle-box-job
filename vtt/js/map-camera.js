@@ -17,6 +17,13 @@ const DRAG_THRESHOLD = 3;          // px before click becomes drag
 // Prevents false positives when comparing floating-point zoom to cover zoom
 const COVER_ZOOM_EPSILON = 0.001;
 
+// Apple iOS-style rubber-band: asymptotic resistance that grows weaker
+// the further you overshoot, preventing the viewport from ever reaching
+// infinite displacement. c=0.55 matches the native iOS feel.
+function rubberBand(distance, dimension, c = 0.55) {
+  return (distance * dimension * c) / (dimension + c * distance);
+}
+
 /**
  * Caches an element's bounding rect to avoid triggering layout reflow
  * on every mouse event. Invalidated by ResizeObserver, window resize,
@@ -412,6 +419,52 @@ export class Camera {
     const visibleH = this.viewportH / this.zoom;
     this.x = (this.mapW - visibleW) / 2;
     this.y = (this.mapH - visibleH) / 2;
+  }
+
+  // --- Boundary clamping ---
+
+  // Dual-regime clamp: if viewport >= map, center; else clamp to [0, map-vis]
+  _clampAxis(pos, visSize, mapSize) {
+    if (visSize >= mapSize) return -(visSize - mapSize) / 2;
+    return Math.max(0, Math.min(mapSize - visSize, pos));
+  }
+
+  _applyHardBounds() {
+    if (this.mapW <= 0 || this.mapH <= 0) return;
+    const visW = this.viewportW / this.zoom;
+    const visH = this.viewportH / this.zoom;
+    this.x = this._clampAxis(this.x, visW, this.mapW);
+    this.y = this._clampAxis(this.y, visH, this.mapH);
+  }
+
+  _applyElasticBounds() {
+    if (this.mapW <= 0 || this.mapH <= 0) return;
+    const visW = this.viewportW / this.zoom;
+    const visH = this.viewportH / this.zoom;
+    this.x = this._elasticClampAxis(this.x, visW, this.mapW, this.viewportW);
+    this.y = this._elasticClampAxis(this.y, visH, this.mapH, this.viewportH);
+  }
+
+  _elasticClampAxis(pos, visSize, mapSize, vpDim) {
+    if (visSize >= mapSize) {
+      const center = -(visSize - mapSize) / 2;
+      const overshoot = pos - center;
+      if (Math.abs(overshoot) < 0.5) return center;
+      const screenOvershoot = overshoot * this.zoom;
+      const dampened = rubberBand(Math.abs(screenOvershoot), vpDim);
+      return center + Math.sign(overshoot) * dampened / this.zoom;
+    }
+    const min = 0;
+    const max = mapSize - visSize;
+    if (pos < min) {
+      const screenOvershoot = (min - pos) * this.zoom;
+      return min - rubberBand(screenOvershoot, vpDim) / this.zoom;
+    }
+    if (pos > max) {
+      const screenOvershoot = (pos - max) * this.zoom;
+      return max + rubberBand(screenOvershoot, vpDim) / this.zoom;
+    }
+    return pos;
   }
 
   // --- Zoom operations ---
