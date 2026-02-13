@@ -41,6 +41,7 @@ class CameraAnimator {
   }
 
   snapBack(current, target, velocity = { vx: 0, vy: 0 }) {
+    this.cancel(); // Safe for Phase 5 release-velocity re-triggering
     const dx = current.x - target.x;
     const dy = current.y - target.y;
     if (Math.abs(dx) < SETTLE_THRESHOLD_PX && Math.abs(dy) < SETTLE_THRESHOLD_PX) {
@@ -53,7 +54,7 @@ class CameraAnimator {
     this._springX = { displacement: dx, velocity: velocity.vx || 0, target: target.x };
     this._springY = { displacement: dy, velocity: velocity.vy || 0, target: target.y };
     this._startTime = null;
-    if (!this._rafId) this._rafId = requestAnimationFrame(this._tick);
+    this._rafId = requestAnimationFrame(this._tick);
   }
 
   // Critically damped spring: x(t) = (A + B*t) * e^(-ω*t)
@@ -332,7 +333,7 @@ export class Camera {
     this._boundsCache = new BoundsCache();
     this._keyboard = new KeyboardController(this);
     this._animator = null;  // CameraAnimator — created in attachTo()
-    this._isDragging = false;
+    this._isDragging = false;       // Mouse-drag only; keyboard pan uses hard bounds
     this._dmCanZoomPastCover = false;
   }
 
@@ -482,12 +483,13 @@ export class Camera {
    */
   fitContain() {
     if (this.mapW <= 0 || this.mapH <= 0) return;
-    this.zoom = Math.min(
+    this.zoom = Math.max(MIN_ZOOM, Math.min(
       this.viewportW / this.mapW,
       this.viewportH / this.mapH
-    );
+    ));
     this._centerMap();
-    // Bypass constraints — intentionally allows zoom below cover floor
+    // Bypass _applyConstraints — intentionally allows zoom below cover floor
+    // but still respects absolute MIN_ZOOM floor
     EventBus.emit('camera:changed');
   }
 

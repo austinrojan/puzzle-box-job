@@ -77,8 +77,15 @@ export class EdgePanManager {
     const pastDelay = this._activeSince > 0
                    && (timestamp - this._activeSince) >= START_DELAY_MS;
     if (inZone && pastDelay) {
+      // Negate: positive vx = cursor near right edge = pan viewport right
       this._camera.panBy(-vx * dt, -vy * dt);
     }
-    this._rafId = requestAnimationFrame(this._tick);
+
+    // Only keep the loop running while in a hot zone; updateCursor restarts it
+    if (inZone) {
+      this._rafId = requestAnimationFrame(this._tick);
+    } else {
+      this._rafId = null;
+    }
   }
 }
