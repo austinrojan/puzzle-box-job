@@ -67,31 +67,26 @@ class CameraAnimator {
     };
   }
 
+  _resolveAxis(spring, t) {
+    if (!spring) return { value: spring, settled: true };
+    const { position, velocity } = this._solveSpring(spring.displacement, spring.velocity, t);
+    const active = Math.abs(position) > SETTLE_THRESHOLD_PX
+               || Math.abs(velocity) > SETTLE_THRESHOLD_VEL;
+    return {
+      value: active ? spring.target + position : spring.target,
+      settled: !active
+    };
+  }
+
   _tick(timestamp) {
     if (!this._startTime) this._startTime = timestamp;
     const t = Math.min((timestamp - this._startTime) / 1000, 2.0);
-    let settled = true;
 
-    if (this._springX) {
-      const { position, velocity } = this._solveSpring(
-        this._springX.displacement, this._springX.velocity, t);
-      if (Math.abs(position) > SETTLE_THRESHOLD_PX || Math.abs(velocity) > SETTLE_THRESHOLD_VEL) {
-        this._camera.x = this._springX.target + position;
-        settled = false;
-      } else {
-        this._camera.x = this._springX.target;
-      }
-    }
-    if (this._springY) {
-      const { position, velocity } = this._solveSpring(
-        this._springY.displacement, this._springY.velocity, t);
-      if (Math.abs(position) > SETTLE_THRESHOLD_PX || Math.abs(velocity) > SETTLE_THRESHOLD_VEL) {
-        this._camera.y = this._springY.target + position;
-        settled = false;
-      } else {
-        this._camera.y = this._springY.target;
-      }
-    }
+    const rx = this._resolveAxis(this._springX, t);
+    const ry = this._resolveAxis(this._springY, t);
+    if (this._springX) this._camera.x = rx.value;
+    if (this._springY) this._camera.y = ry.value;
+    const settled = rx.settled && ry.settled;
 
     // Emit camera:changed directly, bypassing _applyConstraints.
     // Safe because a critically damped spring (ζ=1) approaches the
@@ -99,13 +94,11 @@ class CameraAnimator {
     // initial velocity (Phase 3), displacement strictly decreases.
     // Phase 5 will add release velocity — review this bypass then.
     EventBus.emit('camera:changed');
-    if (settled) this._stop();
+    if (settled) this.cancel();
     else this._rafId = requestAnimationFrame(this._tick);
   }
 
-  cancel() { this._stop(); }
-
-  _stop() {
+  cancel() {
     if (this._rafId) { cancelAnimationFrame(this._rafId); this._rafId = null; }
     this._startTime = null;
     this._springX = null;
@@ -246,9 +239,7 @@ class KeyboardController {
     }
     if (CAMERA_KEYS.has(e.code)) {
       this._keys[e.code] = false;
-      // Stop loop when no arrow keys are held
-      let anyHeld = false;
-      for (const k of CAMERA_KEYS) { if (this._keys[k]) { anyHeld = true; break; } }
+      const anyHeld = [...CAMERA_KEYS].some(k => this._keys[k]);
       if (!anyHeld) this._stopLoop();
     }
   }
@@ -273,10 +264,7 @@ class KeyboardController {
 
   _stopLoop() {
     this._active = false;
-    if (this._rafId !== null) {
-      cancelAnimationFrame(this._rafId);
-      this._rafId = null;
-    }
+    if (this._rafId !== null) { cancelAnimationFrame(this._rafId); this._rafId = null; }
   }
 
   _tick(timestamp) {
@@ -361,9 +349,6 @@ export class Camera {
     };
   }
 
-  /**
-   * Convert world coordinates to screen coordinates.
-   */
   worldToScreen(wx, wy) {
     return {
       x: (wx - this.x) * this.zoom,
@@ -416,9 +401,6 @@ export class Camera {
     );
   }
 
-  /**
-   * Reset context to identity transform.
-   */
   resetTransform(ctx) {
     ctx.setTransform(1, 0, 0, 1, 0, 0);
   }
@@ -568,15 +550,11 @@ export class Camera {
   // --- Constraint pipeline ---
 
   _applyConstraints() {
-    const effectiveMinZoom = this._getMinZoom();
-    this.zoom = Math.max(effectiveMinZoom, Math.min(MAX_ZOOM, this.zoom));
+    this.zoom = Math.max(this._getMinZoom(), Math.min(MAX_ZOOM, this.zoom));
 
-    if (this.mapW <= 0 || this.mapH <= 0) {
-      // No map loaded; skip pan clamping
-    } else if (this._isDragging) {
-      this._applyElasticBounds();
-    } else {
-      this._applyHardBounds();
+    if (this.mapW > 0 && this.mapH > 0) {
+      if (this._isDragging) this._applyElasticBounds();
+      else this._applyHardBounds();
     }
 
     EventBus.emit('camera:changed');
@@ -703,12 +681,7 @@ export class Camera {
         return;
       }
       if (e.button === 0) {
-        this._pendingPan = true;
-        this._panStartX = e.clientX;
-        this._panStartY = e.clientY;
-        this._panStartCamX = this.x;
-        this._panStartCamY = this.y;
-        this._panScreenDist = 0;
+        this._initPendingPan(e);
       }
     });
 
@@ -720,11 +693,8 @@ export class Camera {
         }
         const dist = Math.abs(e.clientX - this._panStartX)
                    + Math.abs(e.clientY - this._panStartY);
-        if (dist > DRAG_THRESHOLD) {
-          this._commitPan();
-        } else {
-          return;
-        }
+        if (dist <= DRAG_THRESHOLD) return;
+        this._commitPan();
       }
 
       if (!this._panning) return;
@@ -820,6 +790,15 @@ export class Camera {
   }
 
   // --- Pan state management ---
+
+  _initPendingPan(e) {
+    this._pendingPan = true;
+    this._panStartX = e.clientX;
+    this._panStartY = e.clientY;
+    this._panStartCamX = this.x;
+    this._panStartCamY = this.y;
+    this._panScreenDist = 0;
+  }
 
   _startPan(e, button) {
     this._panning = true;

@@ -66,15 +66,17 @@ export class EdgePanManager {
     const vy = this._axisVelocity(this._cursorY, this._camera.viewportH);
     const inZone = vx !== 0 || vy !== 0;
 
-    if (inZone && !this._inHotZone) {
-      this._inHotZone = true;
-      this._activeSince = timestamp;
-    } else if (!inZone) {
+    if (!inZone) {
       this._inHotZone = false;
       this._activeSince = 0;
+    } else if (!this._inHotZone) {
+      this._inHotZone = true;
+      this._activeSince = timestamp;
     }
 
-    if (inZone && this._activeSince > 0 && (timestamp - this._activeSince) >= START_DELAY_MS) {
+    const pastDelay = this._activeSince > 0
+                   && (timestamp - this._activeSince) >= START_DELAY_MS;
+    if (inZone && pastDelay) {
       this._camera.panBy(-vx * dt, -vy * dt);
     }
     this._rafId = requestAnimationFrame(this._tick);
