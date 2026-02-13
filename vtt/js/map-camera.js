@@ -122,12 +122,12 @@ class KeyboardController {
         return;
       }
       // Zoom presets (Shift+0 = ')', Shift+1 = '!' on US keyboards)
-      if (e.shiftKey && e.key === ')') {
+      if (e.shiftKey && (e.key === ')' || e.code === 'Digit0')) {
         e.preventDefault();
         this._camera.fitCover();
         return;
       }
-      if (e.shiftKey && e.key === '!') {
+      if (e.shiftKey && (e.key === '!' || e.code === 'Digit1')) {
         e.preventDefault();
         this._camera.fitContain();
         return;
