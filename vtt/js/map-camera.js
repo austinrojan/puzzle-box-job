@@ -6,15 +6,206 @@
 // the world-coordinate position of the viewport's top-left corner.
 
 import { EventBus } from './state.js';
+import { normalizeWheel } from './normalize-wheel.js';
 
 // --- Constants ---
 const MIN_ZOOM = 0.1;              // absolute floor (safety valve)
 const MAX_ZOOM = 5.0;              // absolute ceiling
-const ZOOM_FACTOR = 1.04;          // per-tick scroll/pinch (4%)
-const ZOOM_FACTOR_KEY = 1.15;      // per-press keyboard/button (15%)
+const ZOOM_SENSITIVITY = 0.6;     // wheel zoom: 0.5 = gentle, 1.0 = aggressive
+const ZOOM_STEP_KEY = 0.4;        // per-press keyboard/button step in log2 space
 const DRAG_THRESHOLD = 3;          // px before click becomes drag
 // Prevents false positives when comparing floating-point zoom to cover zoom
 const COVER_ZOOM_EPSILON = 0.001;
+
+/**
+ * Caches an element's bounding rect to avoid triggering layout reflow
+ * on every mouse event. Invalidated by ResizeObserver, window resize,
+ * and window scroll. Checked lazily on getRect().
+ */
+class BoundsCache {
+  constructor() {
+    this._rect = null;
+    this._valid = false;
+    this._el = null;
+    this._resizeObserver = null;
+    this._invalidate = () => { this._valid = false; };
+  }
+
+  observe(el) {
+    this.disconnect();
+    this._el = el;
+    this._valid = false;
+    this._resizeObserver = new ResizeObserver(this._invalidate);
+    this._resizeObserver.observe(el);
+    window.addEventListener('resize', this._invalidate);
+    window.addEventListener('scroll', this._invalidate);
+  }
+
+  disconnect() {
+    if (this._resizeObserver) {
+      this._resizeObserver.disconnect();
+      this._resizeObserver = null;
+    }
+    window.removeEventListener('resize', this._invalidate);
+    window.removeEventListener('scroll', this._invalidate);
+    this._el = null;
+    this._valid = false;
+  }
+
+  invalidate() { this._valid = false; }
+
+  getRect() {
+    if (!this._valid || !this._rect) {
+      if (!this._el) return { left: 0, top: 0, width: 0, height: 0 };
+      this._rect = this._el.getBoundingClientRect();
+      this._valid = true;
+    }
+    return this._rect;
+  }
+}
+
+// --- Keyboard camera control ---
+const CAMERA_KEYS = new Set([
+  'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'
+]);
+
+const PAN_SPEED = 600;           // base CSS px/sec
+const PAN_SPEED_SHIFT = 1800;    // 3× with Shift held
+
+/**
+ * Keyboard camera control via key state map + rAF loop.
+ * The loop only runs while at least one arrow key is held.
+ * Pan speed is in screen pixels; panBy() converts to world-space.
+ */
+class KeyboardController {
+  constructor(camera) {
+    this._camera = camera;
+    this._keys = {};
+    this._rafId = null;
+    this._lastTimestamp = 0;
+    this._active = false;
+
+    this._onKeyDown = this._onKeyDown.bind(this);
+    this._onKeyUp = this._onKeyUp.bind(this);
+    this._onBlur = this._onBlur.bind(this);
+    this._onVisibilityChange = this._onVisibilityChange.bind(this);
+    this._tick = this._tick.bind(this);
+  }
+
+  attach() {
+    window.addEventListener('keydown', this._onKeyDown);
+    window.addEventListener('keyup', this._onKeyUp);
+    window.addEventListener('blur', this._onBlur);
+    document.addEventListener('visibilitychange', this._onVisibilityChange);
+  }
+
+  _onKeyDown(e) {
+    const tag = e.target.tagName;
+    if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+    if (e.target.isContentEditable) return;
+
+    if (e.code === 'ShiftLeft' || e.code === 'ShiftRight') {
+      this._keys[e.code] = true;
+    }
+
+    // Discrete zoom keys (no repeat, no Ctrl/Cmd modifier)
+    if (!e.repeat && !e.ctrlKey && !e.metaKey) {
+      if (e.key === '+' || e.key === '=') {
+        e.preventDefault();
+        this._camera.zoomToCenter(ZOOM_STEP_KEY);
+        return;
+      }
+      if (e.key === '-') {
+        e.preventDefault();
+        this._camera.zoomToCenter(-ZOOM_STEP_KEY);
+        return;
+      }
+      // Zoom presets (Shift+0 = ')', Shift+1 = '!' on US keyboards)
+      if (e.shiftKey && e.key === ')') {
+        e.preventDefault();
+        this._camera.fitCover();
+        return;
+      }
+      if (e.shiftKey && e.key === '!') {
+        e.preventDefault();
+        this._camera.fitContain();
+        return;
+      }
+    }
+
+    // Continuous pan keys
+    if (CAMERA_KEYS.has(e.code)) {
+      e.preventDefault();
+      if (!this._keys[e.code]) {
+        this._keys[e.code] = true;
+        this._startLoop();
+      }
+    }
+  }
+
+  _onKeyUp(e) {
+    if (e.code === 'ShiftLeft' || e.code === 'ShiftRight') {
+      this._keys[e.code] = false;
+    }
+    if (CAMERA_KEYS.has(e.code)) {
+      this._keys[e.code] = false;
+      // Stop loop when no arrow keys are held
+      const anyCameraKey = [...CAMERA_KEYS].some(k => this._keys[k]);
+      if (!anyCameraKey) this._stopLoop();
+    }
+  }
+
+  _onBlur() { this._clearKeys(); }
+
+  _onVisibilityChange() {
+    if (document.hidden) this._clearKeys();
+  }
+
+  _clearKeys() {
+    for (const k in this._keys) this._keys[k] = false;
+    this._stopLoop();
+  }
+
+  _startLoop() {
+    if (this._active) return;
+    this._active = true;
+    this._lastTimestamp = performance.now();
+    this._rafId = requestAnimationFrame(this._tick);
+  }
+
+  _stopLoop() {
+    this._active = false;
+    if (this._rafId !== null) {
+      cancelAnimationFrame(this._rafId);
+      this._rafId = null;
+    }
+  }
+
+  _tick(timestamp) {
+    if (!this._active) return;
+
+    // Cap dt to prevent teleporting after tab was backgrounded
+    const dt = Math.min((timestamp - this._lastTimestamp) / 1000, 0.1);
+    this._lastTimestamp = timestamp;
+
+    const speed = this._keys['ShiftLeft'] || this._keys['ShiftRight']
+      ? PAN_SPEED_SHIFT
+      : PAN_SPEED;
+
+    let dx = 0;
+    let dy = 0;
+    if (this._keys['ArrowLeft'])  dx -= speed * dt;
+    if (this._keys['ArrowRight']) dx += speed * dt;
+    if (this._keys['ArrowUp'])    dy -= speed * dt;
+    if (this._keys['ArrowDown'])  dy += speed * dt;
+
+    if (dx !== 0 || dy !== 0) {
+      this._camera.panBy(dx, dy);
+    }
+
+    this._rafId = requestAnimationFrame(this._tick);
+  }
+}
 
 export class Camera {
   constructor() {
@@ -50,6 +241,8 @@ export class Camera {
     this._panScreenDist = 0;
     this.spaceHeld = false;
     this._el = null;
+    this._boundsCache = new BoundsCache();
+    this._keyboard = new KeyboardController(this);
   }
 
   // -------------------------------------------------------------------
@@ -83,8 +276,7 @@ export class Camera {
    * any CSS transform scale.
    */
   eventToScreen(e) {
-    if (!this._el) return { x: 0, y: 0 };
-    const rect = this._el.getBoundingClientRect();
+    const rect = this._boundsCache.getRect();
     return {
       x: (e.clientX - rect.left) / this.viewportScale,
       y: (e.clientY - rect.top) / this.viewportScale
@@ -200,6 +392,20 @@ export class Camera {
   }
 
   /**
+   * Snap to contain zoom and center the map.
+   * Shows the entire map with possible letterboxing.
+   */
+  fitContain() {
+    if (this.mapW <= 0 || this.mapH <= 0) return;
+    this.zoom = Math.min(
+      this.viewportW / this.mapW,
+      this.viewportH / this.mapH
+    );
+    this._centerMap();
+    this._notifyChanged();
+  }
+
+  /**
    * Center the map in the viewport at the current zoom level.
    */
   _centerMap() {
@@ -215,38 +421,26 @@ export class Camera {
 
   /**
    * Zoom centered on a screen-space point.
-   *
-   * The algorithm (formalized by Steve Ruiz of tldraw):
-   * 1. Convert screen point to world coords at old zoom
-   * 2. Update zoom
-   * 3. Convert same screen point to world coords at new zoom
-   * 4. Adjust camera position by the difference
+   * @param {number} sx Screen X (CSS px from canvas left)
+   * @param {number} sy Screen Y (CSS px from canvas top)
+   * @param {number} delta Zoom delta in log2 space. Positive = zoom in.
    */
-  zoomAt(sx, sy, direction, factor = ZOOM_FACTOR) {
-    // 1. World point under cursor before zoom
+  zoomAt(sx, sy, delta) {
     const worldBefore = this.screenToWorld(sx, sy);
-
-    // 2. Update zoom
-    const newZoom = direction > 0
-      ? this.zoom * factor
-      : this.zoom / factor;
+    const newZoom = this.zoom * Math.pow(2, delta);
     this.zoom = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, newZoom));
-
-    // 3. World point under cursor after zoom (same screen position)
     const worldAfter = this.screenToWorld(sx, sy);
-
-    // 4. Adjust camera so the world point stays at the same screen position
     this.x += worldBefore.x - worldAfter.x;
     this.y += worldBefore.y - worldAfter.y;
-
     this._notifyChanged();
   }
 
   /**
-   * Zoom centered on viewport midpoint (keyboard/button zoom).
+   * Zoom centered on viewport midpoint.
+   * @param {number} delta Zoom delta in log2 space. Positive = zoom in.
    */
-  zoomToCenter(direction, factor = ZOOM_FACTOR_KEY) {
-    this.zoomAt(this.viewportW / 2, this.viewportH / 2, direction, factor);
+  zoomToCenter(delta) {
+    this.zoomAt(this.viewportW / 2, this.viewportH / 2, delta);
   }
 
   // -------------------------------------------------------------------
@@ -282,30 +476,44 @@ export class Camera {
   // Input handling (attached to map container)
   // -------------------------------------------------------------------
 
+  /**
+   * Prevent browser-level zoom on all input vectors.
+   */
+  _preventBrowserZoom() {
+    document.addEventListener('wheel', (e) => {
+      if (e.ctrlKey || e.metaKey) e.preventDefault();
+    }, { passive: false });
+
+    document.addEventListener('keydown', (e) => {
+      if ((e.ctrlKey || e.metaKey) &&
+          ['+', '-', '=', '0'].includes(e.key)) {
+        e.preventDefault();
+      }
+    });
+
+    if (typeof GestureEvent !== 'undefined') {
+      document.addEventListener('gesturestart', (e) => e.preventDefault(),
+        { passive: false });
+      document.addEventListener('gesturechange', (e) => e.preventDefault(),
+        { passive: false });
+    }
+  }
+
   attachTo(el) {
     if (this._el) return; // idempotency guard — prevents duplicate window listeners
     this._el = el;
+    this._boundsCache.observe(el);
+    this._preventBrowserZoom();
+    this._keyboard.attach();
 
-    // --- Wheel: pinch/Ctrl+scroll = zoom, regular scroll = pan ---
+    // --- Wheel: normalized input → zoom at cursor or pan ---
     el.addEventListener('wheel', (e) => {
       e.preventDefault();
-
-      // Normalize deltaY across browsers
-      let dx = e.deltaX;
-      let dy = e.deltaY;
-      if (e.deltaMode === 1) {        // DOM_DELTA_LINE
-        dx *= 40;
-        dy *= 40;
-      } else if (e.deltaMode === 2) { // DOM_DELTA_PAGE
-        dx *= 800;
-        dy *= 800;
-      }
-
-      if (e.ctrlKey || e.metaKey) {
+      const { dx, dy, dz } = normalizeWheel(e);
+      if (dz !== 0) {
         const screen = this.eventToScreen(e);
-        const direction = dy < 0 ? 1 : -1;
-        this.zoomAt(screen.x, screen.y, direction);
-      } else {
+        this.zoomAt(screen.x, screen.y, dz * -ZOOM_SENSITIVITY);
+      } else if (dx !== 0 || dy !== 0) {
         this.panBy(-dx, -dy);
       }
     }, { passive: false });
@@ -408,7 +616,9 @@ export class Camera {
 
     // --- EventBus handlers (from Controller via BroadcastChannel) ---
     EventBus.on('camera:pan', ({ dx, dy }) => this.panBy(dx, dy));
-    EventBus.on('camera:zoom', (direction) => this.zoomToCenter(direction));
+    EventBus.on('camera:zoom', (direction) => {
+      this.zoomToCenter(direction > 0 ? ZOOM_STEP_KEY : -ZOOM_STEP_KEY);
+    });
     EventBus.on('camera:set-state', ({ x, y, zoom }) => this.setPosition(x, y, zoom));
 
     // --- Focus/visibility safety ---
