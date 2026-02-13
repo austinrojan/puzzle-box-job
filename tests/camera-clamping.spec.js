@@ -258,3 +258,43 @@ test.describe('Constraint integration — zoom floor and pan clamping', () => {
     expect(result.dy).toBeLessThan(1);
   });
 });
+
+test.describe('Elastic overscroll + snap-back', () => {
+  test.beforeEach(async ({ page }) => {
+    await gotoVTT(page);
+    await enterMapMode(page);
+  });
+
+  test('_isDragging=true enables elastic mode (not hard clamp)', async ({ page }) => {
+    const result = await page.evaluate(() => {
+      const cam = window.__vtt?.mapRenderer?.camera;
+      if (!cam) return null;
+      cam.zoom = 2.0;
+      cam._isDragging = true;
+      cam.x = -200;
+      cam._applyConstraints();
+      const elasticX = cam.x;
+      cam._isDragging = false;
+      cam._applyConstraints();
+      const hardX = cam.x;
+      return { elasticX, hardX };
+    });
+    expect(result.elasticX).toBeLessThan(0);
+    expect(result.elasticX).toBeGreaterThan(-200);
+    expect(result.hardX).toBeCloseTo(0, 0);
+  });
+
+  test('_triggerSnapBack settles within bounds after ~600ms', async ({ page }) => {
+    await page.evaluate(() => {
+      const cam = window.__vtt?.mapRenderer?.camera;
+      if (!cam) return;
+      cam.zoom = 2.0;
+      cam.x = -50;
+      cam._isDragging = false;
+      cam._triggerSnapBack();
+    });
+    await page.waitForTimeout(600);
+    const x = await page.evaluate(() => window.__vtt?.mapRenderer?.camera?.x);
+    expect(x).toBeGreaterThanOrEqual(-0.5);
+  });
+});

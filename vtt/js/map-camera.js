@@ -748,10 +748,12 @@ export class Camera {
       if (!this._panning || e.button !== this._panButton) return;
       this._panning = false;
       this._panButton = -1;
+      this._isDragging = false;
       if (this._el) {
         this._el.classList.remove('panning');
         this._el.style.cursor = this.spaceHeld ? 'grab' : '';
       }
+      this._triggerSnapBack();
     });
 
     el.addEventListener('contextmenu', (e) => {
@@ -820,6 +822,8 @@ export class Camera {
     this._panStartCamX = this.x;
     this._panStartCamY = this.y;
     this._panScreenDist = 0;
+    this._isDragging = true;
+    if (this._animator) this._animator.cancel();
     this._setPanCursor(true);
   }
 
@@ -827,6 +831,8 @@ export class Camera {
     this._panning = true;
     this._pendingPan = false;
     this._panButton = 0;
+    this._isDragging = true;
+    if (this._animator) this._animator.cancel();
     this._setPanCursor(true);
   }
 
@@ -834,7 +840,9 @@ export class Camera {
     this._panning = false;
     this._pendingPan = false;
     this._panButton = -1;
+    this._isDragging = false;
     this._setPanCursor(false);
+    this._triggerSnapBack();
   }
 
   _setPanCursor(active) {
