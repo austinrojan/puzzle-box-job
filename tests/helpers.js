@@ -48,6 +48,33 @@ export const APPS = [
  * @param {string} property - camelCase CSS property name (e.g. 'paddingRight', 'marginTop')
  * @param {(page: import('@playwright/test').Page) => Promise<void>} [setup] - optional setup before measurement (e.g. navigate to content)
  */
+/**
+ * Navigate to VTT and wait for the loading screen to hide.
+ */
+export async function gotoVTT(page) {
+  await page.goto('/vtt/');
+  await page.waitForFunction(
+    () => document.getElementById('loading')?.hidden === true,
+    { timeout: 15000 }
+  );
+}
+
+/**
+ * Switch to map mode and wait for the camera to have a loaded map.
+ */
+export async function enterMapMode(page) {
+  await page.evaluate(() => {
+    const vtt = window.__vtt;
+    if (!vtt) return;
+    vtt.EventBus.emit('mode:switch', 'map');
+    if (!vtt.state.mapId) vtt.EventBus.emit('map:load', 'M01');
+  });
+  await page.waitForFunction(() => {
+    const cam = window.__vtt?.mapRenderer?.camera;
+    return cam && cam.mapW > 0;
+  }, { timeout: 10000 });
+}
+
 export async function expectDensityReduces(page, expect, selector, property, setup) {
   await page.goto('/');
   if (setup) await setup(page);

@@ -1,13 +1,10 @@
 import { test, expect } from '@playwright/test';
+import { gotoVTT } from './helpers.js';
 
 test.describe('Camera math — world-space model', () => {
 
   test.beforeEach(async ({ page }) => {
-    await page.goto('/vtt/');
-    await page.waitForFunction(
-      () => document.getElementById('loading')?.hidden === true,
-      { timeout: 15000 }
-    );
+    await gotoVTT(page);
   });
 
   test('screenToWorld and worldToScreen are inverses', async ({ page }) => {

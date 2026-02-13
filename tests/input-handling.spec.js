@@ -1,38 +1,26 @@
 import { test, expect } from '@playwright/test';
+import { gotoVTT, enterMapMode } from './helpers.js';
 
-async function enterMapMode(page) {
-  await page.evaluate(() => {
-    const vtt = window.__vtt;
-    if (!vtt) return;
-    vtt.EventBus.emit('mode:switch', 'map');
-    if (!vtt.state.mapId) vtt.EventBus.emit('map:load', 'M01');
-  });
-  await page.waitForFunction(() => {
-    const cam = window.__vtt?.mapRenderer?.camera;
-    return cam && cam.mapW > 0;
-  }, { timeout: 10000 });
+async function evalNormalize(page, wheelEvent) {
+  return page.evaluate(async (evt) => {
+    const { normalizeWheel } = await import('/vtt/js/normalize-wheel.js');
+    return normalizeWheel(evt);
+  }, wheelEvent);
 }
 
 test.describe('Phase 2: Input handling', () => {
 
   test.beforeEach(async ({ page }) => {
-    await page.goto('/vtt/');
-    await page.waitForFunction(
-      () => document.getElementById('loading')?.hidden === true,
-      { timeout: 15000 }
-    );
+    await gotoVTT(page);
     await enterMapMode(page);
   });
 
   // --- normalizeWheel unit tests (run via dynamic import in browser) ---
 
   test('normalizeWheel: Chrome mouse wheel → pan dy', async ({ page }) => {
-    const result = await page.evaluate(async () => {
-      const { normalizeWheel } = await import('/vtt/js/normalize-wheel.js');
-      return normalizeWheel({
-        deltaX: 0, deltaY: 100, deltaMode: 0,
-        ctrlKey: false, metaKey: false, shiftKey: false
-      });
+    const result = await evalNormalize(page, {
+      deltaX: 0, deltaY: 100, deltaMode: 0,
+      ctrlKey: false, metaKey: false, shiftKey: false
     });
     expect(result.dz).toBe(0);
     expect(result.dy).toBe(100);
@@ -40,23 +28,17 @@ test.describe('Phase 2: Input handling', () => {
   });
 
   test('normalizeWheel: Firefox line mode → scaled', async ({ page }) => {
-    const result = await page.evaluate(async () => {
-      const { normalizeWheel } = await import('/vtt/js/normalize-wheel.js');
-      return normalizeWheel({
-        deltaX: 0, deltaY: 3, deltaMode: 1,
-        ctrlKey: false, metaKey: false, shiftKey: false
-      });
+    const result = await evalNormalize(page, {
+      deltaX: 0, deltaY: 3, deltaMode: 1,
+      ctrlKey: false, metaKey: false, shiftKey: false
     });
     expect(result.dy).toBe(120); // 3 * LINE_HEIGHT(40)
   });
 
   test('normalizeWheel: pinch zoom clamped', async ({ page }) => {
-    const result = await page.evaluate(async () => {
-      const { normalizeWheel } = await import('/vtt/js/normalize-wheel.js');
-      return normalizeWheel({
-        deltaX: 0, deltaY: 50, deltaMode: 0,
-        ctrlKey: true, metaKey: false, shiftKey: false
-      });
+    const result = await evalNormalize(page, {
+      deltaX: 0, deltaY: 50, deltaMode: 0,
+      ctrlKey: true, metaKey: false, shiftKey: false
     });
     expect(result.dz).toBeCloseTo(0.1); // MAX_ZOOM_STEP(10) / 100
     expect(result.dx).toBe(0);
@@ -64,12 +46,9 @@ test.describe('Phase 2: Input handling', () => {
   });
 
   test('normalizeWheel: Shift+scroll → horizontal', async ({ page }) => {
-    const result = await page.evaluate(async () => {
-      const { normalizeWheel } = await import('/vtt/js/normalize-wheel.js');
-      return normalizeWheel({
-        deltaX: 0, deltaY: 100, deltaMode: 0,
-        ctrlKey: false, metaKey: false, shiftKey: true
-      });
+    const result = await evalNormalize(page, {
+      deltaX: 0, deltaY: 100, deltaMode: 0,
+      ctrlKey: false, metaKey: false, shiftKey: true
     });
     expect(result.dx).toBe(100);
     expect(result.dy).toBe(0);
@@ -77,12 +56,9 @@ test.describe('Phase 2: Input handling', () => {
   });
 
   test('normalizeWheel: page deltaMode', async ({ page }) => {
-    const result = await page.evaluate(async () => {
-      const { normalizeWheel } = await import('/vtt/js/normalize-wheel.js');
-      return normalizeWheel({
-        deltaX: 0, deltaY: 1, deltaMode: 2,
-        ctrlKey: false, metaKey: false, shiftKey: false
-      });
+    const result = await evalNormalize(page, {
+      deltaX: 0, deltaY: 1, deltaMode: 2,
+      ctrlKey: false, metaKey: false, shiftKey: false
     });
     expect(result.dy).toBe(800); // 1 * PAGE_HEIGHT(800)
   });
