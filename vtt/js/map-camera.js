@@ -200,7 +200,9 @@ class KeyboardController {
     if (this._keys['ArrowDown'])  dy += speed * dt;
 
     if (dx !== 0 || dy !== 0) {
-      this._camera.panBy(dx, dy);
+      // Negate: panBy uses drag convention (positive = viewport left),
+      // but ArrowRight should move viewport right.
+      this._camera.panBy(-dx, -dy);
     }
 
     this._rafId = requestAnimationFrame(this._tick);
