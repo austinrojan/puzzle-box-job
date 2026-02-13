@@ -384,6 +384,7 @@ export class Camera {
    * This is the "home" position: no black bars, map centered.
    */
   fitCover() {
+    if (this.mapW <= 0 || this.mapH <= 0) return;
     this.zoom = this._coverZoom;
     this._centerMap();
     this._notifyChanged();
