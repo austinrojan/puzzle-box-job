@@ -111,3 +111,64 @@ test.describe('Pure math — clampAxis and rubberBand', () => {
     expect(result.ratio).toBeLessThan(10);
   });
 });
+
+test.describe('Critically damped spring solver', () => {
+  test.beforeEach(async ({ page }) => { await gotoVTT(page); });
+
+  test('returns full displacement at t=0', async ({ page }) => {
+    const pos = await page.evaluate(() => {
+      const a = window.__vtt?.mapRenderer?.camera?._animator;
+      return a ? a._solveSpring(100, 0, 0).position : null;
+    });
+    expect(pos).toBeCloseTo(100, 4);
+  });
+
+  test('converges to <1px within 0.5s', async ({ page }) => {
+    const pos = await page.evaluate(() => {
+      const a = window.__vtt?.mapRenderer?.camera?._animator;
+      return a ? Math.abs(a._solveSpring(100, 0, 0.5).position) : null;
+    });
+    expect(pos).toBeLessThan(1.0);
+  });
+
+  test('never overshoots with zero initial velocity', async ({ page }) => {
+    const minPos = await page.evaluate(() => {
+      const a = window.__vtt?.mapRenderer?.camera?._animator;
+      if (!a) return null;
+      let min = Infinity;
+      for (let ms = 0; ms <= 1000; ms++) {
+        min = Math.min(min, a._solveSpring(100, 0, ms / 1000).position);
+      }
+      return min;
+    });
+    expect(minPos).toBeGreaterThanOrEqual(-0.01);
+  });
+
+  test('settles large displacement (500px) within 0.5s', async ({ page }) => {
+    const pos = await page.evaluate(() => {
+      const a = window.__vtt?.mapRenderer?.camera?._animator;
+      return a ? Math.abs(a._solveSpring(500, 0, 0.5).position) : null;
+    });
+    expect(pos).toBeLessThan(5.0);
+  });
+
+  test('closed-form matches fine-grained Euler approximation', async ({ page }) => {
+    const result = await page.evaluate(() => {
+      const a = window.__vtt?.mapRenderer?.camera?._animator;
+      if (!a) return null;
+      const STIFFNESS = 200;
+      const OMEGA = Math.sqrt(STIFFNESS);
+      const displacement = 100, velocity = 0;
+      const analytical = a._solveSpring(displacement, velocity, 0.1);
+      let pos = displacement, vel = velocity;
+      const steps = 1000, dt = 0.1 / steps;
+      for (let i = 0; i < steps; i++) {
+        const accel = -STIFFNESS * pos - 2 * OMEGA * vel;
+        vel += accel * dt;
+        pos += vel * dt;
+      }
+      return { analytical: analytical.position, euler: pos };
+    });
+    expect(result.analytical).toBeCloseTo(result.euler, 1);
+  });
+});

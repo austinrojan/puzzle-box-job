@@ -24,6 +24,92 @@ function rubberBand(distance, dimension, c = 0.55) {
   return (distance * dimension * c) / (dimension + c * distance);
 }
 
+// --- Spring animation ---
+const SPRING_STIFFNESS = 200;
+const SPRING_OMEGA = Math.sqrt(SPRING_STIFFNESS); // ≈ 14.14
+const SETTLE_THRESHOLD_PX = 0.5;
+const SETTLE_THRESHOLD_VEL = 0.5;
+
+class CameraAnimator {
+  constructor(camera) {
+    this._camera = camera;
+    this._rafId = null;
+    this._startTime = null;
+    this._springX = null;
+    this._springY = null;
+    this._tick = this._tick.bind(this);
+  }
+
+  snapBack(current, target, velocity = { vx: 0, vy: 0 }) {
+    const dx = current.x - target.x;
+    const dy = current.y - target.y;
+    if (Math.abs(dx) < SETTLE_THRESHOLD_PX && Math.abs(dy) < SETTLE_THRESHOLD_PX) {
+      this._camera.x = target.x;
+      this._camera.y = target.y;
+      this._camera._applyHardBounds();
+      EventBus.emit('camera:changed');
+      return;
+    }
+    this._springX = { displacement: dx, velocity: velocity.vx || 0, target: target.x };
+    this._springY = { displacement: dy, velocity: velocity.vy || 0, target: target.y };
+    this._startTime = null;
+    if (!this._rafId) this._rafId = requestAnimationFrame(this._tick);
+  }
+
+  // Critically damped spring: x(t) = (A + B*t) * e^(-ω*t)
+  _solveSpring(displacement, velocity, t) {
+    const A = displacement;
+    const B = velocity + SPRING_OMEGA * displacement;
+    const exp = Math.exp(-SPRING_OMEGA * t);
+    return {
+      position: (A + B * t) * exp,
+      velocity: (B - SPRING_OMEGA * (A + B * t)) * exp
+    };
+  }
+
+  _tick(timestamp) {
+    if (!this._startTime) this._startTime = timestamp;
+    const t = Math.min((timestamp - this._startTime) / 1000, 2.0);
+    let settled = true;
+
+    if (this._springX) {
+      const { position, velocity } = this._solveSpring(
+        this._springX.displacement, this._springX.velocity, t);
+      if (Math.abs(position) > SETTLE_THRESHOLD_PX || Math.abs(velocity) > SETTLE_THRESHOLD_VEL) {
+        this._camera.x = this._springX.target + position;
+        settled = false;
+      } else {
+        this._camera.x = this._springX.target;
+      }
+    }
+    if (this._springY) {
+      const { position, velocity } = this._solveSpring(
+        this._springY.displacement, this._springY.velocity, t);
+      if (Math.abs(position) > SETTLE_THRESHOLD_PX || Math.abs(velocity) > SETTLE_THRESHOLD_VEL) {
+        this._camera.y = this._springY.target + position;
+        settled = false;
+      } else {
+        this._camera.y = this._springY.target;
+      }
+    }
+
+    // Emit directly — critically damped spring (ζ=1) approaches target
+    // monotonically with zero initial velocity, never crossing it.
+    EventBus.emit('camera:changed');
+    if (settled) this._stop();
+    else this._rafId = requestAnimationFrame(this._tick);
+  }
+
+  cancel() { this._stop(); }
+
+  _stop() {
+    if (this._rafId) { cancelAnimationFrame(this._rafId); this._rafId = null; }
+    this._startTime = null;
+    this._springX = null;
+    this._springY = null;
+  }
+}
+
 /**
  * Caches an element's bounding rect to avoid triggering layout reflow
  * on every mouse event. Invalidated by ResizeObserver, window resize,
@@ -254,6 +340,7 @@ export class Camera {
     this._el = null;
     this._boundsCache = new BoundsCache();
     this._keyboard = new KeyboardController(this);
+    this._animator = null;  // CameraAnimator — created in attachTo()
   }
 
   // --- Coordinate conversion ---
@@ -668,6 +755,7 @@ export class Camera {
     this._boundsCache.observe(el);
     this._preventBrowserZoom();
     this._keyboard.attach();
+    this._animator = new CameraAnimator(this);
     this._attachWheelHandler(el);
     this._attachMouseHandlers(el);
     this._attachSpaceKey();
