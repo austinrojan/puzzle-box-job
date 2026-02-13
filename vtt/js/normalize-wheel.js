@@ -1,11 +1,3 @@
-// ============================================
-// Wheel Event Normalizer
-// ============================================
-//
-// Normalizes wheel events across browsers into a consistent format.
-// Returns { dx, dy, dz } where dx/dy are pan deltas in pixels and
-// dz is a zoom delta (nonzero only for pinch/Ctrl+scroll).
-
 const LINE_HEIGHT = 40;   // px per "line" (Firefox deltaMode 1)
 const PAGE_HEIGHT = 800;  // px per "page" (rare deltaMode 2)
 const MAX_ZOOM_STEP = 10; // clamp extreme pinch deltas (tldraw pattern)

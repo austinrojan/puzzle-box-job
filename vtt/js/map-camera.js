@@ -52,8 +52,6 @@ class BoundsCache {
     this._valid = false;
   }
 
-  invalidate() { this._valid = false; }
-
   getRect() {
     if (!this._valid || !this._rect) {
       if (!this._el) return { left: 0, top: 0, width: 0, height: 0 };
@@ -71,6 +69,11 @@ const CAMERA_KEYS = new Set([
 
 const PAN_SPEED = 600;           // base CSS px/sec
 const PAN_SPEED_SHIFT = 1800;    // 3× with Shift held
+
+function _isInputFocused(e) {
+  const tag = e.target.tagName;
+  return tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || e.target.isContentEditable;
+}
 
 /**
  * Keyboard camera control via key state map + rAF loop.
@@ -100,9 +103,7 @@ class KeyboardController {
   }
 
   _onKeyDown(e) {
-    const tag = e.target.tagName;
-    if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
-    if (e.target.isContentEditable) return;
+    if (_isInputFocused(e)) return;
 
     if (e.code === 'ShiftLeft' || e.code === 'ShiftRight') {
       this._keys[e.code] = true;
@@ -150,8 +151,9 @@ class KeyboardController {
     if (CAMERA_KEYS.has(e.code)) {
       this._keys[e.code] = false;
       // Stop loop when no arrow keys are held
-      const anyCameraKey = [...CAMERA_KEYS].some(k => this._keys[k]);
-      if (!anyCameraKey) this._stopLoop();
+      let anyHeld = false;
+      for (const k of CAMERA_KEYS) { if (this._keys[k]) { anyHeld = true; break; } }
+      if (!anyHeld) this._stopLoop();
     }
   }
 
@@ -162,7 +164,7 @@ class KeyboardController {
   }
 
   _clearKeys() {
-    for (const k in this._keys) this._keys[k] = false;
+    this._keys = {};
     this._stopLoop();
   }
 
@@ -247,9 +249,7 @@ export class Camera {
     this._keyboard = new KeyboardController(this);
   }
 
-  // -------------------------------------------------------------------
-  // Coordinate conversion
-  // -------------------------------------------------------------------
+  // --- Coordinate conversion ---
 
   /**
    * Convert screen coordinates (CSS pixels relative to canvas top-left)
@@ -294,9 +294,7 @@ export class Camera {
     return this.screenToWorld(screen.x, screen.y);
   }
 
-  // -------------------------------------------------------------------
-  // Canvas context transforms
-  // -------------------------------------------------------------------
+  // --- Canvas context transforms ---
 
   /**
    * Apply the camera transform to a 2D canvas context.
@@ -326,9 +324,7 @@ export class Camera {
     ctx.setTransform(1, 0, 0, 1, 0, 0);
   }
 
-  // -------------------------------------------------------------------
-  // Viewport and map configuration
-  // -------------------------------------------------------------------
+  // --- Viewport and map configuration ---
 
   /**
    * Update viewport dimensions. Called by ResizeObserver when the
@@ -417,9 +413,7 @@ export class Camera {
     this.y = (this.mapH - visibleH) / 2;
   }
 
-  // -------------------------------------------------------------------
-  // Zoom operations
-  // -------------------------------------------------------------------
+  // --- Zoom operations ---
 
   /**
    * Zoom centered on a screen-space point.
@@ -445,9 +439,7 @@ export class Camera {
     this.zoomAt(this.viewportW / 2, this.viewportH / 2, delta);
   }
 
-  // -------------------------------------------------------------------
-  // Pan operations
-  // -------------------------------------------------------------------
+  // --- Pan operations ---
 
   /**
    * Pan by screen-space delta (pixels).
@@ -474,9 +466,7 @@ export class Camera {
     this._notifyChanged();
   }
 
-  // -------------------------------------------------------------------
-  // Input handling (attached to map container)
-  // -------------------------------------------------------------------
+  // --- Input handling ---
 
   /**
    * Prevent browser-level zoom on all input vectors.
@@ -501,14 +491,7 @@ export class Camera {
     }
   }
 
-  attachTo(el) {
-    if (this._el) return; // idempotency guard — prevents duplicate window listeners
-    this._el = el;
-    this._boundsCache.observe(el);
-    this._preventBrowserZoom();
-    this._keyboard.attach();
-
-    // --- Wheel: normalized input → zoom at cursor or pan ---
+  _attachWheelHandler(el) {
     el.addEventListener('wheel', (e) => {
       e.preventDefault();
       const { dx, dy, dz } = normalizeWheel(e);
@@ -519,8 +502,9 @@ export class Camera {
         this.panBy(-dx, -dy);
       }
     }, { passive: false });
+  }
 
-    // --- Mouse down: start pan ---
+  _attachMouseHandlers(el) {
     el.addEventListener('mousedown', (e) => {
       if (e.button === 1) {
         e.preventDefault();
@@ -547,7 +531,6 @@ export class Camera {
       }
     });
 
-    // --- Mouse move: handle pending or active pan ---
     window.addEventListener('mousemove', (e) => {
       if (this._pendingPan) {
         if (window.__vtt?.tokenManager?._dragging) {
@@ -573,14 +556,12 @@ export class Camera {
         Math.abs(dxScreen) + Math.abs(dyScreen)
       );
 
-      // World-space position: start position minus screen delta / zoom
       this.x = this._panStartCamX - dxScreen / (this.zoom * this.viewportScale);
       this.y = this._panStartCamY - dyScreen / (this.zoom * this.viewportScale);
 
       this._notifyChanged();
     });
 
-    // --- Mouse up: end pan ---
     window.addEventListener('mouseup', (e) => {
       this._pendingPan = false;
       if (!this._panning || e.button !== this._panButton) return;
@@ -592,18 +573,18 @@ export class Camera {
       }
     });
 
-    // --- Context menu suppression for right-click drag ---
     el.addEventListener('contextmenu', (e) => {
       if (this._panScreenDist > DRAG_THRESHOLD) {
         e.preventDefault();
         e.stopPropagation();
       }
     }, true);
+  }
 
-    // --- Space key tracking ---
+  _attachSpaceKey() {
     window.addEventListener('keydown', (e) => {
       if (e.code === 'Space' && !e.repeat && !this.spaceHeld) {
-        if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+        if (_isInputFocused(e)) return;
         this.spaceHeld = true;
         if (this._el) this._el.style.cursor = 'grab';
       }
@@ -615,15 +596,9 @@ export class Camera {
         if (this._el && !this._panning) this._el.style.cursor = '';
       }
     });
+  }
 
-    // --- EventBus handlers (from Controller via BroadcastChannel) ---
-    EventBus.on('camera:pan', ({ dx, dy }) => this.panBy(dx, dy));
-    EventBus.on('camera:zoom', (direction) => {
-      this.zoomToCenter(direction > 0 ? ZOOM_STEP_KEY : -ZOOM_STEP_KEY);
-    });
-    EventBus.on('camera:set-state', ({ x, y, zoom }) => this.setPosition(x, y, zoom));
-
-    // --- Focus/visibility safety ---
+  _attachSafetyGuards(el) {
     window.addEventListener('blur', () => this._cancelPan());
     document.addEventListener('visibilitychange', () => {
       if (document.hidden) this._cancelPan();
@@ -633,9 +608,26 @@ export class Camera {
     });
   }
 
-  // -------------------------------------------------------------------
-  // Pan state management (internal)
-  // -------------------------------------------------------------------
+  attachTo(el) {
+    if (this._el) return;
+    this._el = el;
+    this._boundsCache.observe(el);
+    this._preventBrowserZoom();
+    this._keyboard.attach();
+    this._attachWheelHandler(el);
+    this._attachMouseHandlers(el);
+    this._attachSpaceKey();
+
+    EventBus.on('camera:pan', ({ dx, dy }) => this.panBy(dx, dy));
+    EventBus.on('camera:zoom', (direction) => {
+      this.zoomToCenter(direction > 0 ? ZOOM_STEP_KEY : -ZOOM_STEP_KEY);
+    });
+    EventBus.on('camera:set-state', ({ x, y, zoom }) => this.setPosition(x, y, zoom));
+
+    this._attachSafetyGuards(el);
+  }
+
+  // --- Pan state management ---
 
   _startPan(e, button) {
     this._panning = true;
@@ -669,17 +661,13 @@ export class Camera {
     this._el.style.cursor = active ? 'grabbing' : '';
   }
 
-  // -------------------------------------------------------------------
-  // Change notification
-  // -------------------------------------------------------------------
+  // --- Change notification ---
 
   _notifyChanged() {
     EventBus.emit('camera:changed');
   }
 
-  // -------------------------------------------------------------------
-  // Serialization (for BroadcastChannel sync and persistence)
-  // -------------------------------------------------------------------
+  // --- Serialization ---
 
   /**
    * Serialize camera state for cross-window sync.
