@@ -298,3 +298,39 @@ test.describe('Elastic overscroll + snap-back', () => {
     expect(x).toBeGreaterThanOrEqual(-1.0);
   });
 });
+
+test.describe('E2E — mouse-driven boundary interactions', () => {
+  test.beforeEach(async ({ page }) => {
+    await gotoVTT(page);
+    await enterMapMode(page);
+  });
+
+  test('right-click drag past boundary snaps back', async ({ page }) => {
+    await page.evaluate(() => {
+      const cam = window.__vtt?.mapRenderer?.camera;
+      for (let i = 0; i < 5; i++) cam.zoomToCenter(0.4);
+    });
+    const box = await page.locator('#map-container').boundingBox();
+    await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+    await page.mouse.down({ button: 'right' });
+    await page.mouse.move(box.x + box.width + 200, box.y + box.height / 2, { steps: 10 });
+    await page.mouse.up({ button: 'right' });
+    await page.waitForTimeout(800);
+    const x = await page.evaluate(() => window.__vtt?.mapRenderer?.camera?.x);
+    expect(x).toBeGreaterThanOrEqual(-1.0);
+  });
+
+  test('keyboard pan stops at map edges', async ({ page }) => {
+    await page.evaluate(() => {
+      const cam = window.__vtt?.mapRenderer?.camera;
+      cam.zoom = 2.0; cam.x = 0; cam.y = 0;
+      cam._applyConstraints();
+    });
+    await page.keyboard.down('ArrowLeft');
+    await page.waitForTimeout(400);
+    await page.keyboard.up('ArrowLeft');
+    await page.waitForTimeout(100);
+    const x = await page.evaluate(() => window.__vtt?.mapRenderer?.camera?.x);
+    expect(x).toBeCloseTo(0, 0);
+  });
+});
