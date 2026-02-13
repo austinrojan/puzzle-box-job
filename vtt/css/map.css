@@ -8,6 +8,7 @@
   z-index: var(--z-map);
   background: var(--bg-0);
   cursor: grab;
+  touch-action: none;
 }
 
 #map-container.panning { cursor: grabbing; }

@@ -68,7 +68,7 @@ test.describe('Camera math — world-space model', () => {
       cam.x = 0; cam.y = 0; cam.zoom = 1.0;
       cam.viewportW = 1920; cam.viewportH = 1080;
       const before = cam.screenToWorld(400, 300);
-      cam.zoomAt(400, 300, 1, 1.5);
+      cam.zoomAt(400, 300, 0.585);  // log2(1.5) ≈ 0.585
       const after = cam.screenToWorld(400, 300);
       return { dx: Math.abs(after.x - before.x), dy: Math.abs(after.y - before.y) };
     });
@@ -128,7 +128,7 @@ test.describe('Camera math — world-space model', () => {
       cam.x = 0; cam.y = 0; cam.zoom = 4.5;
       cam.viewportW = 1920; cam.viewportH = 1080;
       // Zoom in repeatedly — should not exceed 5.0
-      for (let i = 0; i < 50; i++) cam.zoomAt(960, 540, 1, 1.15);
+      for (let i = 0; i < 50; i++) cam.zoomAt(960, 540, 0.2);
       return cam.zoom;
     });
     expect(zoom).not.toBeNull();
@@ -143,12 +143,42 @@ test.describe('Camera math — world-space model', () => {
       cam.x = 0; cam.y = 0; cam.zoom = 0.2;
       cam.viewportW = 1920; cam.viewportH = 1080;
       // Zoom out repeatedly — should not drop below 0.1
-      for (let i = 0; i < 50; i++) cam.zoomAt(960, 540, -1, 1.15);
+      for (let i = 0; i < 50; i++) cam.zoomAt(960, 540, -0.2);
       return cam.zoom;
     });
     expect(zoom).not.toBeNull();
     expect(zoom).toBeGreaterThanOrEqual(0.1);
     expect(zoom).toBeCloseTo(0.1);
+  });
+
+  test('fitContain shows entire map with letterboxing', async ({ page }) => {
+    const result = await page.evaluate(() => {
+      const cam = window.__vtt?.mapRenderer?.camera;
+      if (!cam) return null;
+      cam.viewportW = 1920; cam.viewportH = 1080;
+      cam.mapW = 1920; cam.mapH = 1440;
+      cam.fitContain();
+      return { zoom: cam.zoom };
+    });
+    expect(result).not.toBeNull();
+    expect(result.zoom).toBeCloseTo(0.75, 2); // min(1920/1920, 1080/1440)
+  });
+
+  test('exponential zoom is perceptually uniform', async ({ page }) => {
+    const result = await page.evaluate(() => {
+      const cam = window.__vtt?.mapRenderer?.camera;
+      if (!cam) return null;
+      cam.viewportW = 1920; cam.viewportH = 1080;
+      cam.zoom = 1.0;
+      cam.zoomAt(960, 540, 0.4);
+      const ratio1 = cam.zoom / 1.0;
+      cam.zoom = 2.0;
+      cam.zoomAt(960, 540, 0.4);
+      const ratio2 = cam.zoom / 2.0;
+      return { ratio1, ratio2 };
+    });
+    expect(result).not.toBeNull();
+    expect(Math.abs(result.ratio1 - result.ratio2)).toBeLessThan(0.001);
   });
 
   test('serialize/deserialize roundtrip', async ({ page }) => {
