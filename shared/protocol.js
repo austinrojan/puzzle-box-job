@@ -28,6 +28,7 @@ export const MSG = Object.freeze({
   CAMERA_PAN:              'camera:pan',
   CAMERA_RESET:            'camera:reset',
   CAMERA_STATE:            'camera:state',
+  CAMERA_ZOOM_PAST_COVER:  'camera:zoom-past-cover',
   TOKEN_UPDATE_CONDITION:  'token:update-condition',
   TOKEN_REMOVE_ONE:        'token:remove-one',
   TOKEN_VISIBILITY:        'token:visibility',
@@ -63,6 +64,7 @@ const REQUIRED_FIELDS = {
   [MSG.CAMERA_PAN]:             ['dx', 'dy'],
   [MSG.CAMERA_RESET]:           [],
   [MSG.CAMERA_STATE]:           ['x', 'y', 'zoom'],
+  [MSG.CAMERA_ZOOM_PAST_COVER]: ['enabled'],
   [MSG.TOKEN_UPDATE_CONDITION]: ['instanceId', 'condition', 'enabled'],
   [MSG.TOKEN_REMOVE_ONE]:       ['instanceId'],
   [MSG.TOKEN_VISIBILITY]:       ['instanceId', 'visible'],
@@ -97,6 +99,7 @@ export const createCameraZoomMsg      = (direction) => msg(MSG.CAMERA_ZOOM, { di
 export const createCameraPanMsg       = (dx, dy) => msg(MSG.CAMERA_PAN, { dx, dy });
 export const createCameraResetMsg     = () => msg(MSG.CAMERA_RESET);
 export const createCameraStateMsg     = (x, y, zoom) => msg(MSG.CAMERA_STATE, { x, y, zoom });
+export const createCameraZoomPastCoverMsg = (enabled) => msg(MSG.CAMERA_ZOOM_PAST_COVER, { enabled });
 export const createTokenRemoveOneMsg  = (instanceId) => msg(MSG.TOKEN_REMOVE_ONE, { instanceId });
 export const createTokenVisibilityMsg = (instanceId, visible) => msg(MSG.TOKEN_VISIBILITY, { instanceId, visible });
 export const createStateRequestMsg    = () => msg(MSG.STATE_REQUEST);

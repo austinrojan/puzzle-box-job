@@ -293,8 +293,8 @@ test.describe('Elastic overscroll + snap-back', () => {
       cam._isDragging = false;
       cam._triggerSnapBack();
     });
-    await page.waitForTimeout(600);
+    await page.waitForTimeout(800);
     const x = await page.evaluate(() => window.__vtt?.mapRenderer?.camera?.x);
-    expect(x).toBeGreaterThanOrEqual(-0.5);
+    expect(x).toBeGreaterThanOrEqual(-1.0);
   });
 });

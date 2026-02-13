@@ -807,6 +807,14 @@ export class Camera {
       this.zoomToCenter(direction > 0 ? ZOOM_STEP_KEY : -ZOOM_STEP_KEY);
     });
     EventBus.on('camera:set-state', ({ x, y, zoom }) => this.setPosition(x, y, zoom));
+    EventBus.on('camera:zoom-past-cover', (enabled) => {
+      this._dmCanZoomPastCover = enabled;
+      if (!enabled && this.zoom < this._coverZoom) {
+        this.zoom = this._coverZoom;
+        this._centerMap();
+        this._applyConstraints();
+      }
+    });
 
     this._attachSafetyGuards(el);
   }

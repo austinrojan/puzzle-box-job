@@ -222,6 +222,10 @@ function handleSyncMessage(msg) {
       });
       break;
 
+    case MSG.CAMERA_ZOOM_PAST_COVER:
+      EventBus.emit('camera:zoom-past-cover', msg.enabled);
+      break;
+
     case MSG.TOKEN_UPDATE_CONDITION:
       EventBus.emit('token:update-condition', {
         instanceId: msg.instanceId, condition: msg.condition, enabled: msg.enabled
