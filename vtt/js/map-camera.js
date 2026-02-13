@@ -93,8 +93,11 @@ class CameraAnimator {
       }
     }
 
-    // Emit directly — critically damped spring (ζ=1) approaches target
-    // monotonically with zero initial velocity, never crossing it.
+    // Emit camera:changed directly, bypassing _applyConstraints.
+    // Safe because a critically damped spring (ζ=1) approaches the
+    // target monotonically from one side, never crossing it. With zero
+    // initial velocity (Phase 3), displacement strictly decreases.
+    // Phase 5 will add release velocity — review this bypass then.
     EventBus.emit('camera:changed');
     if (settled) this._stop();
     else this._rafId = requestAnimationFrame(this._tick);
@@ -341,6 +344,8 @@ export class Camera {
     this._boundsCache = new BoundsCache();
     this._keyboard = new KeyboardController(this);
     this._animator = null;  // CameraAnimator — created in attachTo()
+    this._isDragging = false;
+    this._dmCanZoomPastCover = false;
   }
 
   // --- Coordinate conversion ---
@@ -440,7 +445,7 @@ export class Camera {
       this._centerMap();
     }
 
-    this._notifyChanged();
+    this._applyConstraints();
   }
 
   /**
@@ -473,6 +478,11 @@ export class Camera {
     );
   }
 
+  _getMinZoom() {
+    if (this._dmCanZoomPastCover) return MIN_ZOOM;
+    return Math.max(MIN_ZOOM, this._coverZoom);
+  }
+
   /**
    * Snap to cover zoom and center the map.
    * This is the "home" position: no black bars, map centered.
@@ -481,7 +491,7 @@ export class Camera {
     if (this.mapW <= 0 || this.mapH <= 0) return;
     this.zoom = this._coverZoom;
     this._centerMap();
-    this._notifyChanged();
+    this._applyConstraints();
   }
 
   /**
@@ -495,7 +505,8 @@ export class Camera {
       this.viewportH / this.mapH
     );
     this._centerMap();
-    this._notifyChanged();
+    // Bypass constraints — intentionally allows zoom below cover floor
+    EventBus.emit('camera:changed');
   }
 
   /**
@@ -554,6 +565,34 @@ export class Camera {
     return pos;
   }
 
+  // --- Constraint pipeline ---
+
+  _applyConstraints() {
+    const effectiveMinZoom = this._getMinZoom();
+    this.zoom = Math.max(effectiveMinZoom, Math.min(MAX_ZOOM, this.zoom));
+
+    if (this.mapW <= 0 || this.mapH <= 0) {
+      // No map loaded; skip pan clamping
+    } else if (this._isDragging) {
+      this._applyElasticBounds();
+    } else {
+      this._applyHardBounds();
+    }
+
+    EventBus.emit('camera:changed');
+  }
+
+  _triggerSnapBack() {
+    if (this.mapW <= 0 || this.mapH <= 0) return;
+    if (!this._animator) return;
+    const visW = this.viewportW / this.zoom;
+    const visH = this.viewportH / this.zoom;
+    const targetX = this._clampAxis(this.x, visW, this.mapW);
+    const targetY = this._clampAxis(this.y, visH, this.mapH);
+    if (Math.abs(this.x - targetX) < 0.5 && Math.abs(this.y - targetY) < 0.5) return;
+    this._animator.snapBack({ x: this.x, y: this.y }, { x: targetX, y: targetY });
+  }
+
   // --- Zoom operations ---
 
   /**
@@ -564,12 +603,13 @@ export class Camera {
    */
   zoomAt(sx, sy, delta) {
     const worldBefore = this.screenToWorld(sx, sy);
-    const newZoom = this.zoom * Math.pow(2, delta);
-    this.zoom = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, newZoom));
+    const effectiveMinZoom = this._getMinZoom();
+    this.zoom = Math.max(effectiveMinZoom, Math.min(MAX_ZOOM,
+      this.zoom * Math.pow(2, delta)));
     const worldAfter = this.screenToWorld(sx, sy);
     this.x += worldBefore.x - worldAfter.x;
     this.y += worldBefore.y - worldAfter.y;
-    this._notifyChanged();
+    this._applyConstraints();
   }
 
   /**
@@ -593,7 +633,7 @@ export class Camera {
   panBy(dx, dy) {
     this.x -= dx / this.zoom;
     this.y -= dy / this.zoom;
-    this._notifyChanged();
+    this._applyConstraints();
   }
 
   /**
@@ -604,7 +644,7 @@ export class Camera {
     this.x = x;
     this.y = y;
     if (zoom !== undefined) this.zoom = zoom;
-    this._notifyChanged();
+    this._applyConstraints();
   }
 
   // --- Input handling ---
@@ -700,7 +740,7 @@ export class Camera {
       this.x = this._panStartCamX - dxScreen / (this.zoom * this.viewportScale);
       this.y = this._panStartCamY - dyScreen / (this.zoom * this.viewportScale);
 
-      this._notifyChanged();
+      this._applyConstraints();
     });
 
     window.addEventListener('mouseup', (e) => {
@@ -803,12 +843,6 @@ export class Camera {
     this._el.style.cursor = active ? 'grabbing' : '';
   }
 
-  // --- Change notification ---
-
-  _notifyChanged() {
-    EventBus.emit('camera:changed');
-  }
-
   // --- Serialization ---
 
   /**
@@ -836,6 +870,6 @@ export class Camera {
       this.mapH = data.mapH;
       this._updateCoverZoom();
     }
-    this._notifyChanged();
+    this._applyConstraints();
   }
 }

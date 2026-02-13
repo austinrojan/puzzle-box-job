@@ -172,3 +172,89 @@ test.describe('Critically damped spring solver', () => {
     expect(result.analytical).toBeCloseTo(result.euler, 1);
   });
 });
+
+test.describe('Constraint integration — zoom floor and pan clamping', () => {
+  test.beforeEach(async ({ page }) => {
+    await gotoVTT(page);
+    await enterMapMode(page);
+  });
+
+  test('zoom floor enforces coverZoom as minimum', async ({ page }) => {
+    const result = await page.evaluate(() => {
+      const cam = window.__vtt?.mapRenderer?.camera;
+      if (!cam) return null;
+      for (let i = 0; i < 50; i++) cam.zoomToCenter(-0.4);
+      return { zoom: cam.zoom, coverZoom: cam._coverZoom };
+    });
+    expect(result.zoom).toBeGreaterThanOrEqual(result.coverZoom - 0.001);
+    expect(result.zoom).toBeCloseTo(result.coverZoom, 2);
+  });
+
+  test('panBy clamps at left edge when zoomed in', async ({ page }) => {
+    const x = await page.evaluate(() => {
+      const cam = window.__vtt?.mapRenderer?.camera;
+      if (!cam) return null;
+      cam.zoom = 2.0;
+      cam.x = 0; cam.y = 0;
+      for (let i = 0; i < 100; i++) cam.panBy(100, 0);
+      return cam.x;
+    });
+    expect(x).toBeCloseTo(0, 0);
+  });
+
+  test('panBy clamps at right edge when zoomed in', async ({ page }) => {
+    const result = await page.evaluate(() => {
+      const cam = window.__vtt?.mapRenderer?.camera;
+      if (!cam) return null;
+      cam.zoom = 2.0;
+      cam.x = cam.mapW;
+      for (let i = 0; i < 100; i++) cam.panBy(-100, 0);
+      return { x: cam.x, maxX: cam.mapW - cam.viewportW / cam.zoom };
+    });
+    expect(result.x).toBeCloseTo(result.maxX, 0);
+  });
+
+  test('setPosition applies constraints', async ({ page }) => {
+    const x = await page.evaluate(() => {
+      const cam = window.__vtt?.mapRenderer?.camera;
+      if (!cam) return null;
+      cam.setPosition(-999, -999, cam._coverZoom);
+      return cam.x;
+    });
+    expect(x).toBeGreaterThanOrEqual(-1);
+  });
+
+  test('fitContain bypasses zoom floor', async ({ page }) => {
+    const result = await page.evaluate(() => {
+      const cam = window.__vtt?.mapRenderer?.camera;
+      if (!cam) return null;
+      cam.fitContain();
+      return { containZoom: cam.zoom, coverZoom: cam._coverZoom };
+    });
+    expect(result.containZoom).toBeLessThanOrEqual(result.coverZoom + 0.001);
+  });
+
+  test('deserialize constrains out-of-bounds state', async ({ page }) => {
+    const result = await page.evaluate(() => {
+      const cam = window.__vtt?.mapRenderer?.camera;
+      if (!cam) return null;
+      cam.deserialize({ x: -999, y: -999, zoom: 0.01 });
+      return { zoom: cam.zoom, coverZoom: cam._coverZoom };
+    });
+    expect(result.zoom).toBeGreaterThanOrEqual(result.coverZoom - 0.001);
+  });
+
+  test('zoomAt at zoom floor produces no cursor drift', async ({ page }) => {
+    const result = await page.evaluate(() => {
+      const cam = window.__vtt?.mapRenderer?.camera;
+      if (!cam) return null;
+      cam.fitCover();
+      const before = cam.screenToWorld(400, 300);
+      cam.zoomAt(400, 300, -1.0);
+      const after = cam.screenToWorld(400, 300);
+      return { dx: Math.abs(after.x - before.x), dy: Math.abs(after.y - before.y) };
+    });
+    expect(result.dx).toBeLessThan(1);
+    expect(result.dy).toBeLessThan(1);
+  });
+});
