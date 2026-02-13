@@ -66,6 +66,11 @@ test.describe('Phase 2: Input handling', () => {
   // --- Keyboard camera control E2E tests ---
 
   test('arrow keys produce diagonal pan', async ({ page }) => {
+    // Zoom in so both axes have room to pan (at cover zoom, clamping prevents pan)
+    await page.evaluate(() => {
+      const cam = window.__vtt?.mapRenderer?.camera;
+      if (cam) { cam.zoom = 2.0; cam.x = 200; cam.y = 200; cam._applyConstraints(); }
+    });
     const posBefore = await page.evaluate(() => {
       const cam = window.__vtt?.mapRenderer?.camera;
       return cam ? { x: cam.x, y: cam.y } : null;
