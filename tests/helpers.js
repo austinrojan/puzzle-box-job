@@ -75,6 +75,21 @@ export async function enterMapMode(page) {
   }, { timeout: 10000 });
 }
 
+/**
+ * Inject VTT accessor shortcuts into the page's window for test convenience.
+ * Call in beforeEach after gotoVTT(). Provides:
+ * - __cam()      → window.__vtt.mapRenderer.camera (or null)
+ * - __animator() → camera._animator (or null)
+ * - __edgePan()  → tokenManager._edgePan (or null)
+ */
+export async function injectTestAccessors(page) {
+  await page.evaluate(() => {
+    window.__cam = () => window.__vtt?.mapRenderer?.camera ?? null;
+    window.__animator = () => window.__vtt?.mapRenderer?.camera?._animator ?? null;
+    window.__edgePan = () => window.__vtt?.tokenManager?._edgePan ?? null;
+  });
+}
+
 export async function expectDensityReduces(page, expect, selector, property, setup) {
   await page.goto('/');
   if (setup) await setup(page);
