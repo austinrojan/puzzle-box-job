@@ -1,12 +1,18 @@
 import { test, expect } from '@playwright/test';
-import { gotoVTT, enterMapMode } from './helpers.js';
+import { gotoVTT, enterMapMode, injectTestAccessors } from './helpers.js';
+
+// Spring settles in ~500ms; 800ms gives headroom for headless Chrome rAF variance
+const SNAP_SETTLE_MS = 800;
 
 test.describe('Pure math — clampAxis and rubberBand', () => {
-  test.beforeEach(async ({ page }) => { await gotoVTT(page); });
+  test.beforeEach(async ({ page }) => {
+    await gotoVTT(page);
+    await injectTestAccessors(page);
+  });
 
   test('clampAxis zoomed-in: clamps to [0, mapSize - visSize]', async ({ page }) => {
     const result = await page.evaluate(() => {
-      const cam = window.__vtt?.mapRenderer?.camera;
+      const cam = __cam();
       if (!cam) return null;
       cam.mapW = 2000; cam.mapH = 2000;
       cam.viewportW = 800; cam.viewportH = 800;
@@ -27,7 +33,7 @@ test.describe('Pure math — clampAxis and rubberBand', () => {
 
   test('clampAxis zoomed-out: centers the map', async ({ page }) => {
     const result = await page.evaluate(() => {
-      const cam = window.__vtt?.mapRenderer?.camera;
+      const cam = __cam();
       if (!cam) return null;
       cam.mapW = 800; cam.mapH = 800;
       cam.viewportW = 1200; cam.viewportH = 1200;
@@ -41,7 +47,7 @@ test.describe('Pure math — clampAxis and rubberBand', () => {
 
   test('clampAxis crossover: both regimes agree at exact match', async ({ page }) => {
     const result = await page.evaluate(() => {
-      const cam = window.__vtt?.mapRenderer?.camera;
+      const cam = __cam();
       if (!cam) return null;
       cam.mapW = 1000; cam.mapH = 1000;
       cam.viewportW = 1000; cam.viewportH = 1000;
@@ -56,7 +62,7 @@ test.describe('Pure math — clampAxis and rubberBand', () => {
 
   test('clampAxis mixed regime: panoramic map', async ({ page }) => {
     const result = await page.evaluate(() => {
-      const cam = window.__vtt?.mapRenderer?.camera;
+      const cam = __cam();
       if (!cam) return null;
       cam.mapW = 3000; cam.mapH = 500;
       cam.viewportW = 800; cam.viewportH = 600;
@@ -71,7 +77,7 @@ test.describe('Pure math — clampAxis and rubberBand', () => {
 
   test('elastic: within bounds returns position unchanged', async ({ page }) => {
     const result = await page.evaluate(() => {
-      const cam = window.__vtt?.mapRenderer?.camera;
+      const cam = __cam();
       if (!cam) return null;
       cam.mapW = 2000; cam.mapH = 2000;
       cam.viewportW = 1000; cam.viewportH = 1000;
@@ -83,7 +89,7 @@ test.describe('Pure math — clampAxis and rubberBand', () => {
 
   test('elastic: past boundary pulls toward boundary', async ({ page }) => {
     const result = await page.evaluate(() => {
-      const cam = window.__vtt?.mapRenderer?.camera;
+      const cam = __cam();
       if (!cam) return null;
       cam.zoom = 1.0;
       const past = cam._elasticClampAxis(-100, 1000, 2000, 1000);
@@ -95,7 +101,7 @@ test.describe('Pure math — clampAxis and rubberBand', () => {
 
   test('elastic: diminishing returns on deeper overshoot', async ({ page }) => {
     const result = await page.evaluate(() => {
-      const cam = window.__vtt?.mapRenderer?.camera;
+      const cam = __cam();
       if (!cam) return null;
       cam.zoom = 1.0;
       const shallow = cam._elasticClampAxis(-50, 1000, 2000, 1000);
@@ -113,11 +119,14 @@ test.describe('Pure math — clampAxis and rubberBand', () => {
 });
 
 test.describe('Critically damped spring solver', () => {
-  test.beforeEach(async ({ page }) => { await gotoVTT(page); });
+  test.beforeEach(async ({ page }) => {
+    await gotoVTT(page);
+    await injectTestAccessors(page);
+  });
 
   test('returns full displacement at t=0', async ({ page }) => {
     const pos = await page.evaluate(() => {
-      const a = window.__vtt?.mapRenderer?.camera?._animator;
+      const a = __animator();
       return a ? a._solveSpring(100, 0, 0).position : null;
     });
     expect(pos).toBeCloseTo(100, 4);
@@ -125,7 +134,7 @@ test.describe('Critically damped spring solver', () => {
 
   test('converges to <1px within 0.5s', async ({ page }) => {
     const pos = await page.evaluate(() => {
-      const a = window.__vtt?.mapRenderer?.camera?._animator;
+      const a = __animator();
       return a ? Math.abs(a._solveSpring(100, 0, 0.5).position) : null;
     });
     expect(pos).toBeLessThan(1.0);
@@ -133,7 +142,7 @@ test.describe('Critically damped spring solver', () => {
 
   test('never overshoots with zero initial velocity', async ({ page }) => {
     const minPos = await page.evaluate(() => {
-      const a = window.__vtt?.mapRenderer?.camera?._animator;
+      const a = __animator();
       if (!a) return null;
       let min = Infinity;
       for (let ms = 0; ms <= 1000; ms++) {
@@ -146,7 +155,7 @@ test.describe('Critically damped spring solver', () => {
 
   test('settles large displacement (500px) within 0.5s', async ({ page }) => {
     const pos = await page.evaluate(() => {
-      const a = window.__vtt?.mapRenderer?.camera?._animator;
+      const a = __animator();
       return a ? Math.abs(a._solveSpring(500, 0, 0.5).position) : null;
     });
     expect(pos).toBeLessThan(5.0);
@@ -154,7 +163,7 @@ test.describe('Critically damped spring solver', () => {
 
   test('closed-form matches fine-grained Euler approximation', async ({ page }) => {
     const result = await page.evaluate(() => {
-      const a = window.__vtt?.mapRenderer?.camera?._animator;
+      const a = __animator();
       if (!a) return null;
       const STIFFNESS = 200;
       const OMEGA = Math.sqrt(STIFFNESS);
@@ -177,13 +186,14 @@ test.describe('Constraint integration — zoom floor and pan clamping', () => {
   test.beforeEach(async ({ page }) => {
     await gotoVTT(page);
     await enterMapMode(page);
+    await injectTestAccessors(page);
   });
 
   test('zoom floor enforces coverZoom as minimum', async ({ page }) => {
     const result = await page.evaluate(() => {
-      const cam = window.__vtt?.mapRenderer?.camera;
+      const cam = __cam();
       if (!cam) return null;
-      for (let i = 0; i < 50; i++) cam.zoomToCenter(-0.4);
+      for (let i = 0; i < 50; i++) cam.zoomToCenter(-0.4); // enough reps to bottom out at cover zoom
       return { zoom: cam.zoom, coverZoom: cam._coverZoom };
     });
     expect(result.zoom).toBeGreaterThanOrEqual(result.coverZoom - 0.001);
@@ -192,11 +202,11 @@ test.describe('Constraint integration — zoom floor and pan clamping', () => {
 
   test('panBy clamps at left edge when zoomed in', async ({ page }) => {
     const x = await page.evaluate(() => {
-      const cam = window.__vtt?.mapRenderer?.camera;
+      const cam = __cam();
       if (!cam) return null;
       cam.zoom = 2.0;
       cam.x = 0; cam.y = 0;
-      for (let i = 0; i < 100; i++) cam.panBy(100, 0);
+      for (let i = 0; i < 100; i++) cam.panBy(100, 0); // enough reps to saturate at boundary
       return cam.x;
     });
     expect(x).toBeCloseTo(0, 0);
@@ -204,11 +214,11 @@ test.describe('Constraint integration — zoom floor and pan clamping', () => {
 
   test('panBy clamps at right edge when zoomed in', async ({ page }) => {
     const result = await page.evaluate(() => {
-      const cam = window.__vtt?.mapRenderer?.camera;
+      const cam = __cam();
       if (!cam) return null;
       cam.zoom = 2.0;
       cam.x = cam.mapW;
-      for (let i = 0; i < 100; i++) cam.panBy(-100, 0);
+      for (let i = 0; i < 100; i++) cam.panBy(-100, 0); // enough reps to saturate at boundary
       return { x: cam.x, maxX: cam.mapW - cam.viewportW / cam.zoom };
     });
     expect(result.x).toBeCloseTo(result.maxX, 0);
@@ -216,7 +226,7 @@ test.describe('Constraint integration — zoom floor and pan clamping', () => {
 
   test('setPosition applies constraints', async ({ page }) => {
     const x = await page.evaluate(() => {
-      const cam = window.__vtt?.mapRenderer?.camera;
+      const cam = __cam();
       if (!cam) return null;
       cam.setPosition(-999, -999, cam._coverZoom);
       return cam.x;
@@ -226,7 +236,7 @@ test.describe('Constraint integration — zoom floor and pan clamping', () => {
 
   test('fitContain bypasses zoom floor', async ({ page }) => {
     const result = await page.evaluate(() => {
-      const cam = window.__vtt?.mapRenderer?.camera;
+      const cam = __cam();
       if (!cam) return null;
       cam.fitContain();
       return { containZoom: cam.zoom, coverZoom: cam._coverZoom };
@@ -236,7 +246,7 @@ test.describe('Constraint integration — zoom floor and pan clamping', () => {
 
   test('deserialize constrains out-of-bounds state', async ({ page }) => {
     const result = await page.evaluate(() => {
-      const cam = window.__vtt?.mapRenderer?.camera;
+      const cam = __cam();
       if (!cam) return null;
       cam.deserialize({ x: -999, y: -999, zoom: 0.01 });
       return { zoom: cam.zoom, coverZoom: cam._coverZoom };
@@ -246,7 +256,7 @@ test.describe('Constraint integration — zoom floor and pan clamping', () => {
 
   test('zoomAt at zoom floor produces no cursor drift', async ({ page }) => {
     const result = await page.evaluate(() => {
-      const cam = window.__vtt?.mapRenderer?.camera;
+      const cam = __cam();
       if (!cam) return null;
       cam.fitCover();
       const before = cam.screenToWorld(400, 300);
@@ -263,11 +273,12 @@ test.describe('Elastic overscroll + snap-back', () => {
   test.beforeEach(async ({ page }) => {
     await gotoVTT(page);
     await enterMapMode(page);
+    await injectTestAccessors(page);
   });
 
   test('_isDragging=true enables elastic mode (not hard clamp)', async ({ page }) => {
     const result = await page.evaluate(() => {
-      const cam = window.__vtt?.mapRenderer?.camera;
+      const cam = __cam();
       if (!cam) return null;
       cam.zoom = 2.0;
       cam._isDragging = true;
@@ -286,15 +297,15 @@ test.describe('Elastic overscroll + snap-back', () => {
 
   test('_triggerSnapBack settles within bounds after ~600ms', async ({ page }) => {
     await page.evaluate(() => {
-      const cam = window.__vtt?.mapRenderer?.camera;
+      const cam = __cam();
       if (!cam) return;
       cam.zoom = 2.0;
       cam.x = -50;
       cam._isDragging = false;
       cam._triggerSnapBack();
     });
-    await page.waitForTimeout(800);
-    const x = await page.evaluate(() => window.__vtt?.mapRenderer?.camera?.x);
+    await page.waitForTimeout(SNAP_SETTLE_MS);
+    const x = await page.evaluate(() => __cam()?.x);
     expect(x).toBeGreaterThanOrEqual(-1.0);
   });
 });
@@ -303,26 +314,27 @@ test.describe('E2E — mouse-driven boundary interactions', () => {
   test.beforeEach(async ({ page }) => {
     await gotoVTT(page);
     await enterMapMode(page);
+    await injectTestAccessors(page);
   });
 
   test('right-click drag past boundary snaps back', async ({ page }) => {
     await page.evaluate(() => {
-      const cam = window.__vtt?.mapRenderer?.camera;
-      for (let i = 0; i < 5; i++) cam.zoomToCenter(0.4);
+      const cam = __cam();
+      for (let i = 0; i < 5; i++) cam.zoomToCenter(0.4); // 5 zoom-in steps to get well above cover zoom
     });
     const box = await page.locator('#map-container').boundingBox();
     await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
     await page.mouse.down({ button: 'right' });
     await page.mouse.move(box.x + box.width + 200, box.y + box.height / 2, { steps: 10 });
     await page.mouse.up({ button: 'right' });
-    await page.waitForTimeout(800);
-    const x = await page.evaluate(() => window.__vtt?.mapRenderer?.camera?.x);
+    await page.waitForTimeout(SNAP_SETTLE_MS);
+    const x = await page.evaluate(() => __cam()?.x);
     expect(x).toBeGreaterThanOrEqual(-1.0);
   });
 
   test('keyboard pan stops at map edges', async ({ page }) => {
     await page.evaluate(() => {
-      const cam = window.__vtt?.mapRenderer?.camera;
+      const cam = __cam();
       cam.zoom = 2.0; cam.x = 0; cam.y = 0;
       cam._applyConstraints();
     });
@@ -330,7 +342,7 @@ test.describe('E2E — mouse-driven boundary interactions', () => {
     await page.waitForTimeout(400);
     await page.keyboard.up('ArrowLeft');
     await page.waitForTimeout(100);
-    const x = await page.evaluate(() => window.__vtt?.mapRenderer?.camera?.x);
+    const x = await page.evaluate(() => __cam()?.x);
     expect(x).toBeCloseTo(0, 0);
   });
 });
