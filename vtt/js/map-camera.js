@@ -816,6 +816,15 @@ export class Camera {
     this._setPanCursor(true);
   }
 
+  /**
+   * Promote a pending left-click to an active pan drag.
+   * Called when mousemove exceeds DRAG_THRESHOLD after _initPendingPan().
+   * Does NOT re-capture clientX/Y — _initPendingPan already stored the
+   * mousedown origin, so the drag starts from the original click point,
+   * not the threshold-crossing point. The _isDragging=true and animator
+   * cancel mirror _startPan() to ensure elastic bounds activate regardless
+   * of which entry path initiated the drag.
+   */
   _commitPan() {
     this._panning = true;
     this._pendingPan = false;
