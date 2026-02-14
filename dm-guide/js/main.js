@@ -138,6 +138,8 @@ async function boot() {
   } else {
     console.log('[DM Guide] All VTT scene references valid.');
   }
+
+  document.body.dataset.ready = 'true';
 }
 
 boot().catch(err => console.error('[DM Guide] Boot failed:', err));

@@ -60,6 +60,25 @@ export async function gotoVTT(page) {
 }
 
 /**
+ * Wait for the DM Guide async boot() to complete.
+ * Use after page.goto('/') or page.reload() on the DM Guide.
+ */
+export async function waitForDMBoot(page) {
+  await page.waitForFunction(
+    () => document.body.dataset.ready === 'true',
+    { timeout: 15000 }
+  );
+}
+
+/**
+ * Navigate to the DM Guide and wait for boot to complete.
+ */
+export async function gotoDMGuide(page) {
+  await page.goto('/');
+  await waitForDMBoot(page);
+}
+
+/**
  * Switch to map mode and wait for the camera to have a loaded map.
  */
 export async function enterMapMode(page) {
@@ -91,13 +110,14 @@ export async function injectTestAccessors(page) {
 }
 
 export async function expectDensityReduces(page, expect, selector, property, setup) {
-  await page.goto('/');
+  await gotoDMGuide(page);
   if (setup) await setup(page);
   const defaultVal = await page.locator(selector).first().evaluate(
     (el, prop) => parseFloat(getComputedStyle(el)[prop]), property
   );
   await page.evaluate(() => localStorage.setItem('ui-density', 'compact'));
   await page.reload();
+  await waitForDMBoot(page);
   if (setup) await setup(page);
   const compactVal = await page.locator(selector).first().evaluate(
     (el, prop) => parseFloat(getComputedStyle(el)[prop]), property

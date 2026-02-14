@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { getCSSToken, expectDensityReduces } from './helpers.js';
+import { getCSSToken, expectDensityReduces, gotoDMGuide } from './helpers.js';
 
 test.describe('Density token system', () => {
   test('DM Guide: default --density-factor is 1', async ({ page }) => {
@@ -46,7 +46,7 @@ test.describe('Density token system', () => {
   });
 
   test('DM Guide: compact respects touch-target floor', async ({ page }) => {
-    await page.goto('/');
+    await gotoDMGuide(page);
     await page.evaluate(() => document.documentElement.dataset.density = 'compact');
     const height = await page.locator('.nav-child').first().evaluate(
       (el) => el.getBoundingClientRect().height
@@ -64,8 +64,8 @@ test.describe('Density token system', () => {
 
   test('DM Guide: compact reduces block-dm-note margin', async ({ page }) => {
     const openAct1 = async (p) => {
-      await p.locator('.nav-section-header').first().click();
-      await p.locator('.nav-child').first().click();
+      await p.locator('.nav-section-header').first().evaluate(el => el.click());
+      await p.locator('.nav-child').first().evaluate(el => el.click());
       await p.waitForSelector('.block-dm-note');
     };
     await expectDensityReduces(page, expect, '.block-dm-note', 'marginTop', openAct1);

@@ -1,8 +1,9 @@
 import { test, expect } from '@playwright/test';
+import { gotoDMGuide } from './helpers.js';
 
 test.describe('Touch-target floors — DM Guide', () => {
   test('nav-child elements meet 24px minimum height', async ({ page }) => {
-    await page.goto('/');
+    await gotoDMGuide(page);
     const heights = await page.locator('.nav-child').evaluateAll(
       (els) => els.map((el) => el.getBoundingClientRect().height)
     );
@@ -13,7 +14,7 @@ test.describe('Touch-target floors — DM Guide', () => {
   });
 
   test('nav-section-header elements meet 24px minimum height', async ({ page }) => {
-    await page.goto('/');
+    await gotoDMGuide(page);
     const heights = await page.locator('.nav-section-header').evaluateAll(
       (els) => els.map((el) => el.getBoundingClientRect().height)
     );
