@@ -38,6 +38,40 @@ test.describe('EdgePanManager', () => {
     expect(result.deep).toBeGreaterThan(result.shallow);
   });
 
+  test('no pan output before START_DELAY_MS (150ms)', async ({ page }) => {
+    const result = await page.evaluate(() => {
+      const mgr = __edgePan();
+      const cam = __cam();
+      if (!mgr || !cam) return null;
+
+      // Record initial position
+      cam.zoom = 2.0; cam.x = 500; cam.y = 500;
+      cam._applyConstraints();
+      const xBefore = cam.x;
+
+      // Start tracking and place cursor in hot zone (near right edge)
+      mgr.startTracking();
+      mgr.updateCursor(1910, 540);
+
+      // First _tick: enters hot zone, sets _activeSince = earlyTimestamp
+      const earlyTimestamp = performance.now() + 100;
+      mgr._tick(earlyTimestamp);
+      const xAfterEarly = cam.x;
+
+      // Second _tick: 200ms after _activeSince → past 150ms delay → pan fires
+      const lateTimestamp = earlyTimestamp + 200;
+      mgr._tick(lateTimestamp);
+      const xAfterLate = cam.x;
+
+      mgr.stopTracking();
+
+      return { xBefore, xAfterEarly, xAfterLate };
+    });
+    expect(result).not.toBeNull();
+    expect(result.xAfterEarly).toBe(result.xBefore);           // no pan before delay
+    expect(result.xAfterLate).not.toBe(result.xAfterEarly);    // pan after delay
+  });
+
   test('startTracking/stopTracking lifecycle', async ({ page }) => {
     const result = await page.evaluate(() => {
       const mgr = __edgePan();

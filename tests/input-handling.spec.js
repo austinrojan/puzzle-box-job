@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { gotoVTT, enterMapMode } from './helpers.js';
+import { gotoVTT, enterMapMode, injectTestAccessors } from './helpers.js';
 
 async function evalNormalize(page, wheelEvent) {
   return page.evaluate(async (evt) => {
@@ -151,5 +151,31 @@ test.describe('Phase 2: Input handling', () => {
       window.__vtt?.mapRenderer?.camera?.zoom
     );
     expect(zoomAfter).toBeGreaterThan(zoomBefore);
+  });
+
+  test('left-click drag past threshold activates elastic bounds', async ({ page }) => {
+    await injectTestAccessors(page);
+    await page.evaluate(() => {
+      const cam = __cam();
+      cam.zoom = 2.0; cam.x = 500; cam.y = 500;
+      cam._applyConstraints();
+    });
+
+    const box = await page.locator('#map-container').boundingBox();
+    const cx = box.x + box.width / 2;
+    const cy = box.y + box.height / 2;
+
+    // Left-click and drag beyond DRAG_THRESHOLD (3px)
+    await page.mouse.move(cx, cy);
+    await page.mouse.down({ button: 'left' });
+    await page.mouse.move(cx + 50, cy, { steps: 5 });
+
+    const isDragging = await page.evaluate(() => __cam()?._isDragging);
+    expect(isDragging).toBe(true);
+
+    // Release — should trigger snap-back and clear _isDragging
+    await page.mouse.up({ button: 'left' });
+    const isDraggingAfter = await page.evaluate(() => __cam()?._isDragging);
+    expect(isDraggingAfter).toBe(false);
   });
 });

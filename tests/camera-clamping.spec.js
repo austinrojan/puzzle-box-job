@@ -1,9 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { gotoVTT, enterMapMode, injectTestAccessors } from './helpers.js';
 
-// Spring settles in ~500ms; 800ms gives headroom for headless Chrome rAF variance
-const SNAP_SETTLE_MS = 800;
-
 test.describe('Pure math — clampAxis and rubberBand', () => {
   test.beforeEach(async ({ page }) => {
     await gotoVTT(page);
@@ -114,7 +111,7 @@ test.describe('Pure math — clampAxis and rubberBand', () => {
     });
     expect(result.deepAbs).toBeGreaterThan(result.shallowAbs);
     // 10x more overshoot should NOT produce 10x more elastic offset (diminishing)
-    expect(result.ratio).toBeLessThan(10);
+    expect(result.ratio).toBeLessThan(9);
   });
 });
 
@@ -254,6 +251,36 @@ test.describe('Constraint integration — zoom floor and pan clamping', () => {
     expect(result.zoom).toBeGreaterThanOrEqual(result.coverZoom - 0.001);
   });
 
+  test('_dmCanZoomPastCover toggle snaps zoom to cover when disabled', async ({ page }) => {
+    const result = await page.evaluate(() => {
+      const cam = __cam();
+      if (!cam) return null;
+      const { EventBus } = window.__vtt;
+
+      // Enable DM zoom past cover
+      cam._dmCanZoomPastCover = true;
+
+      // Zoom below cover
+      cam.zoom = cam._coverZoom * 0.5;
+      cam._applyConstraints();
+      const belowCover = cam.zoom;
+
+      // Disable via EventBus (simulates controller message)
+      EventBus.emit('camera:zoom-past-cover', false);
+
+      return {
+        belowCover,
+        afterDisable: cam.zoom,
+        coverZoom: cam._coverZoom,
+        dmToggle: cam._dmCanZoomPastCover
+      };
+    });
+    expect(result).not.toBeNull();
+    expect(result.belowCover).toBeLessThan(result.coverZoom);       // was below cover
+    expect(result.afterDisable).toBeCloseTo(result.coverZoom, 2);   // snapped to cover
+    expect(result.dmToggle).toBe(false);                             // toggle updated
+  });
+
   test('zoomAt at zoom floor produces no cursor drift', async ({ page }) => {
     const result = await page.evaluate(() => {
       const cam = __cam();
@@ -304,7 +331,7 @@ test.describe('Elastic overscroll + snap-back', () => {
       cam._isDragging = false;
       cam._triggerSnapBack();
     });
-    await page.waitForTimeout(SNAP_SETTLE_MS);
+    await page.waitForFunction(() => (__cam()?.x ?? -999) >= -1.0, { timeout: 3000 });
     const x = await page.evaluate(() => __cam()?.x);
     expect(x).toBeGreaterThanOrEqual(-1.0);
   });
@@ -327,7 +354,7 @@ test.describe('E2E — mouse-driven boundary interactions', () => {
     await page.mouse.down({ button: 'right' });
     await page.mouse.move(box.x + box.width + 200, box.y + box.height / 2, { steps: 10 });
     await page.mouse.up({ button: 'right' });
-    await page.waitForTimeout(SNAP_SETTLE_MS);
+    await page.waitForFunction(() => (__cam()?.x ?? -999) >= -1.0, { timeout: 3000 });
     const x = await page.evaluate(() => __cam()?.x);
     expect(x).toBeGreaterThanOrEqual(-1.0);
   });
@@ -335,7 +362,7 @@ test.describe('E2E — mouse-driven boundary interactions', () => {
   test('keyboard pan stops at map edges', async ({ page }) => {
     await page.evaluate(() => {
       const cam = __cam();
-      cam.zoom = 2.0; cam.x = 0; cam.y = 0;
+      cam.zoom = 2.0; cam.x = 100; cam.y = 100;
       cam._applyConstraints();
     });
     await page.keyboard.down('ArrowLeft');
@@ -343,6 +370,7 @@ test.describe('E2E — mouse-driven boundary interactions', () => {
     await page.keyboard.up('ArrowLeft');
     await page.waitForTimeout(100);
     const x = await page.evaluate(() => __cam()?.x);
-    expect(x).toBeCloseTo(0, 0);
+    expect(x).toBeGreaterThanOrEqual(-1);  // clamped at boundary
+    expect(x).toBeLessThan(100);           // proves the pan actually moved
   });
 });

@@ -6,13 +6,13 @@
 
 ## Summary
 
-| Category | Count |
-|----------|-------|
-| **Blocking** | 0 |
-| **Advisory (High)** | 2 |
-| **Advisory** | 8 |
-| **False Positive** | 5 |
-| **Total findings** | 15 |
+| Category | Count | Fixed |
+|----------|-------|-------|
+| **Blocking** | 0 | — |
+| **Advisory (High)** | 2 | 2 (AH-1, AH-2) |
+| **Advisory** | 8 | 4 (A-1, A-2, A-3, A-5) |
+| **False Positive** | 5 | — |
+| **Total findings** | 15 | **6 fixed** |
 
 **Verdict: Phase 3 is clear to proceed.** Zero blocking bugs found across all four review domains (constraint math, state machine, edge-pan/protocol, test suite). The constraint pipeline is complete — every camera mutation path terminates in `_applyConstraints()` or has a documented bypass. The `_isDragging` state machine has balanced entry/exit paths. The spring solver, rubber band formula, and dual-regime clamping are mathematically correct. Test coverage is solid for core paths with known gaps for edge cases documented below.
 
@@ -64,13 +64,13 @@
 - **File:** `tests/camera-clamping.spec.js:102-118`
 - **Issue:** The elastic diminishing returns test asserts `ratio < 10` (10x overshoot → less than 10x elastic offset). With `c = 0.55`, the actual ratio for 50px vs 500px is approximately 4.5x. A tighter bound of `< 6` would catch regressions in the rubber band constant without being fragile.
 - **Impact:** Very generous tolerance could mask a broken rubber band constant.
-- **Fix:** Tighten to `expect(result.ratio).toBeLessThan(6)`.
+- **Fix:** Fixed: tightened to `expect(result.ratio).toBeLessThan(9)`. Actual ratio is ~8.06 (not ~4.5 as initially estimated); bound of 9 gives headroom while catching regressions.
 
 ### A-6: DM zoom below cover lost on map resize when `_dmCanZoomPastCover = true`
-- **File:** `vtt/js/map-camera.js` — `_updateCoverZoom()` / `_onContainerResize()`
-- **Issue:** When `_dmCanZoomPastCover` is enabled and the DM has zoomed below `_coverZoom`, a window resize recalculates `_coverZoom`. If the new `_coverZoom` is higher than the current zoom, `_applyConstraints()` (called from `setViewportSize`) will clamp zoom up to the new `_coverZoom` — even though the DM explicitly opted into sub-cover viewing.
+- **File:** `vtt/js/map-camera.js` — `setViewportSize()` (line 425)
+- **Issue:** When `_dmCanZoomPastCover` is enabled and the DM has zoomed below `_coverZoom`, a window resize recalculates `_coverZoom`. The snap-to-cover logic in `setViewportSize()` (line 425) fires before `_applyConstraints()` and does not check `_dmCanZoomPastCover`. Note: `_getMinZoom()` already correctly returns `MIN_ZOOM` when `_dmCanZoomPastCover=true` — the issue is upstream in `setViewportSize`.
 - **Impact:** Low. Map resize during active DM zoom-past-cover is rare. The DM can simply zoom out again.
-- **Fix:** In `_getMinZoom()`, when `_dmCanZoomPastCover` is true, return `MIN_ZOOM` instead of `_coverZoom`.
+- **Fix:** Add `&& !this._dmCanZoomPastCover` to the snap-to-cover condition at `setViewportSize()` line 425. Deferred to Phase 4.
 
 ### A-7: `panBy()` still ignores `viewportScale` — carried forward from Phase 2
 - **File:** `vtt/js/map-camera.js:452-455`
@@ -141,7 +141,7 @@ Token drag (edge-pan active, `_isDragging = false`) + simultaneous right-click c
 | AH-2: BoundsCache invalidation | **Resolved** | Phase 3 constraint pipeline always applies bounds after mode transition. |
 | AH-3: Zoom presets non-US keyboards | **Fixed** | Commit `7c8ecc1` — added `e.code` fallbacks. |
 | AH-4: Token drag coupling via `__vtt._dragging` | **Carried** | Still present, same risk. Phase 3 added EdgePanManager with clean EventBus pattern. |
-| AH-5: `waitForTimeout` timing | **Carried → AH-2** | Phase 3 tests use same pattern with `SNAP_SETTLE_MS = 800`. |
+| AH-5: `waitForTimeout` timing | **Fixed (AH-2)** | Replaced with `waitForFunction` polling. `SNAP_SETTLE_MS` constant removed. |
 | AH-6: Shift+arrow untested | **Carried** | Still no test. Phase 3 didn't touch keyboard pan logic. |
 | A-1: `fitCover()` zero-map guard | **Fixed** | Commit `fa4f054`. |
 | A-9: Tolerance inconsistency | **Carried** | Phase 3 tests mix `toBeCloseTo`, `toBeLessThan(1)`, `toBeGreaterThanOrEqual(-1.0)`. Intentional per-assertion but lacks documentation. |
@@ -162,16 +162,17 @@ Token drag (edge-pan active, `_isDragging = false`) + simultaneous right-click c
 | `rubberBand` | ✓ (3 tests) | — | — | — |
 | `CameraAnimator` spring | ✓ (5 tests) | — | — | Nonzero velocity (A-4) |
 | `_applyConstraints` dispatch | — | ✓ (elastic toggle) | — | — |
-| `_isDragging` state machine | — | ✓ (right-click) | ✓ | Left-click threshold (A-1) |
+| `_isDragging` state machine | — | ✓ (right-click) | ✓ (+ left-click threshold) | — |
 | Zoom floor enforcement | — | ✓ (2 tests) | — | — |
-| `_dmCanZoomPastCover` toggle | — | — | — | **No test (A-2)** |
+| `_dmCanZoomPastCover` toggle | — | ✓ (toggle test) | — | — |
 | `_bypassZoomFloor` | — | ✓ (fitContain) | — | — |
 | `_triggerSnapBack` | — | ✓ (settle test) | ✓ | — |
-| `_commitPan` threshold | — | — | — | **No test (A-1)** |
+| `_commitPan` threshold | — | — | ✓ (threshold test) | — |
 | EdgePanManager velocity | ✓ (4 tests) | — | — | — |
-| Edge-pan lifecycle | ✓ (1 test) | — | — | START_DELAY (A-3) |
+| Edge-pan lifecycle | ✓ (2 tests) | — | — | — |
 | Edge-pan E2E | — | — | — | **No test** |
-| Protocol `CAMERA_ZOOM_PAST_COVER` | — | — | — | **No test (A-2)** |
+| Protocol `CAMERA_ZOOM_PAST_COVER` | — | ✓ (toggle test) | — | — |
+| `fitContain` non-persistence | — | — | — | Correct by construction, no dedicated test. Advisory gap. |
 
 ---
 
@@ -190,14 +191,14 @@ Token drag (edge-pan active, `_isDragging = false`) + simultaneous right-click c
 ## Recommended Fix Priority
 
 ### Must fix before Phase 4
-1. **AH-1** — Strengthen keyboard edge-stop test (start at x=100, not x=0)
-2. **AH-2** — Replace `waitForTimeout` with poll-based assertions in snap-back tests
+1. **AH-1** — ~~Strengthen keyboard edge-stop test (start at x=100, not x=0)~~ **Fixed**
+2. **AH-2** — ~~Replace `waitForTimeout` with poll-based assertions in snap-back tests~~ **Fixed**
 
 ### Should fix (low risk to defer)
-3. **A-1** — Add `_commitPan` threshold E2E test
-4. **A-2** — Add `_dmCanZoomPastCover` toggle test
-5. **A-3** — Add `START_DELAY_MS` timing test
-6. **A-5** — Tighten diminishing returns ratio assertion to `< 6`
+3. **A-1** — ~~Add `_commitPan` threshold E2E test~~ **Fixed** (added to `input-handling.spec.js`)
+4. **A-2** — ~~Add `_dmCanZoomPastCover` toggle test~~ **Fixed** (added to `camera-clamping.spec.js`)
+5. **A-3** — ~~Add `START_DELAY_MS` timing test~~ **Fixed** (added to `edge-pan.spec.js`)
+6. **A-5** — ~~Tighten diminishing returns ratio assertion~~ **Fixed** (tightened to `< 9`; actual ratio ~8.06)
 
 ### Future candidates (carry-forward)
 7. **A-7 (AH-1 from Phase 2)** — `panBy()` viewportScale — fix when responsive scaling matters
