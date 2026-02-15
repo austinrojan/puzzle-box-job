@@ -366,9 +366,12 @@ test.describe('E2E — mouse-driven boundary interactions', () => {
       cam._applyConstraints();
     });
     await page.keyboard.down('ArrowLeft');
-    await page.waitForTimeout(400);
+    // Wait for pan to move left (x decreases)
+    await page.waitForFunction(() => {
+      const x = __cam()?.x;
+      return x != null && x < 100;
+    }, { timeout: 3000 });
     await page.keyboard.up('ArrowLeft');
-    await page.waitForTimeout(100);
     const x = await page.evaluate(() => __cam()?.x);
     expect(x).toBeGreaterThanOrEqual(-1);  // clamped at boundary
     expect(x).toBeLessThan(100);           // proves the pan actually moved
