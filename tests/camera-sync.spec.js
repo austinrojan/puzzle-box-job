@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { gotoVTT, enterMapMode } from './helpers.js';
 
 test.describe('Center-point camera model', () => {
   test('roundtrips correctly at standard viewport', async ({ page }) => {
@@ -395,5 +396,37 @@ test.describe('CameraChannelManager', () => {
       return applied.length > 0;
     });
     expect(restored).toBe(false);
+  });
+});
+
+test.describe('VTT Display sync engine', () => {
+  test('syncEngine is initialized with role display', async ({ page }) => {
+    await gotoVTT(page);
+    await enterMapMode(page);
+    const r = await page.evaluate(() => {
+      const se = window.__vtt?.syncEngine;
+      return se ? { role: se._role, started: se._started } : null;
+    });
+    expect(r).not.toBeNull();
+    expect(r.role).toBe('display');
+    expect(r.started).toBe(true);
+  });
+
+  test('syncEngine has no broadcaster (display is receiver-only)', async ({ page }) => {
+    await gotoVTT(page);
+    await enterMapMode(page);
+    const hasBroadcaster = await page.evaluate(() => {
+      return window.__vtt?.syncEngine?._broadcaster != null;
+    });
+    expect(hasBroadcaster).toBe(false);
+  });
+
+  test('syncEngine has a receiver', async ({ page }) => {
+    await gotoVTT(page);
+    await enterMapMode(page);
+    const hasReceiver = await page.evaluate(() => {
+      return window.__vtt?.syncEngine?._receiver != null;
+    });
+    expect(hasReceiver).toBe(true);
   });
 });

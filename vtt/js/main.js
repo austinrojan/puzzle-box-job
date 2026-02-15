@@ -14,6 +14,7 @@ import * as playerControls from './player-controls.js';
 import * as sceneNavigator from './scene-navigator.js';
 import { EffectsEngine } from './effects-engine.js';
 import { initViewportScaler, getViewportScale } from './viewport-scaler.js';
+import { CameraSyncEngine } from './camera-sync.js';
 
 const $ = id => document.getElementById(id);
 const delay = ms => new Promise(r => setTimeout(r, ms));
@@ -114,8 +115,15 @@ async function boot() {
     mapRenderer.camera.setViewportScale(scale);
   });
 
+  // Initialize camera sync engine (Phase 4)
+  const syncEngine = new CameraSyncEngine({
+    camera: mapRenderer.camera,
+    role: 'display',
+  });
+  syncEngine.start();
+
   // Expose debugging interface
-  window.__vtt = { state, store, mapRenderer, tokenManager, effectsEngine, EventBus, clearSavedState, getViewportScale };
+  window.__vtt = { state, store, mapRenderer, tokenManager, effectsEngine, EventBus, clearSavedState, getViewportScale, syncEngine };
 
   // Go live
   state.loaded = true;
