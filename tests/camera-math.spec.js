@@ -5,6 +5,7 @@ test.describe('Camera math — world-space model', () => {
 
   test.beforeEach(async ({ page }) => {
     await gotoVTT(page);
+    await page.waitForFunction(() => window.__vtt?.mapRenderer?.camera != null, { timeout: 10000 });
   });
 
   test('screenToWorld and worldToScreen are inverses', async ({ page }) => {
