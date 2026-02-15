@@ -532,3 +532,164 @@ export class CameraChannelManager {
     this._onMessage = null;
   }
 }
+
+// ============================================================
+// CameraSyncEngine
+// ============================================================
+
+export class CameraSyncEngine {
+  constructor({ camera, role }) {
+    this._camera = camera;
+    this._role = role;
+    this._started = false;
+
+    this._channelManager = null;
+    this._registry = null;
+    this._broadcaster = null;
+    this._receiver = null;
+
+    this._bestWelcome = null;
+    this._welcomeTimer = null;
+  }
+
+  start() {
+    if (this._started) return;
+    this._started = true;
+
+    this._channelManager = new CameraChannelManager({
+      camera: this._camera,
+      role: this._role,
+      onMessage: (msg) => this._handleMessage(msg),
+    });
+    this._channelManager.start();
+
+    const channel = this._channelManager.channel;
+    const windowId = this._channelManager.windowId;
+
+    if (this._role === 'controller') {
+      this._broadcaster = new CameraBroadcaster(this._camera, channel, windowId);
+      this._receiver = new CameraReceiver(this._camera, this._broadcaster);
+      this._broadcaster.start();
+    } else if (this._role === 'display') {
+      this._receiver = new CameraReceiver(this._camera, null);
+    }
+    // dm-guide: no broadcaster, no receiver
+
+    this._registry = new WindowRegistry(windowId, this._role, channel);
+
+    this._registry.onPeerChange({
+      onJoin: (peerId, peerRole) => {
+        EventBus.emit('camera-sync:peer-join', { peerId, peerRole });
+      },
+      onLeave: (peerId, peerRole) => {
+        EventBus.emit('camera-sync:peer-leave', { peerId, peerRole });
+        if (this._receiver) {
+          this._receiver.removeSender(peerId);
+        }
+      },
+    });
+
+    EventBus.on('camera-sync:welcome', (data) => {
+      this._handleWelcomeState(data);
+    });
+
+    EventBus.on('camera-sync:reconnect', () => {
+      this._reconnect();
+    });
+
+    this._registry.start();
+  }
+
+  _handleMessage(msg) {
+    if (!msg || !msg.type) return;
+
+    switch (msg.type) {
+      case MSG.CAMERA_SYNC:
+      case MSG.CAMERA_JUMP_TO:
+        if (this._receiver) {
+          this._receiver.handleMessage(msg);
+        }
+        break;
+
+      case MSG.ANNOUNCE:
+      case MSG.WELCOME:
+      case MSG.HEARTBEAT:
+      case MSG.GOODBYE:
+        this._registry.handleMessage(msg, (announcerId, announcerRole) => {
+          return this._onAnnounce(announcerId, announcerRole);
+        });
+        break;
+    }
+  }
+
+  _onAnnounce(announcerId, announcerRole) {
+    const cam = this._camera;
+    const vp = { width: cam.viewportW, height: cam.viewportH };
+    if (vp.width <= 0 || vp.height <= 0) return null;
+
+    const shared = localToShared(cam, vp);
+    // Include map dimensions for headless Camera bootstrapping
+    shared.mapW = cam.mapW;
+    shared.mapH = cam.mapH;
+    return shared;
+  }
+
+  _handleWelcomeState(data) {
+    if (!this._bestWelcome || data.epoch > this._bestWelcome.epoch) {
+      this._bestWelcome = data;
+    }
+    if (this._welcomeTimer) clearTimeout(this._welcomeTimer);
+    this._welcomeTimer = setTimeout(() => {
+      this._applyWelcome();
+    }, 150);
+  }
+
+  _applyWelcome() {
+    if (!this._bestWelcome) return;
+
+    const { camera } = this._bestWelcome;
+    if (camera && this._receiver) {
+      // Bootstrap map dimensions for headless Camera (Controller)
+      if (camera.mapW > 0 && camera.mapH > 0 && this._camera.mapW <= 0) {
+        this._camera.setMapSize(camera.mapW, camera.mapH);
+      }
+      this._receiver.applyWelcomeState(camera.centerX, camera.centerY, camera.zoom);
+    }
+
+    this._bestWelcome = null;
+    this._welcomeTimer = null;
+  }
+
+  _reconnect() {
+    const channel = this._channelManager.channel;
+    if (!channel) return;
+
+    if (this._broadcaster) {
+      this._broadcaster.setChannel(channel);
+    }
+    this._registry.setChannel(channel);
+    this._registry.start();
+
+    if (this._broadcaster) {
+      this._broadcaster.start();
+    }
+  }
+
+  stop() {
+    if (this._broadcaster) this._broadcaster.stop();
+    if (this._registry) this._registry.stop();
+    if (this._channelManager) this._channelManager.stop();
+    if (this._welcomeTimer) clearTimeout(this._welcomeTimer);
+    this._started = false;
+  }
+
+  destroy() {
+    this.stop();
+    if (this._broadcaster) this._broadcaster.destroy();
+    if (this._receiver) this._receiver.destroy();
+    if (this._registry) this._registry.destroy();
+    if (this._channelManager) this._channelManager.destroy();
+  }
+
+  get broadcaster() { return this._broadcaster; }
+}
