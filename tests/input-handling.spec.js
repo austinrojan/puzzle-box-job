@@ -78,10 +78,12 @@ test.describe('Phase 2: Input handling', () => {
 
     await page.keyboard.down('ArrowRight');
     await page.keyboard.down('ArrowDown');
-    await page.waitForTimeout(300);
+    await page.waitForFunction((prev) => {
+      const cam = window.__vtt?.mapRenderer?.camera;
+      return cam && cam.x > prev.x && cam.y > prev.y;
+    }, posBefore, { timeout: 3000 });
     await page.keyboard.up('ArrowRight');
     await page.keyboard.up('ArrowDown');
-    await page.waitForTimeout(50);
 
     const posAfter = await page.evaluate(() => {
       const cam = window.__vtt?.mapRenderer?.camera;
@@ -93,16 +95,30 @@ test.describe('Phase 2: Input handling', () => {
   });
 
   test('arrow keys stop on blur', async ({ page }) => {
+    // Zoom in so panning is possible (at cover zoom, clamping prevents pan)
+    await page.evaluate(() => {
+      const cam = window.__vtt?.mapRenderer?.camera;
+      if (cam) { cam.zoom = 2.0; cam.x = 200; cam.y = 200; cam._applyConstraints(); }
+    });
+    const initX = await page.evaluate(() => window.__vtt?.mapRenderer?.camera?.x);
     await page.keyboard.down('ArrowRight');
-    await page.waitForTimeout(200);
+    // Wait for pan to start (x increases)
+    await page.waitForFunction((prev) => {
+      const cam = window.__vtt?.mapRenderer?.camera;
+      return cam && cam.x > prev;
+    }, initX, { timeout: 3000 });
     await page.evaluate(() => window.dispatchEvent(new Event('blur')));
-    await page.waitForTimeout(50);
 
     const posBefore = await page.evaluate(() => {
       const cam = window.__vtt?.mapRenderer?.camera;
       return cam ? { x: cam.x } : null;
     });
-    await page.waitForTimeout(200);
+    // Wait 3 rAF frames — if blur stopped panning, x won't change
+    await page.waitForFunction(() => {
+      return new Promise(r => {
+        requestAnimationFrame(() => requestAnimationFrame(() => requestAnimationFrame(() => r(true))));
+      });
+    }, { timeout: 3000 });
     const posAfter = await page.evaluate(() => {
       const cam = window.__vtt?.mapRenderer?.camera;
       return cam ? { x: cam.x } : null;
@@ -116,7 +132,10 @@ test.describe('Phase 2: Input handling', () => {
       window.__vtt?.mapRenderer?.camera?.zoom
     );
     await page.keyboard.press('Equal'); // '=' key = '+' without Shift
-    await page.waitForTimeout(50);
+    await page.waitForFunction((prev) => {
+      const z = window.__vtt?.mapRenderer?.camera?.zoom;
+      return z != null && z > prev;
+    }, zoomBefore, { timeout: 3000 });
     const zoomAfter = await page.evaluate(() =>
       window.__vtt?.mapRenderer?.camera?.zoom
     );
@@ -132,7 +151,10 @@ test.describe('Phase 2: Input handling', () => {
       window.__vtt?.mapRenderer?.camera?.zoom
     );
     await page.keyboard.press('Minus');
-    await page.waitForTimeout(50);
+    await page.waitForFunction((prev) => {
+      const z = window.__vtt?.mapRenderer?.camera?.zoom;
+      return z != null && z < prev;
+    }, zoomBefore, { timeout: 3000 });
     const zoomAfter = await page.evaluate(() =>
       window.__vtt?.mapRenderer?.camera?.zoom
     );
@@ -146,7 +168,10 @@ test.describe('Phase 2: Input handling', () => {
     await page.evaluate(() => {
       window.__vtt.EventBus.emit('camera:zoom', 1);
     });
-    await page.waitForTimeout(50);
+    await page.waitForFunction((prev) => {
+      const z = window.__vtt?.mapRenderer?.camera?.zoom;
+      return z != null && z > prev;
+    }, zoomBefore, { timeout: 3000 });
     const zoomAfter = await page.evaluate(() =>
       window.__vtt?.mapRenderer?.camera?.zoom
     );
