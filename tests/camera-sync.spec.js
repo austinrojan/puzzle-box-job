@@ -332,3 +332,68 @@ test.describe('WindowRegistry', () => {
     expect(r.hasRole).toBe(false);
   });
 });
+
+test.describe('CameraChannelManager', () => {
+  test('persist/restore roundtrip via sessionStorage', async ({ page }) => {
+    await page.goto('/vtt/', { waitUntil: 'domcontentloaded' });
+    const r = await page.evaluate(async () => {
+      const { CameraChannelManager } = await import('/vtt/js/camera-sync.js');
+      const { sharedToLocal } = await import('/shared/protocol.js');
+
+      const KEY = 'vtt-camera-state';
+      const saved = {
+        centerX: 500, centerY: 300, zoom: 1.8,
+        windowId: 'test-win', role: 'display',
+        timestamp: Date.now(),
+      };
+      sessionStorage.setItem(KEY, JSON.stringify(saved));
+
+      const applied = [];
+      const camera = {
+        viewportW: 1920, viewportH: 1080, mapW: 0, mapH: 0,
+        deserialize: d => applied.push(structuredClone(d)),
+      };
+
+      const mgr = new CameraChannelManager({ camera, role: 'display', onMessage: () => {} });
+      mgr._tryRestore();
+
+      if (applied.length === 0) return { restored: false };
+      const expected = sharedToLocal(saved, { width: 1920, height: 1080 });
+      return {
+        restored: true,
+        x: applied[0].x,
+        y: applied[0].y,
+        zoom: applied[0].zoom,
+        expectedX: expected.x,
+        expectedY: expected.y,
+        expectedZoom: expected.zoom,
+      };
+    });
+    expect(r.restored).toBe(true);
+    expect(r.x).toBeCloseTo(r.expectedX, 2);
+    expect(r.y).toBeCloseTo(r.expectedY, 2);
+    expect(r.zoom).toBeCloseTo(r.expectedZoom, 2);
+  });
+
+  test('rejects stale sessionStorage (> 5 min old)', async ({ page }) => {
+    await page.goto('/vtt/', { waitUntil: 'domcontentloaded' });
+    const restored = await page.evaluate(async () => {
+      const { CameraChannelManager } = await import('/vtt/js/camera-sync.js');
+      const KEY = 'vtt-camera-state';
+      sessionStorage.setItem(KEY, JSON.stringify({
+        centerX: 500, centerY: 300, zoom: 1.8,
+        windowId: 'test-win', role: 'display',
+        timestamp: Date.now() - 6 * 60 * 1000,
+      }));
+      const applied = [];
+      const camera = {
+        viewportW: 1920, viewportH: 1080, mapW: 0, mapH: 0,
+        deserialize: d => applied.push(d),
+      };
+      const mgr = new CameraChannelManager({ camera, role: 'display', onMessage: () => {} });
+      mgr._tryRestore();
+      return applied.length > 0;
+    });
+    expect(restored).toBe(false);
+  });
+});

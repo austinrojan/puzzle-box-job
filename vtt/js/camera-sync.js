@@ -391,3 +391,144 @@ export class WindowRegistry {
     this._channel = null;
   }
 }
+
+// ============================================================
+// CameraChannelManager
+// ============================================================
+
+const CAMERA_CHANNEL_NAME = 'vtt-camera';
+const SESSION_KEY = 'vtt-camera-state';
+const SESSION_MAX_AGE = 5 * 60 * 1000; // 5 minutes
+
+export class CameraChannelManager {
+  constructor({ camera, role, onMessage }) {
+    this._camera = camera;
+    this._role = role;
+    this._onMessage = onMessage;
+    this._channel = null;
+    this._windowId = generateWindowId();
+
+    this._onPageHide = this._onPageHide.bind(this);
+    this._onPageShow = this._onPageShow.bind(this);
+    this._onVisibilityChange = this._onVisibilityChange.bind(this);
+  }
+
+  get channel() { return this._channel; }
+  get windowId() { return this._windowId; }
+
+  start() {
+    this._openChannel();
+    this._attachLifecycleListeners();
+    this._restoreFromSessionStorage();
+  }
+
+  stop() {
+    this._closeChannel();
+    this._detachLifecycleListeners();
+  }
+
+  _openChannel() {
+    if (this._channel) return;
+    this._channel = new BroadcastChannel(CAMERA_CHANNEL_NAME);
+    this._channel.onmessage = (event) => {
+      if (this._onMessage) {
+        this._onMessage(event.data);
+      }
+    };
+  }
+
+  _closeChannel() {
+    if (!this._channel) return;
+    this._channel.close();
+    this._channel = null;
+  }
+
+  _attachLifecycleListeners() {
+    window.addEventListener('pagehide', this._onPageHide);
+    window.addEventListener('pageshow', this._onPageShow);
+    document.addEventListener('visibilitychange', this._onVisibilityChange);
+  }
+
+  _detachLifecycleListeners() {
+    window.removeEventListener('pagehide', this._onPageHide);
+    window.removeEventListener('pageshow', this._onPageShow);
+    document.removeEventListener('visibilitychange', this._onVisibilityChange);
+  }
+
+  _onPageHide() {
+    this._persistToSessionStorage();
+    this._closeChannel();
+  }
+
+  _onPageShow(event) {
+    if (!this._channel) {
+      this._openChannel();
+      if (event.persisted) {
+        this._restoreFromSessionStorage();
+        EventBus.emit('camera-sync:reconnect');
+      }
+    }
+  }
+
+  _onVisibilityChange() {
+    if (document.visibilityState === 'hidden') {
+      this._persistToSessionStorage();
+    }
+  }
+
+  _persistToSessionStorage() {
+    try {
+      const cam = this._camera;
+      const vp = { width: cam.viewportW, height: cam.viewportH };
+      const shared = localToShared(cam, vp);
+      const data = {
+        centerX: shared.centerX,
+        centerY: shared.centerY,
+        zoom: shared.zoom,
+        windowId: this._windowId,
+        role: this._role,
+        timestamp: Date.now(),
+      };
+      sessionStorage.setItem(SESSION_KEY, JSON.stringify(data));
+    } catch (e) {
+      // sessionStorage may be unavailable
+    }
+  }
+
+  _restoreFromSessionStorage() {
+    this._tryRestore();
+  }
+
+  _tryRestore() {
+    try {
+      const raw = sessionStorage.getItem(SESSION_KEY);
+      if (!raw) return;
+
+      const data = JSON.parse(raw);
+
+      if (Date.now() - data.timestamp > SESSION_MAX_AGE) {
+        sessionStorage.removeItem(SESSION_KEY);
+        return;
+      }
+
+      const cam = this._camera;
+      const vp = { width: cam.viewportW, height: cam.viewportH };
+      if (vp.width <= 0 || vp.height <= 0) return;
+
+      const local = sharedToLocal(data, vp);
+      cam.deserialize({
+        x: local.x,
+        y: local.y,
+        zoom: local.zoom,
+      });
+    } catch (e) {
+      // Parse errors, missing keys: ignore silently
+    }
+  }
+
+  destroy() {
+    this.stop();
+    this._camera = null;
+    this._onMessage = null;
+  }
+}
