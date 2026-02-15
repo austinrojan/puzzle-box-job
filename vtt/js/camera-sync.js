@@ -37,6 +37,16 @@ function generateWindowId() {
   return Array.from(arr, b => b.toString(16).padStart(2, '0')).join('');
 }
 
+/** Build viewport-size object from a Camera instance. */
+function cameraViewport(camera) {
+  return { width: camera.viewportW, height: camera.viewportH };
+}
+
+/** True if viewport has positive dimensions (map is loaded). */
+function viewportReady(vp) {
+  return vp.width > 0 && vp.height > 0;
+}
+
 // ============================================================
 // CameraBroadcaster
 // ============================================================
@@ -105,8 +115,8 @@ export class CameraBroadcaster {
 
     // Sync local camera so the continuous CAMERA_SYNC stream doesn't
     // immediately overwrite the jump-to on the receiver.
-    const vp = { width: this._camera.viewportW, height: this._camera.viewportH };
-    if (vp.width > 0 && vp.height > 0) {
+    const vp = cameraViewport(this._camera);
+    if (viewportReady(vp)) {
       const local = sharedToLocal({ centerX, centerY, zoom }, vp);
       this.suppressBroadcast = true;
       try {
@@ -137,8 +147,8 @@ export class CameraBroadcaster {
     if (this.suppressBroadcast) return;
 
     const cam = this._camera;
-    const vp = { width: cam.viewportW, height: cam.viewportH };
-    if (vp.width <= 0 || vp.height <= 0) return;
+    const vp = cameraViewport(cam);
+    if (!viewportReady(vp)) return;
 
     const shared = localToShared(cam, vp);
 
@@ -211,8 +221,8 @@ export class CameraReceiver {
 
   _applySharedState(centerX, centerY, zoom) {
     const cam = this._camera;
-    const vp = { width: cam.viewportW, height: cam.viewportH };
-    if (vp.width <= 0 || vp.height <= 0) return;
+    const vp = cameraViewport(cam);
+    if (!viewportReady(vp)) return;
 
     const local = sharedToLocal({ centerX, centerY, zoom }, vp);
 
@@ -496,7 +506,7 @@ export class CameraChannelManager {
   _persistToSessionStorage() {
     try {
       const cam = this._camera;
-      const vp = { width: cam.viewportW, height: cam.viewportH };
+      const vp = cameraViewport(cam);
       const shared = localToShared(cam, vp);
       const data = {
         centerX: shared.centerX,
@@ -529,8 +539,8 @@ export class CameraChannelManager {
       }
 
       const cam = this._camera;
-      const vp = { width: cam.viewportW, height: cam.viewportH };
-      if (vp.width <= 0 || vp.height <= 0) return;
+      const vp = cameraViewport(cam);
+      if (!viewportReady(vp)) return;
 
       const local = sharedToLocal(data, vp);
       cam.deserialize({
@@ -641,8 +651,8 @@ export class CameraSyncEngine {
 
   _onAnnounce(announcerId, announcerRole) {
     const cam = this._camera;
-    const vp = { width: cam.viewportW, height: cam.viewportH };
-    if (vp.width <= 0 || vp.height <= 0) return null;
+    const vp = cameraViewport(cam);
+    if (!viewportReady(vp)) return null;
 
     const shared = localToShared(cam, vp);
     // Include map dimensions for headless Camera bootstrapping
