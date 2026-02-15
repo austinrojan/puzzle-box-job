@@ -549,11 +549,17 @@ test.describe('Cross-window camera sync', () => {
       { timeout: 5000 }
     );
 
+    // Record zoom before Controller acts
+    const zoomBefore = await display.evaluate(() => window.__vtt?.mapRenderer?.camera?.zoom);
+
     // Zoom in
     await ctrl.evaluate(() => {
       window.__controller.camera.zoomToCenter(0.5);
     });
-    await display.waitForTimeout(200);
+    await display.waitForFunction((prev) => {
+      const cam = window.__vtt?.mapRenderer?.camera;
+      return cam && Math.abs(cam.zoom - prev) > 0.01;
+    }, zoomBefore, { timeout: 3000 });
 
     // Record state
     const before = await display.evaluate(() => {
@@ -563,7 +569,12 @@ test.describe('Cross-window camera sync', () => {
 
     // Close Controller
     await ctrl.close();
-    await display.waitForTimeout(200);
+    // Wait 3 rAF frames — proving state is stable, not changing
+    await display.waitForFunction(() => {
+      return new Promise(r => {
+        requestAnimationFrame(() => requestAnimationFrame(() => requestAnimationFrame(() => r(true))));
+      });
+    }, { timeout: 3000 });
 
     // Display should retain state
     const after = await display.evaluate(() => {
