@@ -230,3 +230,164 @@ export class CameraReceiver {
     this._broadcaster = null;
   }
 }
+
+// ============================================================
+// WindowRegistry
+// ============================================================
+
+const HEARTBEAT_INTERVAL = 3000;  // ms between heartbeats
+const HEARTBEAT_TIMEOUT  = 10000; // ms before a peer is considered dead
+
+export class WindowRegistry {
+  constructor(windowId, role, channel) {
+    this._windowId = windowId;
+    this._role = role;
+    this._channel = channel;
+    this._peers = new Map();
+    this._heartbeatTimer = null;
+    this._reapTimer = null;
+    this._epoch = 0;
+    this._onPeerJoin = null;
+    this._onPeerLeave = null;
+  }
+
+  onPeerChange({ onJoin, onLeave }) {
+    this._onPeerJoin = onJoin || null;
+    this._onPeerLeave = onLeave || null;
+  }
+
+  setChannel(channel) {
+    this._channel = channel;
+  }
+
+  start() {
+    if (this._heartbeatTimer) clearInterval(this._heartbeatTimer);
+    if (this._reapTimer) clearInterval(this._reapTimer);
+
+    this._channel.postMessage(
+      createAnnounceMsg(this._windowId, this._role)
+    );
+
+    this._heartbeatTimer = setInterval(() => {
+      this._channel.postMessage(
+        createHeartbeatMsg(this._windowId, this._role)
+      );
+    }, HEARTBEAT_INTERVAL);
+
+    this._reapTimer = setInterval(() => this._reapDeadPeers(), HEARTBEAT_INTERVAL);
+  }
+
+  stop() {
+    if (this._heartbeatTimer) {
+      clearInterval(this._heartbeatTimer);
+      this._heartbeatTimer = null;
+    }
+    if (this._reapTimer) {
+      clearInterval(this._reapTimer);
+      this._reapTimer = null;
+    }
+    try {
+      this._channel.postMessage(createGoodbyeMsg(this._windowId));
+    } catch (e) {
+      // Channel may already be closed
+    }
+  }
+
+  handleMessage(msg, onAnnounce) {
+    switch (msg.type) {
+      case MSG.ANNOUNCE:
+        this._handleAnnounce(msg, onAnnounce);
+        break;
+      case MSG.WELCOME:
+        this._handleWelcome(msg);
+        break;
+      case MSG.HEARTBEAT:
+        this._touchPeer(msg.windowId, msg.role);
+        break;
+      case MSG.GOODBYE:
+        this._handleGoodbye(msg);
+        break;
+    }
+  }
+
+  _handleAnnounce(msg, onAnnounce) {
+    if (msg.windowId === this._windowId) return;
+    this._touchPeer(msg.windowId, msg.role);
+
+    if (onAnnounce) {
+      const cameraState = onAnnounce(msg.windowId, msg.role);
+      if (cameraState) {
+        this._epoch++;
+        this._channel.postMessage(
+          createWelcomeMsg(
+            this._windowId,
+            this._role,
+            msg.windowId,
+            cameraState,
+            this._epoch
+          )
+        );
+      }
+    }
+  }
+
+  _handleWelcome(msg) {
+    if (msg.targetWindowId !== this._windowId) return;
+    this._touchPeer(msg.windowId, msg.role);
+    EventBus.emit('camera-sync:welcome', {
+      fromWindowId: msg.windowId,
+      fromRole: msg.role,
+      camera: msg.camera,
+      epoch: msg.epoch,
+    });
+  }
+
+  _handleGoodbye(msg) {
+    const peer = this._peers.get(msg.windowId);
+    if (peer) {
+      this._peers.delete(msg.windowId);
+      if (this._onPeerLeave) {
+        this._onPeerLeave(msg.windowId, peer.role);
+      }
+    }
+  }
+
+  _touchPeer(windowId, role) {
+    if (windowId === this._windowId) return;
+    const isNew = !this._peers.has(windowId);
+    this._peers.set(windowId, { role, lastSeen: performance.now() });
+    if (isNew && this._onPeerJoin) {
+      this._onPeerJoin(windowId, role);
+    }
+  }
+
+  _reapDeadPeers() {
+    const now = performance.now();
+    for (const [windowId, peer] of this._peers) {
+      if (now - peer.lastSeen > HEARTBEAT_TIMEOUT) {
+        this._peers.delete(windowId);
+        if (this._onPeerLeave) {
+          this._onPeerLeave(windowId, peer.role);
+        }
+      }
+    }
+  }
+
+  countByRole(role) {
+    let count = 0;
+    for (const peer of this._peers.values()) {
+      if (peer.role === role) count++;
+    }
+    return count;
+  }
+
+  hasRole(role) {
+    return this.countByRole(role) > 0;
+  }
+
+  destroy() {
+    this.stop();
+    this._peers.clear();
+    this._channel = null;
+  }
+}

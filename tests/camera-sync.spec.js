@@ -251,3 +251,84 @@ test.describe('CameraReceiver', () => {
     expect(count).toBe(1);
   });
 });
+
+test.describe('WindowRegistry', () => {
+  test('registers peers on ANNOUNCE', async ({ page }) => {
+    await page.goto('/vtt/', { waitUntil: 'domcontentloaded' });
+    const r = await page.evaluate(async () => {
+      const { WindowRegistry } = await import('/vtt/js/camera-sync.js');
+      const sent = [];
+      const ch = { postMessage: m => sent.push(m) };
+      const reg = new WindowRegistry('win-a', 'display', ch);
+      let joined = null;
+      reg.onPeerChange({ onJoin: (id, role) => { joined = { id, role }; } });
+      reg.handleMessage(
+        { type: 'window:announce', windowId: 'win-b', role: 'controller' },
+        () => ({ centerX: 100, centerY: 200, zoom: 1.5 })
+      );
+      return { joined, sentCount: sent.length, hasRole: reg.hasRole('controller') };
+    });
+    expect(r.joined).toEqual({ id: 'win-b', role: 'controller' });
+    expect(r.sentCount).toBe(1); // WELCOME response
+    expect(r.hasRole).toBe(true);
+  });
+
+  test('ignores own ANNOUNCE', async ({ page }) => {
+    await page.goto('/vtt/', { waitUntil: 'domcontentloaded' });
+    const r = await page.evaluate(async () => {
+      const { WindowRegistry } = await import('/vtt/js/camera-sync.js');
+      const ch = { postMessage: () => {} };
+      const reg = new WindowRegistry('win-a', 'display', ch);
+      let joined = false;
+      reg.onPeerChange({ onJoin: () => { joined = true; } });
+      reg.handleMessage(
+        { type: 'window:announce', windowId: 'win-a', role: 'display' },
+        () => null
+      );
+      return joined;
+    });
+    expect(r).toBe(false);
+  });
+
+  test('WELCOME only processed if targetWindowId matches', async ({ page }) => {
+    await page.goto('/vtt/', { waitUntil: 'domcontentloaded' });
+    const r = await page.evaluate(async () => {
+      const { WindowRegistry } = await import('/vtt/js/camera-sync.js');
+      const ch = { postMessage: () => {} };
+      const reg = new WindowRegistry('win-a', 'display', ch);
+      let welcomeReceived = false;
+      const { EventBus } = await import('/vtt/js/state.js');
+      EventBus.on('camera-sync:welcome', () => { welcomeReceived = true; });
+      // Not for us
+      reg.handleMessage({ type: 'window:welcome', windowId: 'win-b', role: 'controller', targetWindowId: 'win-c', camera: {}, epoch: 1 });
+      const notForUs = welcomeReceived;
+      // For us
+      reg.handleMessage({ type: 'window:welcome', windowId: 'win-b', role: 'controller', targetWindowId: 'win-a', camera: { centerX: 1, centerY: 2, zoom: 1 }, epoch: 2 });
+      EventBus.off('camera-sync:welcome');
+      return { notForUs, forUs: welcomeReceived };
+    });
+    expect(r.notForUs).toBe(false);
+    expect(r.forUs).toBe(true);
+  });
+
+  test('GOODBYE removes peer and fires onLeave', async ({ page }) => {
+    await page.goto('/vtt/', { waitUntil: 'domcontentloaded' });
+    const r = await page.evaluate(async () => {
+      const { WindowRegistry } = await import('/vtt/js/camera-sync.js');
+      const ch = { postMessage: () => {} };
+      const reg = new WindowRegistry('win-a', 'display', ch);
+      let left = null;
+      reg.onPeerChange({
+        onJoin: () => {},
+        onLeave: (id, role) => { left = { id, role }; },
+      });
+      // Register peer first
+      reg.handleMessage({ type: 'window:heartbeat', windowId: 'win-b', role: 'controller' });
+      // Goodbye
+      reg.handleMessage({ type: 'window:goodbye', windowId: 'win-b' });
+      return { left, hasRole: reg.hasRole('controller') };
+    });
+    expect(r.left).toEqual({ id: 'win-b', role: 'controller' });
+    expect(r.hasRole).toBe(false);
+  });
+});
