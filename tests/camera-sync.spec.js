@@ -99,7 +99,7 @@ test.describe('CameraBroadcaster', () => {
     expect(count).toBe(1);
   });
 
-  test('epsilon: skips send when state unchanged', async ({ page }) => {
+  test('skips send when camera state unchanged (epsilon filter)', async ({ page }) => {
     await page.goto('/vtt/', { waitUntil: 'domcontentloaded' });
     const count = await page.evaluate(async () => {
       const { CameraBroadcaster } = await import('/vtt/js/camera-sync.js');
@@ -114,7 +114,7 @@ test.describe('CameraBroadcaster', () => {
     expect(count).toBe(1);
   });
 
-  test('epsilon: sends when position changes beyond threshold', async ({ page }) => {
+  test('sends when position exceeds epsilon threshold', async ({ page }) => {
     await page.goto('/vtt/', { waitUntil: 'domcontentloaded' });
     const count = await page.evaluate(async () => {
       const { CameraBroadcaster } = await import('/vtt/js/camera-sync.js');
@@ -335,7 +335,7 @@ test.describe('WindowRegistry', () => {
 });
 
 test.describe('CameraChannelManager', () => {
-  test('persist/restore roundtrip via sessionStorage', async ({ page }) => {
+  test('restores camera position from sessionStorage after page reload', async ({ page }) => {
     await page.goto('/vtt/', { waitUntil: 'domcontentloaded' });
     const r = await page.evaluate(async () => {
       const { CameraChannelManager } = await import('/vtt/js/camera-sync.js');
