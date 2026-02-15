@@ -34,6 +34,16 @@ export const MSG = Object.freeze({
   TOKEN_VISIBILITY:        'token:visibility',
   STATE_REQUEST:           'state:request',
   STATE_SYNC:              'state:sync',
+
+  // Phase 4: Camera sync
+  CAMERA_SYNC:             'camera:sync',
+  CAMERA_JUMP_TO:          'camera:jump-to',
+
+  // Phase 4: Window lifecycle
+  ANNOUNCE:                'window:announce',
+  WELCOME:                 'window:welcome',
+  HEARTBEAT:               'window:heartbeat',
+  GOODBYE:                 'window:goodbye',
 });
 
 // O(1) lookup set for validation
@@ -70,6 +80,16 @@ const REQUIRED_FIELDS = {
   [MSG.TOKEN_VISIBILITY]:       ['instanceId', 'visible'],
   [MSG.STATE_REQUEST]:          [],
   [MSG.STATE_SYNC]:             ['data'],
+
+  // Phase 4: Camera sync
+  [MSG.CAMERA_SYNC]:            ['centerX', 'centerY', 'zoom', 'seq', 'senderId'],
+  [MSG.CAMERA_JUMP_TO]:         ['centerX', 'centerY', 'zoom', 'senderId'],
+
+  // Phase 4: Window lifecycle
+  [MSG.ANNOUNCE]:               ['windowId', 'role'],
+  [MSG.WELCOME]:                ['windowId', 'role', 'targetWindowId', 'camera', 'epoch'],
+  [MSG.HEARTBEAT]:              ['windowId', 'role'],
+  [MSG.GOODBYE]:                ['windowId'],
 };
 
 // --- Factory functions ---
@@ -120,6 +140,46 @@ export function createBrazierMsg({ index, lit, braziers } = {}) {
 
 // Effect: spreads target object (col/row) into message
 export const createEffectMsg = (effectId, target) => msg(MSG.EFFECT, { effectId, ...target });
+
+// Phase 4: Camera sync factories
+export const createCameraSyncMsg = (centerX, centerY, zoom, seq, senderId) =>
+  msg(MSG.CAMERA_SYNC, { centerX, centerY, zoom, seq, senderId });
+
+export const createCameraJumpToMsg = (centerX, centerY, zoom, senderId) =>
+  msg(MSG.CAMERA_JUMP_TO, { centerX, centerY, zoom, senderId });
+
+export const createAnnounceMsg = (windowId, role) =>
+  msg(MSG.ANNOUNCE, { windowId, role });
+
+export const createWelcomeMsg = (windowId, role, targetWindowId, camera, epoch) =>
+  msg(MSG.WELCOME, { windowId, role, targetWindowId, camera, epoch });
+
+export const createHeartbeatMsg = (windowId, role) =>
+  msg(MSG.HEARTBEAT, { windowId, role });
+
+export const createGoodbyeMsg = (windowId) =>
+  msg(MSG.GOODBYE, { windowId });
+
+// --- Center-point camera model (Phase 4) ---
+// Local camera: { x, y, zoom } where (x,y) = top-left world-space corner
+// Shared camera: { centerX, centerY, zoom } where (centerX,centerY) = viewport center in world-space
+// Derivation: centerX = (viewportW/2) / zoom + camera.x
+
+export function localToShared(camera, viewport) {
+  return {
+    centerX: camera.x + (viewport.width / 2) / camera.zoom,
+    centerY: camera.y + (viewport.height / 2) / camera.zoom,
+    zoom: camera.zoom,
+  };
+}
+
+export function sharedToLocal(shared, viewport) {
+  return {
+    x: shared.centerX - (viewport.width / 2) / shared.zoom,
+    y: shared.centerY - (viewport.height / 2) / shared.zoom,
+    zoom: shared.zoom,
+  };
+}
 
 // --- Validation ---
 
