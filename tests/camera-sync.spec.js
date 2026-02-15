@@ -162,3 +162,92 @@ test.describe('CameraBroadcaster', () => {
     expect(seqs).toEqual([1, 2, 3]);
   });
 });
+
+test.describe('CameraReceiver', () => {
+  test('accepts increasing sequence numbers', async ({ page }) => {
+    await page.goto('/vtt/', { waitUntil: 'domcontentloaded' });
+    const count = await page.evaluate(async () => {
+      const { CameraReceiver } = await import('/vtt/js/camera-sync.js');
+      const calls = [];
+      const camera = {
+        viewportW: 1920, viewportH: 1080,
+        deserialize: d => calls.push(d),
+      };
+      const r = new CameraReceiver(camera);
+      r.handleMessage({ type: 'camera:sync', senderId: 'a', seq: 1, centerX: 100, centerY: 200, zoom: 1 });
+      r.handleMessage({ type: 'camera:sync', senderId: 'a', seq: 2, centerX: 110, centerY: 200, zoom: 1 });
+      return calls.length;
+    });
+    expect(count).toBe(2);
+  });
+
+  test('rejects stale sequence numbers', async ({ page }) => {
+    await page.goto('/vtt/', { waitUntil: 'domcontentloaded' });
+    const count = await page.evaluate(async () => {
+      const { CameraReceiver } = await import('/vtt/js/camera-sync.js');
+      const calls = [];
+      const camera = {
+        viewportW: 1920, viewportH: 1080,
+        deserialize: d => calls.push(d),
+      };
+      const r = new CameraReceiver(camera);
+      r.handleMessage({ type: 'camera:sync', senderId: 'a', seq: 5, centerX: 100, centerY: 200, zoom: 1 });
+      r.handleMessage({ type: 'camera:sync', senderId: 'a', seq: 3, centerX: 110, centerY: 200, zoom: 1 });
+      return calls.length;
+    });
+    expect(count).toBe(1);
+  });
+
+  test('tracks senders independently', async ({ page }) => {
+    await page.goto('/vtt/', { waitUntil: 'domcontentloaded' });
+    const count = await page.evaluate(async () => {
+      const { CameraReceiver } = await import('/vtt/js/camera-sync.js');
+      const calls = [];
+      const camera = {
+        viewportW: 1920, viewportH: 1080,
+        deserialize: d => calls.push(d),
+      };
+      const r = new CameraReceiver(camera);
+      r.handleMessage({ type: 'camera:sync', senderId: 'a', seq: 1, centerX: 100, centerY: 200, zoom: 1 });
+      r.handleMessage({ type: 'camera:sync', senderId: 'b', seq: 1, centerX: 110, centerY: 200, zoom: 1 });
+      return calls.length;
+    });
+    expect(count).toBe(2);
+  });
+
+  test('sets suppressBroadcast on broadcaster during apply', async ({ page }) => {
+    await page.goto('/vtt/', { waitUntil: 'domcontentloaded' });
+    const wasSupp = await page.evaluate(async () => {
+      const { CameraReceiver } = await import('/vtt/js/camera-sync.js');
+      let wasSuppressed = false;
+      const camera = {
+        viewportW: 1920, viewportH: 1080,
+        deserialize: () => {},
+      };
+      const fakeBroadcaster = {
+        set suppressBroadcast(v) { if (v) wasSuppressed = true; },
+        get suppressBroadcast() { return false; },
+      };
+      const r = new CameraReceiver(camera, fakeBroadcaster);
+      r.handleMessage({ type: 'camera:sync', senderId: 'a', seq: 1, centerX: 100, centerY: 200, zoom: 1 });
+      return wasSuppressed;
+    });
+    expect(wasSupp).toBe(true);
+  });
+
+  test('CAMERA_JUMP_TO bypasses sequence check', async ({ page }) => {
+    await page.goto('/vtt/', { waitUntil: 'domcontentloaded' });
+    const count = await page.evaluate(async () => {
+      const { CameraReceiver } = await import('/vtt/js/camera-sync.js');
+      const calls = [];
+      const camera = {
+        viewportW: 1920, viewportH: 1080,
+        deserialize: d => calls.push(d),
+      };
+      const r = new CameraReceiver(camera);
+      r.handleMessage({ type: 'camera:jump-to', senderId: 'a', centerX: 500, centerY: 300, zoom: 2 });
+      return calls.length;
+    });
+    expect(count).toBe(1);
+  });
+});

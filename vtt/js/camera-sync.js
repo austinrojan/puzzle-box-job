@@ -155,3 +155,78 @@ export class CameraBroadcaster {
     this._camera = null;
   }
 }
+
+// ============================================================
+// CameraReceiver
+// ============================================================
+
+export class CameraReceiver {
+  /**
+   * @param {object} camera - The Camera instance from map-camera.js
+   * @param {CameraBroadcaster|null} broadcaster
+   *   If this window also has a broadcaster, pass it so the receiver
+   *   can set suppressBroadcast during state application.
+   */
+  constructor(camera, broadcaster = null) {
+    this._camera = camera;
+    this._broadcaster = broadcaster;
+    this._senderSeqs = new Map();
+  }
+
+  handleMessage(msg) {
+    if (msg.type === MSG.CAMERA_SYNC) {
+      this._handleSync(msg);
+    } else if (msg.type === MSG.CAMERA_JUMP_TO) {
+      this._handleJumpTo(msg);
+    }
+  }
+
+  _handleSync(msg) {
+    const { senderId, seq, centerX, centerY, zoom } = msg;
+    const prevSeq = this._senderSeqs.get(senderId) ?? -1;
+    if (seq <= prevSeq) return;
+    this._senderSeqs.set(senderId, seq);
+    this._applySharedState(centerX, centerY, zoom);
+  }
+
+  _handleJumpTo(msg) {
+    const { centerX, centerY, zoom } = msg;
+    this._applySharedState(centerX, centerY, zoom);
+  }
+
+  _applySharedState(centerX, centerY, zoom) {
+    const cam = this._camera;
+    const vp = { width: cam.viewportW, height: cam.viewportH };
+    if (vp.width <= 0 || vp.height <= 0) return;
+
+    const local = sharedToLocal({ centerX, centerY, zoom }, vp);
+
+    if (this._broadcaster) {
+      this._broadcaster.suppressBroadcast = true;
+    }
+
+    cam.deserialize({
+      x: local.x,
+      y: local.y,
+      zoom: local.zoom,
+    });
+
+    if (this._broadcaster) {
+      this._broadcaster.suppressBroadcast = false;
+    }
+  }
+
+  applyWelcomeState(centerX, centerY, zoom) {
+    this._applySharedState(centerX, centerY, zoom);
+  }
+
+  removeSender(senderId) {
+    this._senderSeqs.delete(senderId);
+  }
+
+  destroy() {
+    this._senderSeqs.clear();
+    this._camera = null;
+    this._broadcaster = null;
+  }
+}
