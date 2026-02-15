@@ -109,8 +109,11 @@ export class CameraBroadcaster {
     if (vp.width > 0 && vp.height > 0) {
       const local = sharedToLocal({ centerX, centerY, zoom }, vp);
       this.suppressBroadcast = true;
-      this._camera.deserialize(local);
-      this.suppressBroadcast = false;
+      try {
+        this._camera.deserialize(local);
+      } finally {
+        this.suppressBroadcast = false;
+      }
     }
 
     this._lastCenterX = centerX;
@@ -213,18 +216,20 @@ export class CameraReceiver {
 
     const local = sharedToLocal({ centerX, centerY, zoom }, vp);
 
-    if (this._broadcaster) {
-      this._broadcaster.suppressBroadcast = true;
+    const bc = this._broadcaster;
+    if (bc) {
+      bc.suppressBroadcast = true;
     }
-
-    cam.deserialize({
-      x: local.x,
-      y: local.y,
-      zoom: local.zoom,
-    });
-
-    if (this._broadcaster) {
-      this._broadcaster.suppressBroadcast = false;
+    try {
+      cam.deserialize({
+        x: local.x,
+        y: local.y,
+        zoom: local.zoom,
+      });
+    } finally {
+      if (bc) {
+        bc.suppressBroadcast = false;
+      }
     }
   }
 
