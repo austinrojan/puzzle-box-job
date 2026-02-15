@@ -185,9 +185,15 @@ export function initMapCamera() {
     }
   });
 
-  // Phase 4: Camera controls manipulate local Camera directly
-  // CameraBroadcaster sends state automatically at 30fps
+  // Phase 4: Camera controls manipulate local Camera, then explicitly
+  // broadcast via sendImmediate(). The rAF-based polling loop in
+  // CameraBroadcaster doesn't fire in background tabs, so Controller
+  // must push after every discrete change.
+  // TODO(phase5): expose syncEngine.sendNow() to avoid _broadcaster private access
   const camPanStep = 80;
+  const broadcastAfter = () => {
+    window.__controller?.syncEngine?._broadcaster?.sendImmediate();
+  };
   $$('[data-cam]').forEach(btn => {
     btn.addEventListener('click', () => {
       const cam = window.__controller?.camera;
@@ -200,14 +206,17 @@ export function initMapCamera() {
         case 'right': cam.panBy(-camPanStep, 0); break;
         case 'reset': cam.fitCover(); break;
       }
+      broadcastAfter();
     });
   });
 
   $('#zoom-in').addEventListener('click', () => {
     window.__controller?.camera?.zoomToCenter(0.4);
+    broadcastAfter();
   });
   $('#zoom-out').addEventListener('click', () => {
     window.__controller?.camera?.zoomToCenter(-0.4);
+    broadcastAfter();
   });
   $('#fog-reveal').addEventListener('click', () => send(createFogRevealAllMsg()));
   $('#fog-hide').addEventListener('click', () => send(createFogHideAllMsg()));
