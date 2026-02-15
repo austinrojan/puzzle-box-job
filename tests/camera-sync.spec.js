@@ -430,3 +430,33 @@ test.describe('VTT Display sync engine', () => {
     expect(hasReceiver).toBe(true);
   });
 });
+
+test.describe('Controller sync engine', () => {
+  test('Controller has camera and syncEngine', async ({ page }) => {
+    await page.goto('/controller/');
+    await page.waitForFunction(() => window.__controller?.syncEngine?._started === true, { timeout: 10000 });
+    const r = await page.evaluate(() => {
+      const c = window.__controller;
+      return c ? {
+        hasCamera: c.camera != null,
+        hasSyncEngine: c.syncEngine != null,
+        role: c.syncEngine?._role,
+        started: c.syncEngine?._started,
+      } : null;
+    });
+    expect(r).not.toBeNull();
+    expect(r.hasCamera).toBe(true);
+    expect(r.hasSyncEngine).toBe(true);
+    expect(r.role).toBe('controller');
+    expect(r.started).toBe(true);
+  });
+
+  test('Controller syncEngine has a broadcaster', async ({ page }) => {
+    await page.goto('/controller/');
+    await page.waitForFunction(() => window.__controller?.syncEngine?._started === true, { timeout: 10000 });
+    const has = await page.evaluate(() => {
+      return window.__controller?.syncEngine?._broadcaster != null;
+    });
+    expect(has).toBe(true);
+  });
+});

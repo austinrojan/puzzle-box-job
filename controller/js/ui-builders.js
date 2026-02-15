@@ -5,7 +5,6 @@ import {
 } from '../../shared/campaign-data.js';
 import {
   createSceneMsg, createMapMsg, createModeSwitchMsg,
-  createCameraPanMsg, createCameraZoomMsg, createCameraResetMsg,
   createFogRevealAllMsg, createFogHideAllMsg, createGridToggleMsg,
   createTokenLoadPresetMsg, createTokenRemoveAllMsg, createTokenAddMsg,
   createTokenUpdateConditionMsg, createTokenVisibilityMsg,
@@ -170,23 +169,46 @@ export function initMapCamera() {
 
   $('#map-load').addEventListener('click', () => {
     const val = $('#map-select').value;
-    if (val) send(createMapMsg(val));
+    if (!val) return;
+    send(createMapMsg(val));
     mapSelectDirty = false;
     clearTimeout(mapSelectDirtyTimer);
+
+    // Phase 4: Load map image headlessly to discover dimensions for Camera
+    const map = MAPS.find(m => m.id === val);
+    if (map && window.__controller?.camera) {
+      const img = new Image();
+      img.onload = () => {
+        window.__controller.camera.setMapSize(img.naturalWidth, img.naturalHeight);
+      };
+      img.src = map.image;
+    }
   });
 
-  const camActions = { up: [0, 80], down: [0, -80], left: [80, 0], right: [-80, 0] };
+  // Phase 4: Camera controls manipulate local Camera directly
+  // CameraBroadcaster sends state automatically at 30fps
+  const camPanStep = 80;
   $$('[data-cam]').forEach(btn => {
     btn.addEventListener('click', () => {
+      const cam = window.__controller?.camera;
+      if (!cam) return;
       const dir = btn.dataset.cam;
-      const args = camActions[dir];
-      if (args) send(createCameraPanMsg(...args));
-      else if (dir === 'reset') send(createCameraResetMsg());
+      switch (dir) {
+        case 'up':    cam.panBy(0, camPanStep); break;
+        case 'down':  cam.panBy(0, -camPanStep); break;
+        case 'left':  cam.panBy(camPanStep, 0); break;
+        case 'right': cam.panBy(-camPanStep, 0); break;
+        case 'reset': cam.fitCover(); break;
+      }
     });
   });
 
-  $('#zoom-in').addEventListener('click', () => send(createCameraZoomMsg(1)));
-  $('#zoom-out').addEventListener('click', () => send(createCameraZoomMsg(-1)));
+  $('#zoom-in').addEventListener('click', () => {
+    window.__controller?.camera?.zoomToCenter(0.4);
+  });
+  $('#zoom-out').addEventListener('click', () => {
+    window.__controller?.camera?.zoomToCenter(-0.4);
+  });
   $('#fog-reveal').addEventListener('click', () => send(createFogRevealAllMsg()));
   $('#fog-hide').addEventListener('click', () => send(createFogHideAllMsg()));
   $('#grid-toggle').addEventListener('click', () => send(createGridToggleMsg()));

@@ -10,6 +10,8 @@ import {
   initEffects, initOverlay, initTitleCard, initCombat,
   initCondPopupDismiss, navigateScene
 } from './ui-builders.js';
+import { Camera } from '../../vtt/js/map-camera.js';
+import { CameraSyncEngine } from '../../vtt/js/camera-sync.js';
 
 // 1. Load campaign data
 const manifest = await loadCampaign();
@@ -22,7 +24,20 @@ initSync((event) => {
   if (event === 'update') updateUI();
 });
 
-// 3. Build UI
+// 3. Phase 4: Camera sync — headless Camera + CameraSyncEngine
+const camera = new Camera();
+camera.setViewportSize(1920, 1080); // nominal viewport for headless camera
+// Map dimensions bootstrapped via WELCOME from Display
+
+const syncEngine = new CameraSyncEngine({
+  camera: camera,
+  role: 'controller',
+});
+syncEngine.start();
+
+window.__controller = { camera, syncEngine };
+
+// 4. Build UI
 initModeButtons();
 initSceneNav();
 initMapCamera();
