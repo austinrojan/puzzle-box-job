@@ -29,6 +29,7 @@ import {
 const MIN_SEND_INTERVAL = 33;  // ~30fps cap (ms)
 const EPSILON_POS  = 0.5;      // world pixels: sub-pixel changes are invisible
 const EPSILON_ZOOM = 0.001;    // zoom delta: <0.1% change is invisible
+const WELCOME_DEBOUNCE_MS = 150; // Wait for multiple WELCOME messages before applying best one
 
 /** Generate a unique window ID (8 random hex chars). */
 function generateWindowId() {
@@ -666,7 +667,7 @@ export class CameraSyncEngine {
     if (this._welcomeTimer) clearTimeout(this._welcomeTimer);
     this._welcomeTimer = setTimeout(() => {
       this._applyWelcome();
-    }, 150);
+    }, WELCOME_DEBOUNCE_MS);
   }
 
   _applyWelcome() {

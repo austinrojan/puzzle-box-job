@@ -189,7 +189,7 @@ export function initMapCamera() {
   // broadcast via sendImmediate(). The rAF-based polling loop in
   // CameraBroadcaster doesn't fire in background tabs, so Controller
   // must push after every discrete change.
-  const camPanStep = 80;
+  const camPanStep = 80; // world-space pixels per button click
   const broadcastAfter = () => {
     window.__controller?.syncEngine?.sendNow();
   };
