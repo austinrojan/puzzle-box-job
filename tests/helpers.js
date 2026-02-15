@@ -90,7 +90,8 @@ export async function enterMapMode(page) {
   });
   await page.waitForFunction(() => {
     const cam = window.__vtt?.mapRenderer?.camera;
-    return cam && cam.mapW > 0;
+    // Wait for both map dimensions AND viewport dimensions from ResizeObserver
+    return cam && cam.mapW > 0 && cam.viewportW > 0 && cam.viewportH > 0;
   }, { timeout: 10000 });
 }
 
@@ -143,7 +144,7 @@ export async function bootDisplay(context) {
   });
   await display.waitForFunction(() => {
     const cam = window.__vtt?.mapRenderer?.camera;
-    return cam && cam.mapW > 0;
+    return cam && cam.mapW > 0 && cam.viewportW > 0 && cam.viewportH > 0;
   }, { timeout: 10000 });
   return display;
 }
