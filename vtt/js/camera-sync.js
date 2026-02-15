@@ -14,14 +14,13 @@ import { EventBus } from './state.js';
 import {
   localToShared,
   sharedToLocal,
-  createCameraSyncMsg,
   createCameraJumpToMsg,
   createAnnounceMsg,
   createWelcomeMsg,
   createHeartbeatMsg,
   createGoodbyeMsg,
   MSG,
-  validateMessage,
+  PROTOCOL_VERSION,
 } from '../../shared/protocol.js';
 
 // --- Constants ---
@@ -85,6 +84,7 @@ export class CameraBroadcaster {
       zoom: 0,
       seq: 0,
       senderId: this._senderId,
+      _v: PROTOCOL_VERSION,
     };
 
     this._tick = this._tick.bind(this);
@@ -145,6 +145,7 @@ export class CameraBroadcaster {
   }
 
   _sendState(now) {
+    if (!this._channel) return;
     if (this.suppressBroadcast) return;
 
     const cam = this._camera;

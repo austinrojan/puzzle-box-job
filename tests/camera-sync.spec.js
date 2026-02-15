@@ -462,8 +462,20 @@ test.describe('Controller sync engine', () => {
 });
 
 test.describe('Cross-window camera sync', () => {
+  test.beforeEach(({}, testInfo) => {
+    if (testInfo.project.name !== 'desktop-1920') test.skip();
+  });
+
+  let context;
+  test.afterEach(async () => {
+    if (context) {
+      await context.close();
+      context = null;
+    }
+  });
+
   test('Controller camera change propagates to Display', async ({ browser }) => {
-    const context = await browser.newContext({ viewport: { width: 1920, height: 1080 } });
+    context = await browser.newContext({ viewport: { width: 1920, height: 1080 } });
     const display = await bootDisplay(context);
     const ctrl = await bootController(context);
     // Wait for ANNOUNCE/WELCOME handshake
@@ -495,11 +507,10 @@ test.describe('Cross-window camera sync', () => {
     });
 
     expect(after.zoom).not.toBeCloseTo(before.zoom, 1);
-    await context.close();
   });
 
   test('CAMERA_JUMP_TO produces instant camera update', async ({ browser }) => {
-    const context = await browser.newContext({ viewport: { width: 1920, height: 1080 } });
+    context = await browser.newContext({ viewport: { width: 1920, height: 1080 } });
     const display = await bootDisplay(context);
     const ctrl = await bootController(context);
     await ctrl.waitForFunction(
@@ -526,12 +537,11 @@ test.describe('Cross-window camera sync', () => {
       const c = window.__vtt.mapRenderer.camera;
       return { zoom: c.zoom };
     });
-    expect(cam.zoom).toBeGreaterThan(1.0);
-    await context.close();
+    expect(cam.zoom).toBeCloseTo(2.0, 1);
   });
 
   test('Display retains camera state when Controller disconnects', async ({ browser }) => {
-    const context = await browser.newContext({ viewport: { width: 1920, height: 1080 } });
+    context = await browser.newContext({ viewport: { width: 1920, height: 1080 } });
     const display = await bootDisplay(context);
     const ctrl = await bootController(context);
     await ctrl.waitForFunction(
@@ -564,11 +574,10 @@ test.describe('Cross-window camera sync', () => {
     expect(after.x).toBeCloseTo(before.x, 2);
     expect(after.y).toBeCloseTo(before.y, 2);
     expect(after.zoom).toBeCloseTo(before.zoom, 2);
-    await context.close();
   });
 
   test('WELCOME hydrates Controller with Display camera on connect', async ({ browser }) => {
-    const context = await browser.newContext({ viewport: { width: 1920, height: 1080 } });
+    context = await browser.newContext({ viewport: { width: 1920, height: 1080 } });
     // Open Display first, manipulate camera
     const display = await bootDisplay(context);
 
@@ -605,6 +614,5 @@ test.describe('Cross-window camera sync', () => {
     expect(ctrlCam).not.toBeNull();
     expect(ctrlCam.centerX).toBeCloseTo(displayCam.centerX, 0);
     expect(ctrlCam.centerY).toBeCloseTo(displayCam.centerY, 0);
-    await context.close();
   });
 });
