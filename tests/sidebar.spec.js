@@ -104,13 +104,17 @@ test.describe('DM Guide sidebar toggle', () => {
   test('aria-label updates per sidebar state', async ({ page }) => {
     await page.goto('/');
     const toggle = page.locator('#sidebar-toggle');
+    const app = page.locator('#app');
 
     await expect(toggle).toHaveAttribute('aria-label', 'Collapse sidebar');
     await toggle.click();
+    await expect(app).toHaveAttribute('data-sidebar', 'collapsed');
     await expect(toggle).toHaveAttribute('aria-label', 'Hide sidebar');
     await toggle.click();
+    await expect(app).toHaveAttribute('data-sidebar', 'hidden');
     await expect(toggle).toHaveAttribute('aria-label', 'Show sidebar');
     await toggle.click();
+    await expect(app).not.toHaveAttribute('data-sidebar');
     await expect(toggle).toHaveAttribute('aria-label', 'Collapse sidebar');
   });
 });
