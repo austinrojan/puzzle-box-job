@@ -460,3 +460,169 @@ test.describe('Controller sync engine', () => {
     expect(has).toBe(true);
   });
 });
+
+test.describe('Cross-window camera sync', () => {
+  /** Helper: boot VTT Display in map mode with a loaded map */
+  async function bootDisplay(context) {
+    const display = await context.newPage();
+    await display.goto('/vtt/');
+    await display.waitForFunction(
+      () => document.getElementById('loading')?.hidden === true,
+      { timeout: 15000 }
+    );
+    await display.evaluate(() => {
+      window.__vtt.EventBus.emit('mode:switch', 'map');
+      if (!window.__vtt.state.mapId) window.__vtt.EventBus.emit('map:load', 'M01');
+    });
+    await display.waitForFunction(() => {
+      const cam = window.__vtt?.mapRenderer?.camera;
+      return cam && cam.mapW > 0;
+    }, { timeout: 10000 });
+    return display;
+  }
+
+  /** Helper: boot Controller and wait for sync engine */
+  async function bootController(context) {
+    const ctrl = await context.newPage();
+    await ctrl.goto('/controller/');
+    await ctrl.waitForFunction(
+      () => window.__controller?.syncEngine?._started === true,
+      { timeout: 10000 }
+    );
+    return ctrl;
+  }
+
+  test('Controller camera change propagates to Display', async ({ browser }) => {
+    const context = await browser.newContext({ viewport: { width: 1920, height: 1080 } });
+    const display = await bootDisplay(context);
+    const ctrl = await bootController(context);
+    // Allow ANNOUNCE/WELCOME handshake
+    await ctrl.waitForTimeout(1500);
+
+    // Record Display camera before
+    const before = await display.evaluate(() => {
+      const cam = window.__vtt.mapRenderer.camera;
+      return { zoom: cam.zoom };
+    });
+
+    // Zoom in on Controller
+    await ctrl.evaluate(() => {
+      window.__controller.camera.zoomToCenter(0.4);
+    });
+
+    // Wait for sync
+    await display.waitForFunction((prevZoom) => {
+      const cam = window.__vtt?.mapRenderer?.camera;
+      return cam && Math.abs(cam.zoom - prevZoom) > 0.01;
+    }, before.zoom, { timeout: 3000 });
+
+    const after = await display.evaluate(() => {
+      const cam = window.__vtt.mapRenderer.camera;
+      return { zoom: cam.zoom };
+    });
+
+    expect(after.zoom).not.toBeCloseTo(before.zoom, 1);
+    await context.close();
+  });
+
+  test('CAMERA_JUMP_TO produces instant camera update', async ({ browser }) => {
+    const context = await browser.newContext({ viewport: { width: 1920, height: 1080 } });
+    const display = await bootDisplay(context);
+    const ctrl = await bootController(context);
+    await ctrl.waitForTimeout(1500);
+
+    // Send jump-to
+    await ctrl.evaluate(() => {
+      const engine = window.__controller.syncEngine;
+      if (engine.broadcaster) {
+        engine.broadcaster.sendJumpTo(500, 300, 2.0);
+      }
+    });
+
+    // Wait for Display to apply
+    await display.waitForFunction(() => {
+      const cam = window.__vtt?.mapRenderer?.camera;
+      if (!cam) return false;
+      return cam.zoom >= 1.5;
+    }, { timeout: 3000 });
+
+    const cam = await display.evaluate(() => {
+      const c = window.__vtt.mapRenderer.camera;
+      return { zoom: c.zoom };
+    });
+    expect(cam.zoom).toBeGreaterThan(1.0);
+    await context.close();
+  });
+
+  test('Display retains camera state when Controller disconnects', async ({ browser }) => {
+    const context = await browser.newContext({ viewport: { width: 1920, height: 1080 } });
+    const display = await bootDisplay(context);
+    const ctrl = await bootController(context);
+    await ctrl.waitForTimeout(1500);
+
+    // Zoom in
+    await ctrl.evaluate(() => {
+      window.__controller.camera.zoomToCenter(0.5);
+    });
+    await display.waitForTimeout(200);
+
+    // Record state
+    const before = await display.evaluate(() => {
+      const c = window.__vtt.mapRenderer.camera;
+      return { x: c.x, y: c.y, zoom: c.zoom };
+    });
+
+    // Close Controller
+    await ctrl.close();
+    await display.waitForTimeout(200);
+
+    // Display should retain state
+    const after = await display.evaluate(() => {
+      const c = window.__vtt.mapRenderer.camera;
+      return { x: c.x, y: c.y, zoom: c.zoom };
+    });
+
+    expect(after.x).toBeCloseTo(before.x, 2);
+    expect(after.y).toBeCloseTo(before.y, 2);
+    expect(after.zoom).toBeCloseTo(before.zoom, 2);
+    await context.close();
+  });
+
+  test('WELCOME hydrates Controller with Display camera on connect', async ({ browser }) => {
+    const context = await browser.newContext({ viewport: { width: 1920, height: 1080 } });
+    // Open Display first, manipulate camera
+    const display = await bootDisplay(context);
+
+    // Get Display camera state
+    const displayCam = await display.evaluate(() => {
+      const c = window.__vtt.mapRenderer.camera;
+      return {
+        centerX: c.x + (c.viewportW / 2) / c.zoom,
+        centerY: c.y + (c.viewportH / 2) / c.zoom,
+        zoom: c.zoom,
+        mapW: c.mapW,
+        mapH: c.mapH,
+      };
+    });
+
+    // Open Controller — should receive WELCOME with Display's camera
+    const ctrl = await bootController(context);
+    await ctrl.waitForTimeout(2000); // wait for WELCOME + apply
+
+    const ctrlCam = await ctrl.evaluate(() => {
+      const c = window.__controller?.camera;
+      if (!c || c.mapW <= 0) return null;
+      return {
+        centerX: c.x + (c.viewportW / 2) / c.zoom,
+        centerY: c.y + (c.viewportH / 2) / c.zoom,
+        zoom: c.zoom,
+      };
+    });
+
+    // Controller must have received map dimensions via WELCOME
+    expect(ctrlCam).not.toBeNull();
+    expect(ctrlCam.centerX).toBeCloseTo(displayCam.centerX, 0);
+    expect(ctrlCam.centerY).toBeCloseTo(displayCam.centerY, 0);
+    await context.close();
+  });
+});

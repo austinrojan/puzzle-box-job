@@ -99,8 +99,20 @@ export class CameraBroadcaster {
   }
 
   sendJumpTo(centerX, centerY, zoom) {
+    if (!this._channel) return;
     const m = createCameraJumpToMsg(centerX, centerY, zoom, this._senderId);
     this._channel.postMessage(m);
+
+    // Sync local camera so the continuous CAMERA_SYNC stream doesn't
+    // immediately overwrite the jump-to on the receiver.
+    const vp = { width: this._camera.viewportW, height: this._camera.viewportH };
+    if (vp.width > 0 && vp.height > 0) {
+      const local = sharedToLocal({ centerX, centerY, zoom }, vp);
+      this.suppressBroadcast = true;
+      this._camera.deserialize(local);
+      this.suppressBroadcast = false;
+    }
+
     this._lastCenterX = centerX;
     this._lastCenterY = centerY;
     this._lastZoom = zoom;
