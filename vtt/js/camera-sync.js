@@ -447,7 +447,7 @@ export class CameraChannelManager {
   start() {
     this._openChannel();
     this._attachLifecycleListeners();
-    this._restoreFromSessionStorage();
+    this._tryRestore();
   }
 
   stop() {
@@ -492,7 +492,7 @@ export class CameraChannelManager {
     if (!this._channel) {
       this._openChannel();
       if (event.persisted) {
-        this._restoreFromSessionStorage();
+        this._tryRestore();
         EventBus.emit('camera-sync:reconnect');
       }
     }
@@ -521,10 +521,6 @@ export class CameraChannelManager {
     } catch (e) {
       // sessionStorage may be unavailable
     }
-  }
-
-  _restoreFromSessionStorage() {
-    this._tryRestore();
   }
 
   _tryRestore() {

@@ -181,6 +181,9 @@ export function initMapCamera() {
       img.onload = () => {
         window.__controller.camera.setMapSize(img.naturalWidth, img.naturalHeight);
       };
+      img.onerror = () => {
+        console.warn('[Controller] Failed to load map image for camera dimensions:', map.image);
+      };
       img.src = map.image;
     }
   });
