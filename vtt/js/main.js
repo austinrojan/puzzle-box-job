@@ -15,6 +15,7 @@ import * as sceneNavigator from './scene-navigator.js';
 import { EffectsEngine } from './effects-engine.js';
 import { initViewportScaler, getViewportScale } from './viewport-scaler.js';
 import { CameraSyncEngine } from './camera-sync.js';
+import { FlyToAnimator } from './camera-animator.js';
 
 const $ = id => document.getElementById(id);
 const delay = ms => new Promise(r => setTimeout(r, ms));
@@ -122,8 +123,27 @@ async function boot() {
   });
   syncEngine.start();
 
+  // Phase 5: FlyToAnimator for cinematic camera transitions
+  const camera = mapRenderer.camera;
+  const flyToAnimator = new FlyToAnimator(camera, { w: camera.viewportW, h: camera.viewportH });
+  syncEngine.setAnimator(flyToAnimator);
+
+  // Keep animator viewport in sync with camera viewport
+  EventBus.on('camera:changed', () => {
+    if (camera.viewportW > 0 && camera.viewportH > 0) {
+      flyToAnimator.updateViewport(camera.viewportW, camera.viewportH);
+    }
+  });
+
+  // Interrupt flyTo animation on user input (wheel, mouse, keyboard)
+  const mapContainer = $('map-container');
+  if (mapContainer) {
+    mapContainer.addEventListener('wheel', () => flyToAnimator.interrupt(), { passive: true, capture: true });
+    mapContainer.addEventListener('mousedown', () => flyToAnimator.interrupt(), { capture: true });
+  }
+
   // Expose debugging interface
-  window.__vtt = { state, store, mapRenderer, tokenManager, effectsEngine, EventBus, clearSavedState, getViewportScale, syncEngine };
+  window.__vtt = { state, store, mapRenderer, tokenManager, effectsEngine, EventBus, clearSavedState, getViewportScale, syncEngine, flyToAnimator };
 
   // Go live
   state.loaded = true;
