@@ -189,10 +189,9 @@ export function initMapCamera() {
   // broadcast via sendImmediate(). The rAF-based polling loop in
   // CameraBroadcaster doesn't fire in background tabs, so Controller
   // must push after every discrete change.
-  // TODO(phase5): expose syncEngine.sendNow() to avoid _broadcaster private access
   const camPanStep = 80;
   const broadcastAfter = () => {
-    window.__controller?.syncEngine?._broadcaster?.sendImmediate();
+    window.__controller?.syncEngine?.sendNow();
   };
   $$('[data-cam]').forEach(btn => {
     btn.addEventListener('click', () => {

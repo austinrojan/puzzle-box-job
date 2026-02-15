@@ -703,5 +703,12 @@ export class CameraSyncEngine {
     if (this._channelManager) this._channelManager.destroy();
   }
 
+  /** Immediately broadcast current camera state, bypassing rAF polling. */
+  sendNow() {
+    if (this._broadcaster) {
+      this._broadcaster.sendImmediate();
+    }
+  }
+
   get broadcaster() { return this._broadcaster; }
 }
