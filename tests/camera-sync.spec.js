@@ -82,3 +82,83 @@ test.describe('Phase 4 protocol message validation', () => {
     expect(r.valid).toBe(false);
   });
 });
+
+test.describe('CameraBroadcaster', () => {
+  test('sends on first tick when state exists', async ({ page }) => {
+    await page.goto('/vtt/', { waitUntil: 'domcontentloaded' });
+    const count = await page.evaluate(async () => {
+      const { CameraBroadcaster } = await import('/vtt/js/camera-sync.js');
+      const camera = { x: 100, y: 50, zoom: 1.5, viewportW: 1920, viewportH: 1080 };
+      const sent = [];
+      const ch = { postMessage: m => sent.push(structuredClone(m)) };
+      const b = new CameraBroadcaster(camera, ch, 'test');
+      b._sendState(0);
+      return sent.length;
+    });
+    expect(count).toBe(1);
+  });
+
+  test('epsilon: skips send when state unchanged', async ({ page }) => {
+    await page.goto('/vtt/', { waitUntil: 'domcontentloaded' });
+    const count = await page.evaluate(async () => {
+      const { CameraBroadcaster } = await import('/vtt/js/camera-sync.js');
+      const camera = { x: 100, y: 50, zoom: 1.5, viewportW: 1920, viewportH: 1080 };
+      const sent = [];
+      const ch = { postMessage: m => sent.push(m) };
+      const b = new CameraBroadcaster(camera, ch, 'test');
+      b._sendState(0);
+      b._sendState(100);
+      return sent.length;
+    });
+    expect(count).toBe(1);
+  });
+
+  test('epsilon: sends when position changes beyond threshold', async ({ page }) => {
+    await page.goto('/vtt/', { waitUntil: 'domcontentloaded' });
+    const count = await page.evaluate(async () => {
+      const { CameraBroadcaster } = await import('/vtt/js/camera-sync.js');
+      const camera = { x: 100, y: 50, zoom: 1.5, viewportW: 1920, viewportH: 1080 };
+      const sent = [];
+      const ch = { postMessage: m => sent.push(m) };
+      const b = new CameraBroadcaster(camera, ch, 'test');
+      b._sendState(0);
+      camera.x = 200;
+      b._sendState(100);
+      return sent.length;
+    });
+    expect(count).toBe(2);
+  });
+
+  test('suppressBroadcast prevents send', async ({ page }) => {
+    await page.goto('/vtt/', { waitUntil: 'domcontentloaded' });
+    const count = await page.evaluate(async () => {
+      const { CameraBroadcaster } = await import('/vtt/js/camera-sync.js');
+      const camera = { x: 100, y: 50, zoom: 1.5, viewportW: 1920, viewportH: 1080 };
+      const sent = [];
+      const ch = { postMessage: m => sent.push(m) };
+      const b = new CameraBroadcaster(camera, ch, 'test');
+      b.suppressBroadcast = true;
+      b._sendState(0);
+      return sent.length;
+    });
+    expect(count).toBe(0);
+  });
+
+  test('sequence numbers are monotonically increasing', async ({ page }) => {
+    await page.goto('/vtt/', { waitUntil: 'domcontentloaded' });
+    const seqs = await page.evaluate(async () => {
+      const { CameraBroadcaster } = await import('/vtt/js/camera-sync.js');
+      const camera = { x: 100, y: 50, zoom: 1.5, viewportW: 1920, viewportH: 1080 };
+      const sent = [];
+      const ch = { postMessage: m => sent.push(structuredClone(m)) };
+      const b = new CameraBroadcaster(camera, ch, 'test');
+      b._sendState(0);
+      camera.x += 10;
+      b._sendState(100);
+      camera.x += 10;
+      b._sendState(200);
+      return sent.map(m => m.seq);
+    });
+    expect(seqs).toEqual([1, 2, 3]);
+  });
+});
