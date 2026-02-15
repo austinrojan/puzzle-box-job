@@ -577,6 +577,9 @@ export class CameraSyncEngine {
 
     this._bestWelcome = null;
     this._welcomeTimer = null;
+
+    this._onWelcomeEvent = (data) => this._handleWelcomeState(data);
+    this._onReconnectEvent = () => this._reconnect();
   }
 
   start() {
@@ -616,13 +619,8 @@ export class CameraSyncEngine {
       },
     });
 
-    EventBus.on('camera-sync:welcome', (data) => {
-      this._handleWelcomeState(data);
-    });
-
-    EventBus.on('camera-sync:reconnect', () => {
-      this._reconnect();
-    });
+    EventBus.on('camera-sync:welcome', this._onWelcomeEvent);
+    EventBus.on('camera-sync:reconnect', this._onReconnectEvent);
 
     this._registry.start();
   }
@@ -712,6 +710,8 @@ export class CameraSyncEngine {
 
   destroy() {
     this.stop();
+    EventBus.off('camera-sync:welcome', this._onWelcomeEvent);
+    EventBus.off('camera-sync:reconnect', this._onReconnectEvent);
     if (this._broadcaster) this._broadcaster.destroy();
     if (this._receiver) this._receiver.destroy();
     if (this._registry) this._registry.destroy();
