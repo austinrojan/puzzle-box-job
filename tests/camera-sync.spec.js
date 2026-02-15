@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { gotoVTT, enterMapMode } from './helpers.js';
+import { gotoVTT, enterMapMode, bootDisplay, bootController } from './helpers.js';
 
 test.describe('Center-point camera model', () => {
   test('roundtrips correctly at standard viewport', async ({ page }) => {
@@ -462,42 +462,15 @@ test.describe('Controller sync engine', () => {
 });
 
 test.describe('Cross-window camera sync', () => {
-  /** Helper: boot VTT Display in map mode with a loaded map */
-  async function bootDisplay(context) {
-    const display = await context.newPage();
-    await display.goto('/vtt/');
-    await display.waitForFunction(
-      () => document.getElementById('loading')?.hidden === true,
-      { timeout: 15000 }
-    );
-    await display.evaluate(() => {
-      window.__vtt.EventBus.emit('mode:switch', 'map');
-      if (!window.__vtt.state.mapId) window.__vtt.EventBus.emit('map:load', 'M01');
-    });
-    await display.waitForFunction(() => {
-      const cam = window.__vtt?.mapRenderer?.camera;
-      return cam && cam.mapW > 0;
-    }, { timeout: 10000 });
-    return display;
-  }
-
-  /** Helper: boot Controller and wait for sync engine */
-  async function bootController(context) {
-    const ctrl = await context.newPage();
-    await ctrl.goto('/controller/');
-    await ctrl.waitForFunction(
-      () => window.__controller?.syncEngine?._started === true,
-      { timeout: 10000 }
-    );
-    return ctrl;
-  }
-
   test('Controller camera change propagates to Display', async ({ browser }) => {
     const context = await browser.newContext({ viewport: { width: 1920, height: 1080 } });
     const display = await bootDisplay(context);
     const ctrl = await bootController(context);
-    // Allow ANNOUNCE/WELCOME handshake
-    await ctrl.waitForTimeout(1500);
+    // Wait for ANNOUNCE/WELCOME handshake
+    await ctrl.waitForFunction(
+      () => window.__controller?.camera?.mapW > 0,
+      { timeout: 5000 }
+    );
 
     // Record Display camera before
     const before = await display.evaluate(() => {
@@ -529,7 +502,10 @@ test.describe('Cross-window camera sync', () => {
     const context = await browser.newContext({ viewport: { width: 1920, height: 1080 } });
     const display = await bootDisplay(context);
     const ctrl = await bootController(context);
-    await ctrl.waitForTimeout(1500);
+    await ctrl.waitForFunction(
+      () => window.__controller?.camera?.mapW > 0,
+      { timeout: 5000 }
+    );
 
     // Send jump-to
     await ctrl.evaluate(() => {
@@ -558,7 +534,10 @@ test.describe('Cross-window camera sync', () => {
     const context = await browser.newContext({ viewport: { width: 1920, height: 1080 } });
     const display = await bootDisplay(context);
     const ctrl = await bootController(context);
-    await ctrl.waitForTimeout(1500);
+    await ctrl.waitForFunction(
+      () => window.__controller?.camera?.mapW > 0,
+      { timeout: 5000 }
+    );
 
     // Zoom in
     await ctrl.evaluate(() => {
@@ -607,7 +586,10 @@ test.describe('Cross-window camera sync', () => {
 
     // Open Controller — should receive WELCOME with Display's camera
     const ctrl = await bootController(context);
-    await ctrl.waitForTimeout(2000); // wait for WELCOME + apply
+    await ctrl.waitForFunction(
+      () => window.__controller?.camera?.mapW > 0,
+      { timeout: 5000 }
+    );
 
     const ctrlCam = await ctrl.evaluate(() => {
       const c = window.__controller?.camera;

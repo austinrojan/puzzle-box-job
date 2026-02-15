@@ -124,3 +124,41 @@ export async function expectDensityReduces(page, expect, selector, property, set
   );
   expect(compactVal).toBeLessThan(defaultVal);
 }
+
+/**
+ * Boot VTT Display in map mode with a loaded map. For cross-window sync tests.
+ * @param {import('@playwright/test').BrowserContext} context
+ * @returns {Promise<import('@playwright/test').Page>}
+ */
+export async function bootDisplay(context) {
+  const display = await context.newPage();
+  await display.goto('/vtt/');
+  await display.waitForFunction(
+    () => document.getElementById('loading')?.hidden === true,
+    { timeout: 15000 }
+  );
+  await display.evaluate(() => {
+    window.__vtt.EventBus.emit('mode:switch', 'map');
+    if (!window.__vtt.state.mapId) window.__vtt.EventBus.emit('map:load', 'M01');
+  });
+  await display.waitForFunction(() => {
+    const cam = window.__vtt?.mapRenderer?.camera;
+    return cam && cam.mapW > 0;
+  }, { timeout: 10000 });
+  return display;
+}
+
+/**
+ * Boot Controller and wait for sync engine to start. For cross-window sync tests.
+ * @param {import('@playwright/test').BrowserContext} context
+ * @returns {Promise<import('@playwright/test').Page>}
+ */
+export async function bootController(context) {
+  const ctrl = await context.newPage();
+  await ctrl.goto('/controller/');
+  await ctrl.waitForFunction(
+    () => window.__controller?.camera != null,
+    { timeout: 10000 }
+  );
+  return ctrl;
+}
