@@ -13,6 +13,7 @@ import {
 } from '../../shared/protocol.js';
 import { vttState, connected, sceneIndex, setSceneIndex } from './state.js';
 import { send } from './sync.js';
+import { flyToTokens } from '../../vtt/js/fit-to-tokens.js';
 
 const $ = sel => document.querySelector(sel);
 const $$ = sel => document.querySelectorAll(sel);
@@ -223,6 +224,32 @@ export function initMapCamera() {
   $('#fog-reveal').addEventListener('click', () => send(createFogRevealAllMsg()));
   $('#fog-hide').addEventListener('click', () => send(createFogHideAllMsg()));
   $('#grid-toggle').addEventListener('click', () => send(createGridToggleMsg()));
+
+  // Frame Tokens — fly camera to frame visible tokens
+  $('#btn-frame-tokens').addEventListener('click', () => {
+    const ctrl = window.__controller;
+    if (!ctrl) return;
+    const cam = ctrl.camera;
+    if (!cam || cam.mapW <= 0) return;
+
+    const tokens = vttState.tokens || [];
+    if (tokens.length === 0) return;
+
+    const mode = $('#frame-mode')?.value || 'all';
+    const mapDef = MAPS.find(m => m.id === vttState.mapId);
+    const cellPx = mapDef ? cam.mapW / mapDef.cols : 70;
+
+    const result = flyToTokens(
+      ctrl.flyToAnimator, tokens,
+      { w: cam.viewportW, h: cam.viewportH },
+      cellPx, TOKENS, vttState.initiative?.entries || [],
+      { mode }
+    );
+
+    if (result) {
+      ctrl.syncEngine?.broadcaster?.sendFlyTo(result.target, result.flyOpts);
+    }
+  });
 }
 
 function buildMapSelect() {

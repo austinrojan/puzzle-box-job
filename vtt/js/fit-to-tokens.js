@@ -73,4 +73,46 @@ export function computeFitToTokens(tokens, viewport, opts = {}) {
   return { centerX, centerY, zoom };
 }
 
+/**
+ * Higher-level function: gather token positions, compute framing target,
+ * and trigger a flyTo animation. Returns { target, flyOpts } so callers
+ * can broadcast CAMERA_FLY_TO to other windows, or null if no eligible tokens.
+ *
+ * @param {FlyToAnimator} animator
+ * @param {Array<{ col: number, row: number, size: number, visible: boolean, tokenId: string }>} tokens
+ * @param {{ w: number, h: number }} viewport
+ * @param {number} cellPx - world-space pixel size of one grid cell
+ * @param {Object} tokenDefs - map of tokenId → definition (with isPC)
+ * @param {Array<{ tokenId: string }>} [initiativeEntries=[]] - current initiative entries
+ * @param {Object} [opts] - passed through to computeFitToTokens + flyTo
+ */
+export function flyToTokens(animator, tokens, viewport, cellPx, tokenDefs, initiativeEntries = [], opts = {}) {
+  const initiativeIds = new Set(initiativeEntries.map(e => e.tokenId));
+
+  const tokenData = tokens.map(t => ({
+    x: (t.col + 0.5) * cellPx,
+    y: (t.row + 0.5) * cellPx,
+    size: t.size ?? 1,
+    isPC: tokenDefs[t.tokenId]?.isPC ?? false,
+    visible: t.visible !== false,
+    inInitiative: initiativeIds.has(t.tokenId),
+  }));
+
+  const target = computeFitToTokens(tokenData, viewport, { gridSize: cellPx, ...opts });
+
+  if (!target) {
+    return null;
+  }
+
+  const flyOpts = {
+    rho: 1.2,
+    speed: 1.5,
+    ...opts,
+  };
+
+  animator.flyTo(target, flyOpts);
+
+  return { target, flyOpts };
+}
+
 export { FRAME_MODES };
