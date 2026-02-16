@@ -243,7 +243,7 @@ export function initMapCamera() {
       ctrl.flyToAnimator, tokens,
       { w: cam.viewportW, h: cam.viewportH },
       cellPx, TOKENS, vttState.initiative?.entries || [],
-      { mode }
+      { mode, suppressBroadcast: true }
     );
 
     if (result) {
