@@ -173,27 +173,31 @@ export async function bootController(context) {
 }
 
 /**
- * Wait for a flyTo animation to complete via EventBus event.
- * Includes safety timeout to prevent test hangs (logs warning if hit).
+ * Inject window.__waitForAnimComplete(timeout?) into the page.
+ * Resolves when EventBus emits 'camera:animation-complete', or after
+ * the safety timeout (prevents test hangs if animation never fires).
+ * Call once in beforeEach; use inside page.evaluate as:
+ *   await window.__waitForAnimComplete();
  */
-export async function waitForAnimationComplete(page, timeoutMs = 3000) {
-  await page.evaluate((timeout) => new Promise(resolve => {
-    const { EventBus } = window.__vtt;
-    let resolved = false;
-    const handler = () => {
-      resolved = true;
-      EventBus.off('camera:animation-complete', handler);
-      resolve();
-    };
-    EventBus.on('camera:animation-complete', handler);
-    setTimeout(() => {
-      if (!resolved) {
+export async function injectAnimationWaitHelper(page) {
+  await page.evaluate(() => {
+    window.__waitForAnimComplete = (timeout = 3000) => new Promise(resolve => {
+      const { EventBus } = window.__vtt;
+      let resolved = false;
+      const handler = () => {
+        resolved = true;
         EventBus.off('camera:animation-complete', handler);
-        console.warn('[waitForAnimationComplete] timed out — animation may not have completed');
         resolve();
-      }
-    }, timeout);
-  }), timeoutMs);
+      };
+      EventBus.on('camera:animation-complete', handler);
+      setTimeout(() => {
+        if (!resolved) {
+          EventBus.off('camera:animation-complete', handler);
+          resolve();
+        }
+      }, timeout);
+    });
+  });
 }
 
 /**

@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { gotoVTT, enterMapMode, injectTestAccessors } from './helpers.js';
+import { gotoVTT, enterMapMode, injectTestAccessors, injectAnimationWaitHelper } from './helpers.js';
 
 test.describe('CameraPresetManager', () => {
 
@@ -8,6 +8,7 @@ test.describe('CameraPresetManager', () => {
     await enterMapMode(page);
     await injectTestAccessors(page);
     await page.evaluate(() => localStorage.removeItem('vtt-camera-presets'));
+    await injectAnimationWaitHelper(page);
     await page.evaluate(async () => {
       const { CameraPresetManager } = await import('/vtt/js/camera-presets.js');
       const { FlyToAnimator } = await import('/vtt/js/camera-animator.js');
@@ -18,22 +19,6 @@ test.describe('CameraPresetManager', () => {
         mgr.setCurrentMap(mapId);
         return { animator, mgr, cam };
       };
-      window.__waitForAnimComplete = (timeout = 3000) => new Promise(resolve => {
-        const { EventBus } = window.__vtt;
-        let resolved = false;
-        const handler = () => {
-          resolved = true;
-          EventBus.off('camera:animation-complete', handler);
-          resolve();
-        };
-        EventBus.on('camera:animation-complete', handler);
-        setTimeout(() => {
-          if (!resolved) {
-            EventBus.off('camera:animation-complete', handler);
-            resolve();
-          }
-        }, timeout);
-      });
     });
   });
 

@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { gotoVTT, enterMapMode, injectTestAccessors } from './helpers.js';
+import { gotoVTT, enterMapMode, injectTestAccessors, injectAnimationWaitHelper } from './helpers.js';
 
 test.describe('FlyToAnimator', () => {
 
@@ -7,6 +7,7 @@ test.describe('FlyToAnimator', () => {
     await gotoVTT(page);
     await enterMapMode(page);
     await injectTestAccessors(page);
+    await injectAnimationWaitHelper(page);
     await page.evaluate(async () => {
       const { FlyToAnimator } = await import('/vtt/js/camera-animator.js');
       const { localToShared } = await import('/shared/protocol.js');
@@ -15,22 +16,6 @@ test.describe('FlyToAnimator', () => {
         return new FlyToAnimator(cam, { w: cam.viewportW, h: cam.viewportH });
       };
       window.__localToShared = localToShared;
-      window.__waitForAnimComplete = (timeout = 3000) => new Promise(resolve => {
-        const { EventBus } = window.__vtt;
-        let resolved = false;
-        const handler = () => {
-          resolved = true;
-          EventBus.off('camera:animation-complete', handler);
-          resolve();
-        };
-        EventBus.on('camera:animation-complete', handler);
-        setTimeout(() => {
-          if (!resolved) {
-            EventBus.off('camera:animation-complete', handler);
-            resolve();
-          }
-        }, timeout);
-      });
     });
   });
 
