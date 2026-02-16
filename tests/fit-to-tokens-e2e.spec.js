@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { bootDisplay, bootController } from './helpers.js';
+import { bootDisplay, bootController, waitForControllerMap } from './helpers.js';
 
 test.describe('Fit-to-tokens E2E', () => {
   /** @type {import('@playwright/test').BrowserContext} */
@@ -18,10 +18,7 @@ test.describe('Fit-to-tokens E2E', () => {
     const ctrl = await bootController(context);
 
     // Wait for handshake — Controller camera has map dims
-    await ctrl.waitForFunction(
-      () => window.__controller?.camera?.mapW > 0,
-      { timeout: 5000 }
-    );
+    await waitForControllerMap(ctrl, 5000);
 
     // Load map and add tokens on Display
     await display.evaluate(() => {

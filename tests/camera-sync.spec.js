@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { gotoVTT, enterMapMode, bootDisplay, bootController } from './helpers.js';
+import { gotoVTT, enterMapMode, bootDisplay, bootController, waitForControllerMap } from './helpers.js';
 
 test.describe('Center-point camera model', () => {
   test('roundtrips correctly at standard viewport', async ({ page }) => {
@@ -479,10 +479,7 @@ test.describe('Cross-window camera sync', () => {
     const display = await bootDisplay(context);
     const ctrl = await bootController(context);
     // Wait for ANNOUNCE/WELCOME handshake
-    await ctrl.waitForFunction(
-      () => window.__controller?.camera?.mapW > 0,
-      { timeout: 5000 }
-    );
+    await waitForControllerMap(ctrl, 5000);
 
     // Record Display camera before
     const before = await display.evaluate(() => {
@@ -513,10 +510,7 @@ test.describe('Cross-window camera sync', () => {
     context = await browser.newContext({ viewport: { width: 1920, height: 1080 } });
     const display = await bootDisplay(context);
     const ctrl = await bootController(context);
-    await ctrl.waitForFunction(
-      () => window.__controller?.camera?.mapW > 0,
-      { timeout: 5000 }
-    );
+    await waitForControllerMap(ctrl, 5000);
 
     // Send jump-to
     await ctrl.evaluate(() => {
@@ -544,10 +538,7 @@ test.describe('Cross-window camera sync', () => {
     context = await browser.newContext({ viewport: { width: 1920, height: 1080 } });
     const display = await bootDisplay(context);
     const ctrl = await bootController(context);
-    await ctrl.waitForFunction(
-      () => window.__controller?.camera?.mapW > 0,
-      { timeout: 5000 }
-    );
+    await waitForControllerMap(ctrl, 5000);
 
     // Record zoom before Controller acts
     const zoomBefore = await display.evaluate(() => window.__vtt?.mapRenderer?.camera?.zoom);
@@ -612,10 +603,7 @@ test.describe('Cross-window camera sync', () => {
 
     // Open Controller — should receive WELCOME with Display's camera
     const ctrl = await bootController(context);
-    await ctrl.waitForFunction(
-      () => window.__controller?.camera?.mapW > 0,
-      { timeout: 5000 }
-    );
+    await waitForControllerMap(ctrl, 5000);
 
     const ctrlCam = await ctrl.evaluate(() => {
       const c = window.__controller?.camera;

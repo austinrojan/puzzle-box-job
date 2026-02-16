@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { bootDisplay, bootController } from './helpers.js';
+import { bootDisplay, bootController, waitForControllerMap } from './helpers.js';
 
 test.describe('Phase 5 Integration', () => {
   test('authority election works via production Controller boot', async ({ context }) => {
@@ -183,10 +183,7 @@ test.describe('Phase 5 Integration', () => {
     const display = await bootDisplay(context);
     const ctrl = await bootController(context);
 
-    await ctrl.waitForFunction(
-      () => window.__controller?.camera?.mapW > 0,
-      { timeout: 10000 }
-    );
+    await waitForControllerMap(ctrl);
 
     // Start a long flyTo
     await ctrl.evaluate(() => {

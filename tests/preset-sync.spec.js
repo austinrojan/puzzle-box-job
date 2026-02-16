@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { bootDisplay, bootController } from './helpers.js';
+import { bootDisplay, bootController, waitForControllerMap, waitForDisplayPhase5 } from './helpers.js';
 
 test.describe('Cross-window preset sync', () => {
   /** @type {import('@playwright/test').BrowserContext} */
@@ -18,10 +18,7 @@ test.describe('Cross-window preset sync', () => {
     const ctrl = await bootController(context);
 
     // Wait for handshake
-    await ctrl.waitForFunction(
-      () => window.__controller?.camera?.mapW > 0,
-      { timeout: 5000 }
-    );
+    await waitForControllerMap(ctrl, 5000);
 
     // Controller saves a preset
     await ctrl.evaluate(() => {
@@ -61,14 +58,8 @@ test.describe('Cross-window preset sync', () => {
     const display = await bootDisplay(context);
     const ctrl = await bootController(context);
 
-    await ctrl.waitForFunction(
-      () => window.__controller?.camera?.mapW > 0,
-      { timeout: 5000 }
-    );
-    await display.waitForFunction(
-      () => window.__vtt?.flyToAnimator != null,
-      { timeout: 5000 }
-    );
+    await waitForControllerMap(ctrl, 5000);
+    await waitForDisplayPhase5(display);
 
     // Save a preset at a zoomed-in position
     await ctrl.evaluate(() => {
@@ -180,10 +171,7 @@ test.describe('Cross-window preset sync', () => {
     const display = await bootDisplay(context);
     const ctrl = await bootController(context);
 
-    await ctrl.waitForFunction(
-      () => window.__controller?.camera?.mapW > 0,
-      { timeout: 5000 }
-    );
+    await waitForControllerMap(ctrl, 5000);
 
     // Save two presets on Controller
     await ctrl.evaluate(() => {

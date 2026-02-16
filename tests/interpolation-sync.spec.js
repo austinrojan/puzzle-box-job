@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { bootDisplay, bootController } from './helpers.js';
+import { bootDisplay, bootController, waitForControllerMap } from './helpers.js';
 
 test.describe('Interpolation sync (cross-window)', () => {
   let display, ctrl;
@@ -9,10 +9,7 @@ test.describe('Interpolation sync (cross-window)', () => {
     ctrl = await bootController(context);
 
     // Wait for Controller to get map dimensions via WELCOME
-    await ctrl.waitForFunction(
-      () => window.__controller?.camera?.mapW > 0,
-      { timeout: 10000 }
-    );
+    await waitForControllerMap(ctrl);
   });
 
   test('Controller pan → Display converges smoothly', async () => {

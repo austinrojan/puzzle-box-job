@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { bootDisplay, bootController } from './helpers.js';
+import { bootDisplay, bootController, waitForControllerMap, waitForDisplayPhase5 } from './helpers.js';
 
 test.describe('Cross-window flyTo sync', () => {
   /** @type {import('@playwright/test').BrowserContext} */
@@ -18,16 +18,10 @@ test.describe('Cross-window flyTo sync', () => {
     const ctrl = await bootController(context);
 
     // Wait for handshake (Display has a map loaded)
-    await ctrl.waitForFunction(
-      () => window.__controller?.camera?.mapW > 0,
-      { timeout: 5000 }
-    );
+    await waitForControllerMap(ctrl, 5000);
 
     // Wait for Display to have flyToAnimator wired
-    await display.waitForFunction(
-      () => window.__vtt?.flyToAnimator != null,
-      { timeout: 5000 }
-    );
+    await waitForDisplayPhase5(display);
 
     // Record Display camera state before
     const before = await display.evaluate(() => {
@@ -72,14 +66,8 @@ test.describe('Cross-window flyTo sync', () => {
     const display = await bootDisplay(context);
     const ctrl = await bootController(context);
 
-    await ctrl.waitForFunction(
-      () => window.__controller?.camera?.mapW > 0,
-      { timeout: 5000 }
-    );
-    await display.waitForFunction(
-      () => window.__vtt?.flyToAnimator != null,
-      { timeout: 5000 }
-    );
+    await waitForControllerMap(ctrl, 5000);
+    await waitForDisplayPhase5(display);
 
     // Move Controller camera to target first, then send flyTo.
     // This ensures the CAMERA_SYNC stream reinforces (not fights) the
@@ -138,14 +126,8 @@ test.describe('Cross-window flyTo sync', () => {
     const display = await bootDisplay(context);
     const ctrl = await bootController(context);
 
-    await ctrl.waitForFunction(
-      () => window.__controller?.camera?.mapW > 0,
-      { timeout: 5000 }
-    );
-    await display.waitForFunction(
-      () => window.__vtt?.flyToAnimator != null,
-      { timeout: 5000 }
-    );
+    await waitForControllerMap(ctrl, 5000);
+    await waitForDisplayPhase5(display);
 
     // Start a long flyTo
     await ctrl.evaluate(() => {

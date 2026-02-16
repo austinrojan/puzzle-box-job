@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { bootDisplay, bootController } from './helpers.js';
+import { bootDisplay, bootController, waitForControllerMap } from './helpers.js';
 
 test.describe('AuthorityElection', () => {
   let display;
@@ -17,10 +17,7 @@ test.describe('AuthorityElection', () => {
   async function bootControllerWithElection(context) {
     const ctrl = await bootController(context);
     // Wait for map dimensions via WELCOME
-    await ctrl.waitForFunction(
-      () => window.__controller?.camera?.mapW > 0,
-      { timeout: 10000 }
-    );
+    await waitForControllerMap(ctrl);
     // Inject election
     await ctrl.evaluate(async () => {
       const { AuthorityElection } = await import('/vtt/js/authority-election.js');
