@@ -110,6 +110,7 @@ export class MapRenderer {
     this.camera.setViewportScale(capScale);
     // setViewportSize emits camera:changed → rAF handler coalesces redraw
     this.camera.setViewportSize(actualW, actualH);
+    EventBus.emit('camera:viewport-resized', { w: actualW, h: actualH });
   }
 
   _resizeCanvases() {

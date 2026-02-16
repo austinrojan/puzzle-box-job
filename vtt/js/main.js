@@ -128,11 +128,9 @@ async function boot() {
   const flyToAnimator = new FlyToAnimator(camera, { w: camera.viewportW, h: camera.viewportH });
   syncEngine.setAnimator(flyToAnimator);
 
-  // Keep animator viewport in sync with camera viewport
-  EventBus.on('camera:changed', () => {
-    if (camera.viewportW > 0 && camera.viewportH > 0) {
-      flyToAnimator.updateViewport(camera.viewportW, camera.viewportH);
-    }
+  // Keep animator viewport in sync on resize (not every camera:changed)
+  EventBus.on('camera:viewport-resized', ({ w, h }) => {
+    flyToAnimator.updateViewport(w, h);
   });
 
   // Interrupt flyTo animation on user input (wheel, mouse, keyboard)
