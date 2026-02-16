@@ -1,20 +1,23 @@
-// Camera Sync Engine (Phase 4)
+// Camera Sync Engine (Phase 4 + Phase 5 transport abstraction)
 //
-// Cross-window camera synchronization over BroadcastChannel.
+// Cross-window camera synchronization over ISyncTransport.
 // CameraBroadcaster sends local camera state as a viewport-independent
 // center-point at ~30fps. CameraReceiver applies received state through
 // camera.deserialize(), which routes through _applyConstraints().
 //
-// Architecture:
-//   Controller window: runs CameraBroadcaster (sends state)
-//   Display window:    runs CameraReceiver (applies state)
-//   DM Guide window:   neither (independent camera)
+// Phase 5 additions:
+//   - ISyncTransport abstraction (replaces direct BroadcastChannel)
+//   - setAnimator/setInterpolator delegation for flyTo + smoothing
+//   - CAMERA_FLY_TO message handling in CameraReceiver
 
 import { EventBus } from './state.js';
+import { BroadcastChannelTransport } from '../../shared/sync/BroadcastChannelTransport.js';
 import {
   localToShared,
   sharedToLocal,
   createCameraJumpToMsg,
+  createCameraFlyToMsg,
+  createPresetSyncMsg,
   createAnnounceMsg,
   createWelcomeMsg,
   createHeartbeatMsg,
@@ -29,6 +32,9 @@ const MIN_SEND_INTERVAL = 33;  // ~30fps cap (ms)
 const EPSILON_POS  = 0.5;      // world pixels: sub-pixel changes are invisible
 const EPSILON_ZOOM = 0.001;    // zoom delta: <0.1% change is invisible
 const WELCOME_DEBOUNCE_MS = 150; // Wait for multiple WELCOME messages before applying best one
+const CAMERA_CHANNEL_NAME = 'vtt-camera';
+const SESSION_KEY = 'vtt-camera-state';
+const SESSION_MAX_AGE = 5 * 60 * 1000; // 5 minutes
 
 /** Generate a unique window ID (8 random hex chars). */
 function generateWindowId() {
@@ -54,12 +60,12 @@ function viewportReady(vp) {
 export class CameraBroadcaster {
   /**
    * @param {object} camera - The Camera instance from map-camera.js
-   * @param {BroadcastChannel} channel - The 'vtt-camera' BroadcastChannel
+   * @param {ISyncTransport} transport - The sync transport
    * @param {string} senderId - Unique window identifier
    */
-  constructor(camera, channel, senderId) {
+  constructor(camera, transport, senderId) {
     this._camera = camera;
-    this._channel = channel;
+    this._transport = transport;
     this._senderId = senderId;
 
     this._lastSendTime = 0;
@@ -75,6 +81,10 @@ export class CameraBroadcaster {
 
     // Suppress flag: set by CameraReceiver to prevent ping-pong
     this.suppressBroadcast = false;
+
+    // Phase 5: animator/interpolator suppress sources
+    this._animator = null;
+    this._interpolator = null;
 
     // Pre-allocated message template to reduce GC pressure at 30fps
     this._msgTemplate = {
@@ -105,14 +115,12 @@ export class CameraBroadcaster {
     }
   }
 
-  setChannel(channel) {
-    this._channel = channel;
-  }
+  setAnimator(animator) { this._animator = animator; }
+  setInterpolator(interpolator) { this._interpolator = interpolator; }
 
   sendJumpTo(centerX, centerY, zoom) {
-    if (!this._channel) return;
     const m = createCameraJumpToMsg(centerX, centerY, zoom, this._senderId);
-    this._channel.postMessage(m);
+    this._transport.send(m);
 
     // Sync local camera so the continuous CAMERA_SYNC stream doesn't
     // immediately overwrite the jump-to on the receiver.
@@ -132,6 +140,24 @@ export class CameraBroadcaster {
     this._lastZoom = zoom;
   }
 
+  /** Broadcast a flyTo command to all receiving windows. */
+  sendFlyTo(target, opts = {}) {
+    const msg = createCameraFlyToMsg(this._senderId, ++this._seq, {
+      target,
+      duration: opts.duration ?? null,
+      rho: opts.rho ?? 1.42,
+      speed: opts.speed ?? 1.2,
+      presetId: opts.presetId ?? null,
+    });
+    this._transport.send(msg);
+  }
+
+  /** Broadcast all presets to receiving windows. */
+  sendPresetSync(presets) {
+    const msg = createPresetSyncMsg(this._senderId, ++this._seq, presets);
+    this._transport.send(msg);
+  }
+
   sendImmediate() {
     this._sendState(performance.now());
   }
@@ -145,8 +171,9 @@ export class CameraBroadcaster {
   }
 
   _sendState(now) {
-    if (!this._channel) return;
     if (this.suppressBroadcast) return;
+    if (this._animator?.suppressBroadcast) return;
+    if (this._interpolator?.suppressBroadcast) return;
 
     const cam = this._camera;
     const vp = cameraViewport(cam);
@@ -168,7 +195,7 @@ export class CameraBroadcaster {
     this._msgTemplate.zoom = shared.zoom;
     this._msgTemplate.seq = ++this._seq;
 
-    this._channel.postMessage(this._msgTemplate);
+    this._transport.send(this._msgTemplate);
 
     this._lastCenterX = shared.centerX;
     this._lastCenterY = shared.centerY;
@@ -178,7 +205,7 @@ export class CameraBroadcaster {
 
   destroy() {
     this.stop();
-    this._channel = null;
+    this._transport = null;
     this._camera = null;
   }
 }
@@ -198,13 +225,27 @@ export class CameraReceiver {
     this._camera = camera;
     this._broadcaster = broadcaster;
     this._senderSeqs = new Map();
+
+    // Phase 5
+    this._animator = null;
+    this._interpolator = null;
+    this._presetManager = null;
+    this._lastFlyToSeq = -1;
   }
+
+  setAnimator(animator) { this._animator = animator; }
+  setInterpolator(interpolator) { this._interpolator = interpolator; }
+  setPresetManager(pm) { this._presetManager = pm; }
 
   handleMessage(msg) {
     if (msg.type === MSG.CAMERA_SYNC) {
       this._handleSync(msg);
     } else if (msg.type === MSG.CAMERA_JUMP_TO) {
       this._handleJumpTo(msg);
+    } else if (msg.type === MSG.CAMERA_FLY_TO) {
+      this._handleFlyTo(msg);
+    } else if (msg.type === MSG.PRESET_SYNC) {
+      this._handlePresetSync(msg);
     }
   }
 
@@ -213,12 +254,54 @@ export class CameraReceiver {
     const prevSeq = this._senderSeqs.get(senderId) ?? -1;
     if (seq <= prevSeq) return;
     this._senderSeqs.set(senderId, seq);
-    this._applySharedState(centerX, centerY, zoom);
+
+    // Phase 5: route through interpolator if available
+    if (this._interpolator) {
+      const cam = this._camera;
+      const vp = cameraViewport(cam);
+      if (!viewportReady(vp)) return;
+      const local = sharedToLocal({ centerX, centerY, zoom }, vp);
+      this._interpolator.setTarget(local);
+    } else {
+      this._applySharedState(centerX, centerY, zoom);
+    }
   }
 
   _handleJumpTo(msg) {
     const { centerX, centerY, zoom } = msg;
     this._applySharedState(centerX, centerY, zoom);
+
+    // Reset interpolator so it doesn't smoothly converge from old position
+    if (this._interpolator) {
+      const cam = this._camera;
+      const vp = cameraViewport(cam);
+      if (viewportReady(vp)) {
+        const local = sharedToLocal({ centerX, centerY, zoom }, vp);
+        this._interpolator.setTarget(local);
+        this._interpolator.snapToTarget();
+      }
+    }
+  }
+
+  _handleFlyTo(msg) {
+    if (msg.seq <= this._lastFlyToSeq) return;
+    this._lastFlyToSeq = msg.seq;
+
+    if (!this._animator) return;
+
+    const { target, duration, rho, speed } = msg;
+    this._animator.flyTo(target, {
+      duration,
+      rho,
+      speed,
+      suppressBroadcast: true,
+    });
+  }
+
+  _handlePresetSync(msg) {
+    if (this._presetManager) {
+      this._presetManager.importAll(msg.presets);
+    }
   }
 
   _applySharedState(centerX, centerY, zoom) {
@@ -268,10 +351,10 @@ const HEARTBEAT_INTERVAL = 3000;  // ms between heartbeats
 const HEARTBEAT_TIMEOUT  = 10000; // ms before a peer is considered dead
 
 export class WindowRegistry {
-  constructor(windowId, role, channel) {
+  constructor(windowId, role, transport) {
     this._windowId = windowId;
     this._role = role;
-    this._channel = channel;
+    this._transport = transport;
     this._peers = new Map();
     this._heartbeatTimer = null;
     this._reapTimer = null;
@@ -285,20 +368,16 @@ export class WindowRegistry {
     this._onPeerLeave = onLeave || null;
   }
 
-  setChannel(channel) {
-    this._channel = channel;
-  }
-
   start() {
     if (this._heartbeatTimer) clearInterval(this._heartbeatTimer);
     if (this._reapTimer) clearInterval(this._reapTimer);
 
-    this._channel.postMessage(
+    this._transport.send(
       createAnnounceMsg(this._windowId, this._role)
     );
 
     this._heartbeatTimer = setInterval(() => {
-      this._channel.postMessage(
+      this._transport.send(
         createHeartbeatMsg(this._windowId, this._role)
       );
     }, HEARTBEAT_INTERVAL);
@@ -315,11 +394,7 @@ export class WindowRegistry {
       clearInterval(this._reapTimer);
       this._reapTimer = null;
     }
-    try {
-      this._channel.postMessage(createGoodbyeMsg(this._windowId));
-    } catch (e) {
-      // Channel may already be closed
-    }
+    this._transport.send(createGoodbyeMsg(this._windowId));
   }
 
   handleMessage(msg, onAnnounce) {
@@ -347,7 +422,7 @@ export class WindowRegistry {
       const cameraState = onAnnounce(msg.windowId, msg.role);
       if (cameraState) {
         this._epoch++;
-        this._channel.postMessage(
+        this._transport.send(
           createWelcomeMsg(
             this._windowId,
             this._role,
@@ -417,60 +492,179 @@ export class WindowRegistry {
   destroy() {
     this.stop();
     this._peers.clear();
-    this._channel = null;
+    this._transport = null;
   }
 }
 
 // ============================================================
-// CameraChannelManager
+// CameraSyncEngine
 // ============================================================
 
-const CAMERA_CHANNEL_NAME = 'vtt-camera';
-const SESSION_KEY = 'vtt-camera-state';
-const SESSION_MAX_AGE = 5 * 60 * 1000; // 5 minutes
-
-export class CameraChannelManager {
-  constructor({ camera, role, onMessage }) {
+export class CameraSyncEngine {
+  constructor({ camera, role }) {
     this._camera = camera;
     this._role = role;
-    this._onMessage = onMessage;
-    this._channel = null;
+    this._started = false;
+
+    this._transport = null;
+    this._registry = null;
+    this._broadcaster = null;
+    this._receiver = null;
     this._windowId = generateWindowId();
+
+    this._bestWelcome = null;
+    this._welcomeTimer = null;
 
     this._onPageHide = this._onPageHide.bind(this);
     this._onPageShow = this._onPageShow.bind(this);
     this._onVisibilityChange = this._onVisibilityChange.bind(this);
+    this._onWelcomeEvent = (data) => this._handleWelcomeState(data);
+    this._onReconnectEvent = () => this._reconnect();
   }
-
-  get channel() { return this._channel; }
-  get windowId() { return this._windowId; }
 
   start() {
-    this._openChannel();
-    this._attachLifecycleListeners();
+    if (this._started) return;
+    this._started = true;
+
+    // Create and connect transport
+    this._transport = new BroadcastChannelTransport(CAMERA_CHANNEL_NAME);
+    this._transport.onMessage((msg) => this._handleMessage(msg));
+    this._transport.connect();
+
+    // Restore from sessionStorage
     this._tryRestore();
+
+    // Attach page lifecycle listeners
+    this._attachLifecycleListeners();
+
+    const windowId = this._windowId;
+
+    if (this._role === 'controller') {
+      this._broadcaster = new CameraBroadcaster(this._camera, this._transport, windowId);
+      this._receiver = new CameraReceiver(this._camera, this._broadcaster);
+      this._broadcaster.start();
+    } else if (this._role === 'display') {
+      this._receiver = new CameraReceiver(this._camera, null);
+    }
+    // dm-guide: no broadcaster, no receiver
+
+    this._registry = new WindowRegistry(windowId, this._role, this._transport);
+
+    this._registry.onPeerChange({
+      onJoin: (peerId, peerRole) => {
+        EventBus.emit('camera-sync:peer-join', { peerId, peerRole });
+      },
+      onLeave: (peerId, peerRole) => {
+        EventBus.emit('camera-sync:peer-leave', { peerId, peerRole });
+        if (this._receiver) {
+          this._receiver.removeSender(peerId);
+        }
+      },
+    });
+
+    EventBus.on('camera-sync:welcome', this._onWelcomeEvent);
+    EventBus.on('camera-sync:reconnect', this._onReconnectEvent);
+
+    this._registry.start();
   }
 
-  stop() {
-    this._closeChannel();
-    this._detachLifecycleListeners();
+  // --- Phase 5: Animator/Interpolator delegation ---
+
+  setAnimator(animator) {
+    if (this._receiver) this._receiver.setAnimator(animator);
+    if (this._broadcaster) this._broadcaster.setAnimator(animator);
   }
 
-  _openChannel() {
-    if (this._channel) return;
-    this._channel = new BroadcastChannel(CAMERA_CHANNEL_NAME);
-    this._channel.onmessage = (event) => {
-      if (this._onMessage) {
-        this._onMessage(event.data);
+  setInterpolator(interpolator) {
+    if (this._receiver) this._receiver.setInterpolator(interpolator);
+    if (this._broadcaster) this._broadcaster.setInterpolator(interpolator);
+  }
+
+  setPresetManager(pm) {
+    this._presetManager = pm;
+    if (this._receiver) this._receiver.setPresetManager(pm);
+  }
+
+  setElection(election) {
+    this._election = election;
+  }
+
+  // --- Message routing ---
+
+  _handleMessage(msg) {
+    if (!msg || !msg.type) return;
+
+    switch (msg.type) {
+      case MSG.CAMERA_SYNC:
+      case MSG.CAMERA_JUMP_TO:
+      case MSG.CAMERA_FLY_TO:
+      case MSG.PRESET_SYNC:
+        if (this._receiver) {
+          this._receiver.handleMessage(msg);
+        }
+        break;
+
+      case MSG.ANNOUNCE:
+      case MSG.WELCOME:
+      case MSG.HEARTBEAT:
+      case MSG.GOODBYE:
+        this._registry.handleMessage(msg, (announcerId, announcerRole) => {
+          return this._onAnnounce(announcerId, announcerRole);
+        });
+        break;
+    }
+  }
+
+  _onAnnounce(announcerId, announcerRole) {
+    const cam = this._camera;
+    const vp = cameraViewport(cam);
+    if (!viewportReady(vp)) return null;
+
+    const shared = localToShared(cam, vp);
+    // Include map dimensions for headless Camera bootstrapping
+    shared.mapW = cam.mapW;
+    shared.mapH = cam.mapH;
+    // Phase 5: include presets for late-joining windows
+    if (this._presetManager) {
+      shared.presets = this._presetManager.exportAll();
+    }
+    return shared;
+  }
+
+  // --- WELCOME debounce ---
+
+  _handleWelcomeState(data) {
+    if (!this._bestWelcome || data.epoch > this._bestWelcome.epoch) {
+      this._bestWelcome = data;
+    }
+    if (this._welcomeTimer) clearTimeout(this._welcomeTimer);
+    this._welcomeTimer = setTimeout(() => {
+      this._applyWelcome();
+    }, WELCOME_DEBOUNCE_MS);
+  }
+
+  _applyWelcome() {
+    if (!this._bestWelcome) return;
+
+    const { camera } = this._bestWelcome;
+    if (camera && this._receiver) {
+      // Bootstrap map dimensions for headless Camera (Controller)
+      if (camera.mapW > 0 && camera.mapH > 0 && this._camera.mapW <= 0) {
+        this._camera.setMapSize(camera.mapW, camera.mapH);
       }
-    };
+      this._receiver.applyWelcomeState(camera.centerX, camera.centerY, camera.zoom);
+
+      // Phase 5: import presets from WELCOME payload
+      if (camera.presets && this._presetManager) {
+        this._presetManager.importAll(camera.presets);
+      }
+    }
+
+    this._bestWelcome = null;
+    this._welcomeTimer = null;
   }
 
-  _closeChannel() {
-    if (!this._channel) return;
-    this._channel.close();
-    this._channel = null;
-  }
+  // --- Page Lifecycle ---
 
   _attachLifecycleListeners() {
     window.addEventListener('pagehide', this._onPageHide);
@@ -486,12 +680,14 @@ export class CameraChannelManager {
 
   _onPageHide() {
     this._persistToSessionStorage();
-    this._closeChannel();
+    if (this._registry) this._registry.stop();
+    if (this._broadcaster) this._broadcaster.stop();
+    this._transport.disconnect();
   }
 
   _onPageShow(event) {
-    if (!this._channel) {
-      this._openChannel();
+    if (!this._transport.connected) {
+      this._transport.connect();
       if (event.persisted) {
         this._tryRestore();
         EventBus.emit('camera-sync:reconnect');
@@ -551,169 +747,33 @@ export class CameraChannelManager {
     }
   }
 
-  destroy() {
-    this.stop();
-    this._camera = null;
-    this._onMessage = null;
-  }
-}
-
-// ============================================================
-// CameraSyncEngine
-// ============================================================
-
-export class CameraSyncEngine {
-  constructor({ camera, role }) {
-    this._camera = camera;
-    this._role = role;
-    this._started = false;
-
-    this._channelManager = null;
-    this._registry = null;
-    this._broadcaster = null;
-    this._receiver = null;
-
-    this._bestWelcome = null;
-    this._welcomeTimer = null;
-
-    this._onWelcomeEvent = (data) => this._handleWelcomeState(data);
-    this._onReconnectEvent = () => this._reconnect();
-  }
-
-  start() {
-    if (this._started) return;
-    this._started = true;
-
-    this._channelManager = new CameraChannelManager({
-      camera: this._camera,
-      role: this._role,
-      onMessage: (msg) => this._handleMessage(msg),
-    });
-    this._channelManager.start();
-
-    const channel = this._channelManager.channel;
-    const windowId = this._channelManager.windowId;
-
-    if (this._role === 'controller') {
-      this._broadcaster = new CameraBroadcaster(this._camera, channel, windowId);
-      this._receiver = new CameraReceiver(this._camera, this._broadcaster);
-      this._broadcaster.start();
-    } else if (this._role === 'display') {
-      this._receiver = new CameraReceiver(this._camera, null);
-    }
-    // dm-guide: no broadcaster, no receiver
-
-    this._registry = new WindowRegistry(windowId, this._role, channel);
-
-    this._registry.onPeerChange({
-      onJoin: (peerId, peerRole) => {
-        EventBus.emit('camera-sync:peer-join', { peerId, peerRole });
-      },
-      onLeave: (peerId, peerRole) => {
-        EventBus.emit('camera-sync:peer-leave', { peerId, peerRole });
-        if (this._receiver) {
-          this._receiver.removeSender(peerId);
-        }
-      },
-    });
-
-    EventBus.on('camera-sync:welcome', this._onWelcomeEvent);
-    EventBus.on('camera-sync:reconnect', this._onReconnectEvent);
-
-    this._registry.start();
-  }
-
-  _handleMessage(msg) {
-    if (!msg || !msg.type) return;
-
-    switch (msg.type) {
-      case MSG.CAMERA_SYNC:
-      case MSG.CAMERA_JUMP_TO:
-        if (this._receiver) {
-          this._receiver.handleMessage(msg);
-        }
-        break;
-
-      case MSG.ANNOUNCE:
-      case MSG.WELCOME:
-      case MSG.HEARTBEAT:
-      case MSG.GOODBYE:
-        this._registry.handleMessage(msg, (announcerId, announcerRole) => {
-          return this._onAnnounce(announcerId, announcerRole);
-        });
-        break;
-    }
-  }
-
-  _onAnnounce(announcerId, announcerRole) {
-    const cam = this._camera;
-    const vp = cameraViewport(cam);
-    if (!viewportReady(vp)) return null;
-
-    const shared = localToShared(cam, vp);
-    // Include map dimensions for headless Camera bootstrapping
-    shared.mapW = cam.mapW;
-    shared.mapH = cam.mapH;
-    return shared;
-  }
-
-  _handleWelcomeState(data) {
-    if (!this._bestWelcome || data.epoch > this._bestWelcome.epoch) {
-      this._bestWelcome = data;
-    }
-    if (this._welcomeTimer) clearTimeout(this._welcomeTimer);
-    this._welcomeTimer = setTimeout(() => {
-      this._applyWelcome();
-    }, WELCOME_DEBOUNCE_MS);
-  }
-
-  _applyWelcome() {
-    if (!this._bestWelcome) return;
-
-    const { camera } = this._bestWelcome;
-    if (camera && this._receiver) {
-      // Bootstrap map dimensions for headless Camera (Controller)
-      if (camera.mapW > 0 && camera.mapH > 0 && this._camera.mapW <= 0) {
-        this._camera.setMapSize(camera.mapW, camera.mapH);
-      }
-      this._receiver.applyWelcomeState(camera.centerX, camera.centerY, camera.zoom);
-    }
-
-    this._bestWelcome = null;
-    this._welcomeTimer = null;
-  }
-
   _reconnect() {
-    const channel = this._channelManager.channel;
-    if (!channel) return;
-
-    if (this._broadcaster) {
-      this._broadcaster.setChannel(channel);
-    }
-    this._registry.setChannel(channel);
+    if (!this._transport.connected) return;
     this._registry.start();
-
     if (this._broadcaster) {
       this._broadcaster.start();
     }
   }
+
+  // --- Lifecycle ---
 
   stop() {
     if (this._broadcaster) this._broadcaster.stop();
     if (this._registry) this._registry.stop();
-    if (this._channelManager) this._channelManager.stop();
+    if (this._transport) this._transport.disconnect();
     if (this._welcomeTimer) clearTimeout(this._welcomeTimer);
     this._started = false;
   }
 
   destroy() {
     this.stop();
+    this._detachLifecycleListeners();
     EventBus.off('camera-sync:welcome', this._onWelcomeEvent);
     EventBus.off('camera-sync:reconnect', this._onReconnectEvent);
     if (this._broadcaster) this._broadcaster.destroy();
     if (this._receiver) this._receiver.destroy();
     if (this._registry) this._registry.destroy();
-    if (this._channelManager) this._channelManager.destroy();
+    if (this._transport) this._transport.destroy();
   }
 
   /** Immediately broadcast current camera state, bypassing rAF polling. */
@@ -723,5 +783,26 @@ export class CameraSyncEngine {
     }
   }
 
+  // --- Debug ---
+
+  getDebugState() {
+    const cam = this._camera;
+    const vp = cameraViewport(cam);
+    const shared = viewportReady(vp) ? localToShared(cam, vp) : null;
+    return {
+      role: this._role,
+      status: this._transport?.connected ? 'connected' : 'disconnected',
+      peerCount: this._registry ? this._registry.countByRole('controller') + this._registry.countByRole('display') : 0,
+      isAuthority: this._election?.isAuthority ?? false,
+      camera: shared,
+      seq: this._broadcaster?._seq ?? 0,
+    };
+  }
+
+  // --- Getters ---
+
   get broadcaster() { return this._broadcaster; }
+  get registry() { return this._registry; }
+  get transport() { return this._transport; }
+  get windowId() { return this._windowId; }
 }

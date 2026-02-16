@@ -18,6 +18,8 @@
 <link rel="stylesheet" href="css/player-nav.css?v=4">
 <link rel="stylesheet" href="css/scene-navigator.css?v=4">
 <link rel="stylesheet" href="css/tokens.css?v=1">
+<link rel="stylesheet" href="css/semantic-zoom.css?v=1">
+<link rel="stylesheet" href="css/orphan-overlay.css?v=1">
 </head>
 <body>
   <!-- Outside scale container: viewport-relative overlays -->
@@ -27,6 +29,11 @@
     <div class="loading__status">Loading assets…</div>
   </div>
   <div id="screen-flash" class="screen-flash"></div>
+
+  <!-- Orphan overlay: shown when no Controllers are connected -->
+  <div id="orphan-overlay" class="orphan-overlay">
+    <div class="orphan-overlay__message">Waiting for DM to connect&hellip;</div>
+  </div>
 
   <!-- Viewport wrapper + scale container -->
   <div id="vtt-viewport">

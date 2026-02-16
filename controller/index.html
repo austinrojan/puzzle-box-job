@@ -254,6 +254,29 @@ body {
 }
 .active-token__remove:hover { color: var(--red); }
 
+/* Camera presets */
+.preset-item {
+  display: flex; align-items: center; gap: var(--space-2);
+  padding: var(--space-1) 0;
+  border-bottom: 1px solid var(--bg-2);
+}
+.preset-item__name {
+  flex: 1; font-size: var(--font-size-sm); color: var(--text-primary);
+  cursor: pointer;
+}
+.preset-item__name:hover { color: var(--gold); }
+.preset-item__hotkey {
+  font-family: var(--font-mono); font-size: var(--font-size-xs);
+  color: var(--gold); background: var(--bg-3);
+  padding: 1px 5px; border-radius: var(--radius-sm);
+  min-width: 1.2rem; text-align: center;
+}
+.preset-item__delete {
+  font-size: var(--font-size-sm); color: var(--text-muted);
+  cursor: pointer; padding: 0 2px;
+}
+.preset-item__delete:hover { color: var(--red); }
+
 /* Conditions popup */
 .cond-popup {
   position: absolute;
@@ -575,8 +598,26 @@ details.section[open] > summary .section__label--collapsible::after {
         <button class="btn btn--sm" id="fog-hide">Fog &#9632;</button>
         <button class="btn btn--sm" id="grid-toggle">Grid</button>
       </div>
+      <div class="btn-row" style="margin-top:0.25rem">
+        <button class="btn btn--sm" id="btn-frame-tokens">Frame Tokens</button>
+        <select class="ctrl-select" id="frame-mode" style="font-size:var(--font-size-sm);padding:0.15rem 0.3rem">
+          <option value="all">All</option>
+          <option value="pcs">PCs</option>
+          <option value="combatants">Combatants</option>
+        </select>
+      </div>
     </div>
   </div>
+</div>
+
+<!-- Camera Presets -->
+<div class="section section--presets" id="sec-presets">
+  <div class="section__label">Camera Presets</div>
+  <div class="btn-row" style="margin-bottom:0.5rem">
+    <input type="text" class="ctrl-input" id="preset-name" placeholder="Preset name" style="flex:1;padding:0.25rem 0.5rem;background:var(--bg-2);color:var(--text-primary);border:1px solid var(--bg-3);border-radius:var(--radius-sm);font-family:var(--font-body);font-size:var(--font-size-sm)">
+    <button class="btn btn--sm" id="preset-save">Save View</button>
+  </div>
+  <div id="preset-list"></div>
 </div>
 
 <!-- Tokens -->

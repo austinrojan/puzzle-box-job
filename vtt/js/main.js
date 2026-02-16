@@ -15,6 +15,10 @@ import * as sceneNavigator from './scene-navigator.js';
 import { EffectsEngine } from './effects-engine.js';
 import { initViewportScaler, getViewportScale } from './viewport-scaler.js';
 import { CameraSyncEngine } from './camera-sync.js';
+import { FlyToAnimator } from './camera-animator.js';
+import { CameraPresetManager } from './camera-presets.js';
+import { SemanticZoomController } from './semantic-zoom.js';
+import { CameraInterpolator } from './camera-interpolator.js';
 
 const $ = id => document.getElementById(id);
 const delay = ms => new Promise(r => setTimeout(r, ms));
@@ -122,8 +126,62 @@ async function boot() {
   });
   syncEngine.start();
 
+  // Phase 5: FlyToAnimator for cinematic camera transitions
+  const camera = mapRenderer.camera;
+  const flyToAnimator = new FlyToAnimator(camera, { w: camera.viewportW, h: camera.viewportH });
+  syncEngine.setAnimator(flyToAnimator);
+
+  // Keep animator viewport in sync on resize (not every camera:changed)
+  EventBus.on('camera:viewport-resized', ({ w, h }) => {
+    flyToAnimator.updateViewport(w, h);
+  });
+
+  // Interrupt flyTo animation on user input (wheel, mouse, keyboard)
+  const mapContainer = $('map-container');
+  if (mapContainer) {
+    mapContainer.addEventListener('wheel', () => flyToAnimator.interrupt(), { passive: true, capture: true });
+    mapContainer.addEventListener('mousedown', () => flyToAnimator.interrupt(), { capture: true });
+  }
+
+  // Phase 5: CameraInterpolator — smooth 30fps sync into 60fps rendering
+  const interpolator = new CameraInterpolator(camera, flyToAnimator, { halfLife: 0.05 });
+  syncEngine.setInterpolator(interpolator);
+
+  // Phase 5: CameraPresetManager (read-only on Display, receives via PRESET_SYNC)
+  const presetManager = new CameraPresetManager(flyToAnimator);
+  syncEngine.setPresetManager(presetManager);
+
+  // Phase 5: Semantic zoom — progressive detail visibility by zoom level
+  const semanticZoom = new SemanticZoomController(mapContainer || $('map-container'), camera);
+
+  // Phase 5: Orphan mode — overlay when no Controllers connected
+  const orphanOverlay = $('orphan-overlay');
+  EventBus.on('camera-sync:peer-join', ({ peerRole }) => {
+    if (peerRole === 'controller' && orphanOverlay) {
+      orphanOverlay.classList.remove('orphan-overlay--visible');
+    }
+  });
+  EventBus.on('camera-sync:peer-leave', ({ peerRole }) => {
+    if (peerRole === 'controller' && orphanOverlay) {
+      const hasControllers = syncEngine.registry?.hasRole('controller');
+      if (!hasControllers) {
+        orphanOverlay.classList.add('orphan-overlay--visible');
+      }
+    }
+  });
+
+  // Orphan overlay initial-boot check: if no Controller connects within 3s,
+  // show the overlay. The peer-join listener above hides it if one connects later.
+  if (orphanOverlay) {
+    setTimeout(() => {
+      if (!syncEngine.registry?.hasRole('controller')) {
+        orphanOverlay.classList.add('orphan-overlay--visible');
+      }
+    }, 3000);
+  }
+
   // Expose debugging interface
-  window.__vtt = { state, store, mapRenderer, tokenManager, effectsEngine, EventBus, clearSavedState, getViewportScale, syncEngine };
+  window.__vtt = { state, store, mapRenderer, tokenManager, effectsEngine, EventBus, clearSavedState, getViewportScale, syncEngine, flyToAnimator, interpolator, presetManager, semanticZoom };
 
   // Go live
   state.loaded = true;

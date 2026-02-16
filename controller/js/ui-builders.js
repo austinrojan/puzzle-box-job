@@ -13,6 +13,7 @@ import {
 } from '../../shared/protocol.js';
 import { vttState, connected, sceneIndex, setSceneIndex } from './state.js';
 import { send } from './sync.js';
+import { flyToTokens } from '../../vtt/js/fit-to-tokens.js';
 
 const $ = sel => document.querySelector(sel);
 const $$ = sel => document.querySelectorAll(sel);
@@ -223,6 +224,32 @@ export function initMapCamera() {
   $('#fog-reveal').addEventListener('click', () => send(createFogRevealAllMsg()));
   $('#fog-hide').addEventListener('click', () => send(createFogHideAllMsg()));
   $('#grid-toggle').addEventListener('click', () => send(createGridToggleMsg()));
+
+  // Frame Tokens — fly camera to frame visible tokens
+  $('#btn-frame-tokens').addEventListener('click', () => {
+    const ctrl = window.__controller;
+    if (!ctrl) return;
+    const cam = ctrl.camera;
+    if (!cam || cam.mapW <= 0) return;
+
+    const tokens = vttState.tokens || [];
+    if (tokens.length === 0) return;
+
+    const mode = $('#frame-mode')?.value || 'all';
+    const mapDef = MAPS.find(m => m.id === vttState.mapId);
+    const cellPx = mapDef ? cam.mapW / mapDef.cols : 70;
+
+    const result = flyToTokens(
+      ctrl.flyToAnimator, tokens,
+      { w: cam.viewportW, h: cam.viewportH },
+      cellPx, TOKENS, vttState.initiative?.entries || [],
+      { mode, suppressBroadcast: true }
+    );
+
+    if (result && ctrl.election?.isAuthority) {
+      ctrl.syncEngine?.broadcaster?.sendFlyTo(result.target, result.flyOpts);
+    }
+  });
 }
 
 function buildMapSelect() {
@@ -431,6 +458,95 @@ export function initCondPopupDismiss() {
       popup.style.display = 'none';
     }
   });
+}
+
+// ============================================
+// Camera Presets
+// ============================================
+export function initPresets() {
+  const ctrl = () => window.__controller;
+  const broadcastAfter = () => ctrl()?.syncEngine?.sendNow();
+
+  $('#preset-save').addEventListener('click', () => {
+    const mgr = ctrl()?.presetManager;
+    const cam = ctrl()?.camera;
+    if (!mgr || !cam || cam.mapW <= 0) return;
+    const nameInput = $('#preset-name');
+    const name = nameInput.value.trim() || 'Unnamed';
+    const vp = { width: cam.viewportW, height: cam.viewportH };
+    mgr.save(name, cam, vp);
+    nameInput.value = '';
+    renderPresetList();
+    // Broadcast presets to Display (authority-gated)
+    if (ctrl()?.election?.isAuthority) {
+      ctrl()?.syncEngine?.broadcaster?.sendPresetSync(mgr.exportAll());
+    }
+  });
+
+  // Re-render when presets change externally (e.g., via PRESET_SYNC)
+  const { EventBus } = window.__vtt || {};
+  // EventBus may not be on window.__vtt in Controller — use import instead
+  import('../../vtt/js/state.js').then(({ EventBus: EB }) => {
+    EB.on('presets:changed', () => renderPresetList());
+  });
+
+  renderPresetList();
+}
+
+function renderPresetList() {
+  const container = $('#preset-list');
+  if (!container) return;
+  container.textContent = '';
+
+  const ctrl = window.__controller;
+  const mgr = ctrl?.presetManager;
+  if (!mgr) return;
+
+  const presets = mgr.listForCurrentMap();
+  if (presets.length === 0) {
+    const empty = document.createElement('div');
+    empty.className = 'empty-state';
+    empty.textContent = 'No presets saved';
+    container.appendChild(empty);
+    return;
+  }
+
+  for (const preset of presets) {
+    const row = document.createElement('div');
+    row.className = 'preset-item';
+
+    if (preset.hotkey) {
+      const badge = document.createElement('span');
+      badge.className = 'preset-item__hotkey';
+      badge.textContent = preset.hotkey;
+      row.appendChild(badge);
+    }
+
+    const name = document.createElement('span');
+    name.className = 'preset-item__name';
+    name.textContent = preset.name;
+    name.title = 'Click to recall';
+    name.addEventListener('click', () => {
+      mgr.recall(preset.id);
+    });
+    row.appendChild(name);
+
+    const del = document.createElement('span');
+    del.className = 'preset-item__delete';
+    del.textContent = '\u2715';
+    del.title = 'Delete preset';
+    del.addEventListener('click', (e) => {
+      e.stopPropagation();
+      mgr.delete(preset.id);
+      renderPresetList();
+      if (ctrl.election?.isAuthority) {
+        ctrl.syncEngine?.broadcaster?.sendPresetSync(mgr.exportAll());
+      }
+    });
+    row.appendChild(del);
+
+    container.appendChild(row);
+  }
 }
 
 // ============================================

@@ -8,10 +8,14 @@ import {
   updateConnectionStatus, updateUI, updateSceneLabel,
   initModeButtons, initSceneNav, initMapCamera, initTokens,
   initEffects, initOverlay, initTitleCard, initCombat,
-  initCondPopupDismiss, navigateScene
+  initCondPopupDismiss, initPresets, navigateScene
 } from './ui-builders.js';
 import { Camera } from '../../vtt/js/map-camera.js';
 import { CameraSyncEngine } from '../../vtt/js/camera-sync.js';
+import { FlyToAnimator } from '../../vtt/js/camera-animator.js';
+import { CameraPresetManager } from '../../vtt/js/camera-presets.js';
+import { AuthorityElection } from '../../vtt/js/authority-election.js';
+import { EventBus } from '../../vtt/js/state.js';
 
 // 1. Load campaign data
 const manifest = await loadCampaign();
@@ -35,9 +39,34 @@ const syncEngine = new CameraSyncEngine({
 });
 syncEngine.start();
 
-window.__controller = { camera, syncEngine };
+// 4. Phase 5: FlyToAnimator + CameraPresetManager
+const flyToAnimator = new FlyToAnimator(camera, { w: 1920, h: 1080 });
+syncEngine.setAnimator(flyToAnimator);
 
-// 4. Build UI
+const presetManager = new CameraPresetManager(flyToAnimator);
+syncEngine.setPresetManager(presetManager);
+presetManager.bindHotkeys();
+
+// Phase 5: Authority election — lowest windowId wins
+const election = new AuthorityElection(
+  syncEngine.windowId, 'controller', syncEngine.transport
+);
+syncEngine.setElection(election);
+election.elect();
+
+// When a preset is recalled, broadcast flyTo to Display (authority-gated)
+EventBus.on('presets:recalled', ({ preset }) => {
+  if (!election.isAuthority) return;
+  syncEngine.broadcaster?.sendFlyTo(preset.camera, {
+    duration: preset.transition.duration,
+    rho: preset.transition.rho,
+    presetId: preset.id,
+  });
+});
+
+window.__controller = { camera, syncEngine, flyToAnimator, presetManager, election };
+
+// 5. Build UI
 initModeButtons();
 initSceneNav();
 initMapCamera();
@@ -47,8 +76,9 @@ initOverlay();
 initTitleCard();
 initCombat();
 initCondPopupDismiss();
+initPresets();
 
-// 4. Keyboard shortcuts
+// 6. Keyboard shortcuts
 document.addEventListener('keydown', (e) => {
   if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
 

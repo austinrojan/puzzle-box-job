@@ -44,6 +44,11 @@ export const MSG = Object.freeze({
   WELCOME:                 'window:welcome',
   HEARTBEAT:               'window:heartbeat',
   GOODBYE:                 'window:goodbye',
+
+  // Phase 5: Cinematic camera
+  CAMERA_FLY_TO:           'camera:fly-to',
+  PRESET_SYNC:             'preset:sync',
+  AUTHORITY_CLAIM:         'authority:claim',
 });
 
 // O(1) lookup set for validation
@@ -90,6 +95,11 @@ const REQUIRED_FIELDS = {
   [MSG.WELCOME]:                ['windowId', 'role', 'targetWindowId', 'camera', 'epoch'],
   [MSG.HEARTBEAT]:              ['windowId', 'role'],
   [MSG.GOODBYE]:                ['windowId'],
+
+  // Phase 5: Cinematic camera
+  [MSG.CAMERA_FLY_TO]:          ['target', 'senderId'],
+  [MSG.PRESET_SYNC]:            ['presets', 'senderId'],
+  [MSG.AUTHORITY_CLAIM]:        ['windowId', 'role'],
 };
 
 // --- Factory functions ---
@@ -159,6 +169,22 @@ export const createHeartbeatMsg = (windowId, role) =>
 
 export const createGoodbyeMsg = (windowId) =>
   msg(MSG.GOODBYE, { windowId });
+
+// Phase 5: Cinematic camera factories
+export const createCameraFlyToMsg = (senderId, seq, payload) => ({
+  type: MSG.CAMERA_FLY_TO,
+  senderId,
+  seq,
+  ts: performance.timeOrigin + performance.now(),
+  ...payload,
+  _v: PROTOCOL_VERSION,
+});
+
+export const createPresetSyncMsg = (senderId, seq, presets) =>
+  msg(MSG.PRESET_SYNC, { presets, senderId, seq });
+
+export const createAuthorityClaimMsg = (windowId, role) =>
+  msg(MSG.AUTHORITY_CLAIM, { windowId, role });
 
 // --- Center-point camera model (Phase 4) ---
 // Local camera: { x, y, zoom } where (x,y) = top-left world-space corner

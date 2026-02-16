@@ -91,8 +91,8 @@ test.describe('CameraBroadcaster', () => {
       const { CameraBroadcaster } = await import('/vtt/js/camera-sync.js');
       const camera = { x: 100, y: 50, zoom: 1.5, viewportW: 1920, viewportH: 1080 };
       const sent = [];
-      const ch = { postMessage: m => sent.push(structuredClone(m)) };
-      const b = new CameraBroadcaster(camera, ch, 'test');
+      const transport = { send: m => sent.push(structuredClone(m)) };
+      const b = new CameraBroadcaster(camera, transport, 'test');
       b._sendState(0);
       return sent.length;
     });
@@ -105,8 +105,8 @@ test.describe('CameraBroadcaster', () => {
       const { CameraBroadcaster } = await import('/vtt/js/camera-sync.js');
       const camera = { x: 100, y: 50, zoom: 1.5, viewportW: 1920, viewportH: 1080 };
       const sent = [];
-      const ch = { postMessage: m => sent.push(m) };
-      const b = new CameraBroadcaster(camera, ch, 'test');
+      const transport = { send: m => sent.push(m) };
+      const b = new CameraBroadcaster(camera, transport, 'test');
       b._sendState(0);
       b._sendState(100);
       return sent.length;
@@ -120,8 +120,8 @@ test.describe('CameraBroadcaster', () => {
       const { CameraBroadcaster } = await import('/vtt/js/camera-sync.js');
       const camera = { x: 100, y: 50, zoom: 1.5, viewportW: 1920, viewportH: 1080 };
       const sent = [];
-      const ch = { postMessage: m => sent.push(m) };
-      const b = new CameraBroadcaster(camera, ch, 'test');
+      const transport = { send: m => sent.push(m) };
+      const b = new CameraBroadcaster(camera, transport, 'test');
       b._sendState(0);
       camera.x = 200;
       b._sendState(100);
@@ -136,8 +136,8 @@ test.describe('CameraBroadcaster', () => {
       const { CameraBroadcaster } = await import('/vtt/js/camera-sync.js');
       const camera = { x: 100, y: 50, zoom: 1.5, viewportW: 1920, viewportH: 1080 };
       const sent = [];
-      const ch = { postMessage: m => sent.push(m) };
-      const b = new CameraBroadcaster(camera, ch, 'test');
+      const transport = { send: m => sent.push(m) };
+      const b = new CameraBroadcaster(camera, transport, 'test');
       b.suppressBroadcast = true;
       b._sendState(0);
       return sent.length;
@@ -151,8 +151,8 @@ test.describe('CameraBroadcaster', () => {
       const { CameraBroadcaster } = await import('/vtt/js/camera-sync.js');
       const camera = { x: 100, y: 50, zoom: 1.5, viewportW: 1920, viewportH: 1080 };
       const sent = [];
-      const ch = { postMessage: m => sent.push(structuredClone(m)) };
-      const b = new CameraBroadcaster(camera, ch, 'test');
+      const transport = { send: m => sent.push(structuredClone(m)) };
+      const b = new CameraBroadcaster(camera, transport, 'test');
       b._sendState(0);
       camera.x += 10;
       b._sendState(100);
@@ -259,8 +259,8 @@ test.describe('WindowRegistry', () => {
     const r = await page.evaluate(async () => {
       const { WindowRegistry } = await import('/vtt/js/camera-sync.js');
       const sent = [];
-      const ch = { postMessage: m => sent.push(m) };
-      const reg = new WindowRegistry('win-a', 'display', ch);
+      const transport = { send: m => sent.push(m) };
+      const reg = new WindowRegistry('win-a', 'display', transport);
       let joined = null;
       reg.onPeerChange({ onJoin: (id, role) => { joined = { id, role }; } });
       reg.handleMessage(
@@ -278,8 +278,8 @@ test.describe('WindowRegistry', () => {
     await page.goto('/vtt/', { waitUntil: 'domcontentloaded' });
     const r = await page.evaluate(async () => {
       const { WindowRegistry } = await import('/vtt/js/camera-sync.js');
-      const ch = { postMessage: () => {} };
-      const reg = new WindowRegistry('win-a', 'display', ch);
+      const transport = { send: () => {} };
+      const reg = new WindowRegistry('win-a', 'display', transport);
       let joined = false;
       reg.onPeerChange({ onJoin: () => { joined = true; } });
       reg.handleMessage(
@@ -295,8 +295,8 @@ test.describe('WindowRegistry', () => {
     await page.goto('/vtt/', { waitUntil: 'domcontentloaded' });
     const r = await page.evaluate(async () => {
       const { WindowRegistry } = await import('/vtt/js/camera-sync.js');
-      const ch = { postMessage: () => {} };
-      const reg = new WindowRegistry('win-a', 'display', ch);
+      const transport = { send: () => {} };
+      const reg = new WindowRegistry('win-a', 'display', transport);
       let welcomeReceived = false;
       const { EventBus } = await import('/vtt/js/state.js');
       EventBus.on('camera-sync:welcome', () => { welcomeReceived = true; });
@@ -316,8 +316,8 @@ test.describe('WindowRegistry', () => {
     await page.goto('/vtt/', { waitUntil: 'domcontentloaded' });
     const r = await page.evaluate(async () => {
       const { WindowRegistry } = await import('/vtt/js/camera-sync.js');
-      const ch = { postMessage: () => {} };
-      const reg = new WindowRegistry('win-a', 'display', ch);
+      const transport = { send: () => {} };
+      const reg = new WindowRegistry('win-a', 'display', transport);
       let left = null;
       reg.onPeerChange({
         onJoin: () => {},
@@ -334,11 +334,11 @@ test.describe('WindowRegistry', () => {
   });
 });
 
-test.describe('CameraChannelManager', () => {
+test.describe('CameraSyncEngine session restore', () => {
   test('restores camera position from sessionStorage after page reload', async ({ page }) => {
     await page.goto('/vtt/', { waitUntil: 'domcontentloaded' });
     const r = await page.evaluate(async () => {
-      const { CameraChannelManager } = await import('/vtt/js/camera-sync.js');
+      const { CameraSyncEngine } = await import('/vtt/js/camera-sync.js');
       const { sharedToLocal } = await import('/shared/protocol.js');
 
       const KEY = 'vtt-camera-state';
@@ -355,8 +355,8 @@ test.describe('CameraChannelManager', () => {
         deserialize: d => applied.push(structuredClone(d)),
       };
 
-      const mgr = new CameraChannelManager({ camera, role: 'display', onMessage: () => {} });
-      mgr._tryRestore();
+      const engine = new CameraSyncEngine({ camera, role: 'display' });
+      engine._tryRestore();
 
       if (applied.length === 0) return { restored: false };
       const expected = sharedToLocal(saved, { width: 1920, height: 1080 });
@@ -379,7 +379,7 @@ test.describe('CameraChannelManager', () => {
   test('rejects stale sessionStorage (> 5 min old)', async ({ page }) => {
     await page.goto('/vtt/', { waitUntil: 'domcontentloaded' });
     const restored = await page.evaluate(async () => {
-      const { CameraChannelManager } = await import('/vtt/js/camera-sync.js');
+      const { CameraSyncEngine } = await import('/vtt/js/camera-sync.js');
       const KEY = 'vtt-camera-state';
       sessionStorage.setItem(KEY, JSON.stringify({
         centerX: 500, centerY: 300, zoom: 1.8,
@@ -391,8 +391,8 @@ test.describe('CameraChannelManager', () => {
         viewportW: 1920, viewportH: 1080, mapW: 0, mapH: 0,
         deserialize: d => applied.push(d),
       };
-      const mgr = new CameraChannelManager({ camera, role: 'display', onMessage: () => {} });
-      mgr._tryRestore();
+      const engine = new CameraSyncEngine({ camera, role: 'display' });
+      engine._tryRestore();
       return applied.length > 0;
     });
     expect(restored).toBe(false);
@@ -560,6 +560,12 @@ test.describe('Cross-window camera sync', () => {
       const cam = window.__vtt?.mapRenderer?.camera;
       return cam && Math.abs(cam.zoom - prev) > 0.01;
     }, zoomBefore, { timeout: 3000 });
+
+    // Wait for interpolator to fully converge before recording state
+    await display.waitForFunction(() => {
+      const interp = window.__vtt?.interpolator;
+      return !interp || !interp.isRunning;
+    }, { timeout: 3000 });
 
     // Record state
     const before = await display.evaluate(() => {
