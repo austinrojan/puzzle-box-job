@@ -585,6 +585,10 @@ export class CameraSyncEngine {
     if (this._receiver) this._receiver.setPresetManager(pm);
   }
 
+  setElection(election) {
+    this._election = election;
+  }
+
   // --- Message routing ---
 
   _handleMessage(msg) {
@@ -789,7 +793,7 @@ export class CameraSyncEngine {
       role: this._role,
       status: this._transport?.connected ? 'connected' : 'disconnected',
       peerCount: this._registry ? this._registry.countByRole('controller') + this._registry.countByRole('display') : 0,
-      isAuthority: false, // Set by AuthorityElection when wired
+      isAuthority: this._election?.isAuthority ?? false,
       camera: shared,
       seq: this._broadcaster?._seq ?? 0,
     };

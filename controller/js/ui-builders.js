@@ -246,7 +246,7 @@ export function initMapCamera() {
       { mode, suppressBroadcast: true }
     );
 
-    if (result) {
+    if (result && ctrl.election?.isAuthority) {
       ctrl.syncEngine?.broadcaster?.sendFlyTo(result.target, result.flyOpts);
     }
   });
@@ -477,8 +477,10 @@ export function initPresets() {
     mgr.save(name, cam, vp);
     nameInput.value = '';
     renderPresetList();
-    // Broadcast presets to Display
-    ctrl()?.syncEngine?.broadcaster?.sendPresetSync(mgr.exportAll());
+    // Broadcast presets to Display (authority-gated)
+    if (ctrl()?.election?.isAuthority) {
+      ctrl()?.syncEngine?.broadcaster?.sendPresetSync(mgr.exportAll());
+    }
   });
 
   // Re-render when presets change externally (e.g., via PRESET_SYNC)
@@ -537,7 +539,9 @@ function renderPresetList() {
       e.stopPropagation();
       mgr.delete(preset.id);
       renderPresetList();
-      ctrl.syncEngine?.broadcaster?.sendPresetSync(mgr.exportAll());
+      if (ctrl.election?.isAuthority) {
+        ctrl.syncEngine?.broadcaster?.sendPresetSync(mgr.exportAll());
+      }
     });
     row.appendChild(del);
 
