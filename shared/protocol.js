@@ -171,14 +171,13 @@ export const createGoodbyeMsg = (windowId) =>
   msg(MSG.GOODBYE, { windowId });
 
 // Phase 5: Cinematic camera factories
-export const createCameraFlyToMsg = (senderId, seq, payload) => ({
-  type: MSG.CAMERA_FLY_TO,
-  senderId,
-  seq,
-  ts: performance.timeOrigin + performance.now(),
-  ...payload,
-  _v: PROTOCOL_VERSION,
-});
+export const createCameraFlyToMsg = (senderId, seq, payload) =>
+  msg(MSG.CAMERA_FLY_TO, {
+    senderId,
+    seq,
+    ts: performance.timeOrigin + performance.now(),
+    ...payload,
+  });
 
 export const createPresetSyncMsg = (senderId, seq, presets) =>
   msg(MSG.PRESET_SYNC, { presets, senderId, seq });

@@ -170,10 +170,15 @@ export class CameraBroadcaster {
     this._rafId = requestAnimationFrame(this._tick);
   }
 
+  /** True if any system (receiver, animator, interpolator) is suppressing broadcasts. */
+  _isBroadcastSuppressed() {
+    return this.suppressBroadcast ||
+           this._animator?.suppressBroadcast ||
+           this._interpolator?.suppressBroadcast;
+  }
+
   _sendState(now) {
-    if (this.suppressBroadcast) return;
-    if (this._animator?.suppressBroadcast) return;
-    if (this._interpolator?.suppressBroadcast) return;
+    if (this._isBroadcastSuppressed()) return;
 
     const cam = this._camera;
     const vp = cameraViewport(cam);
