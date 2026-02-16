@@ -779,6 +779,22 @@ export class CameraSyncEngine {
     }
   }
 
+  // --- Debug ---
+
+  getDebugState() {
+    const cam = this._camera;
+    const vp = cameraViewport(cam);
+    const shared = viewportReady(vp) ? localToShared(cam, vp) : null;
+    return {
+      role: this._role,
+      status: this._transport?.connected ? 'connected' : 'disconnected',
+      peerCount: this._registry ? this._registry.countByRole('controller') + this._registry.countByRole('display') : 0,
+      isAuthority: false, // Set by AuthorityElection when wired
+      camera: shared,
+      seq: this._broadcaster?._seq ?? 0,
+    };
+  }
+
   // --- Getters ---
 
   get broadcaster() { return this._broadcaster; }

@@ -154,6 +154,22 @@ async function boot() {
   // Phase 5: Semantic zoom — progressive detail visibility by zoom level
   const semanticZoom = new SemanticZoomController(mapContainer || $('map-container'), camera);
 
+  // Phase 5: Orphan mode — overlay when no Controllers connected
+  const orphanOverlay = $('orphan-overlay');
+  EventBus.on('camera-sync:peer-join', ({ peerRole }) => {
+    if (peerRole === 'controller' && orphanOverlay) {
+      orphanOverlay.classList.remove('orphan-overlay--visible');
+    }
+  });
+  EventBus.on('camera-sync:peer-leave', ({ peerRole }) => {
+    if (peerRole === 'controller' && orphanOverlay) {
+      const hasControllers = syncEngine.registry?.hasRole('controller');
+      if (!hasControllers) {
+        orphanOverlay.classList.add('orphan-overlay--visible');
+      }
+    }
+  });
+
   // Expose debugging interface
   window.__vtt = { state, store, mapRenderer, tokenManager, effectsEngine, EventBus, clearSavedState, getViewportScale, syncEngine, flyToAnimator, interpolator, presetManager, semanticZoom };
 
