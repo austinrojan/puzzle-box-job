@@ -171,3 +171,68 @@ export async function bootController(context) {
   );
   return ctrl;
 }
+
+/**
+ * Wait for a flyTo animation to complete via EventBus event.
+ * Includes safety timeout to prevent test hangs (logs warning if hit).
+ */
+export async function waitForAnimationComplete(page, timeoutMs = 3000) {
+  await page.evaluate((timeout) => new Promise(resolve => {
+    const { EventBus } = window.__vtt;
+    let resolved = false;
+    const handler = () => {
+      resolved = true;
+      EventBus.off('camera:animation-complete', handler);
+      resolve();
+    };
+    EventBus.on('camera:animation-complete', handler);
+    setTimeout(() => {
+      if (!resolved) {
+        EventBus.off('camera:animation-complete', handler);
+        console.warn('[waitForAnimationComplete] timed out — animation may not have completed');
+        resolve();
+      }
+    }, timeout);
+  }), timeoutMs);
+}
+
+/**
+ * Snapshot the Display camera's current position.
+ */
+export async function getDisplayCameraState(page) {
+  return page.evaluate(() => {
+    const cam = window.__vtt?.mapRenderer?.camera;
+    return cam ? { x: cam.x, y: cam.y, zoom: cam.zoom } : null;
+  });
+}
+
+/**
+ * Snapshot the Controller camera's current position.
+ */
+export async function getControllerCameraState(page) {
+  return page.evaluate(() => {
+    const cam = window.__controller?.camera;
+    return cam ? { x: cam.x, y: cam.y, zoom: cam.zoom } : null;
+  });
+}
+
+/**
+ * Wait for Controller camera to have map dimensions (arrives via WELCOME handshake).
+ * Call after bootController() when test needs coordinate transforms.
+ */
+export async function waitForControllerMap(ctrl, timeoutMs = 10000) {
+  await ctrl.waitForFunction(
+    () => window.__controller?.camera?.mapW > 0,
+    { timeout: timeoutMs }
+  );
+}
+
+/**
+ * Wait for Phase 5 modules to be wired on the Display.
+ */
+export async function waitForDisplayPhase5(display, timeoutMs = 5000) {
+  await display.waitForFunction(
+    () => window.__vtt?.flyToAnimator != null,
+    { timeout: timeoutMs }
+  );
+}
