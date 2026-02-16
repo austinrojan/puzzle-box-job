@@ -7,18 +7,39 @@ test.describe('CameraPresetManager', () => {
     await gotoVTT(page);
     await enterMapMode(page);
     await injectTestAccessors(page);
-    // Clear presets from previous tests
     await page.evaluate(() => localStorage.removeItem('vtt-camera-presets'));
+    await page.evaluate(async () => {
+      const { CameraPresetManager } = await import('/vtt/js/camera-presets.js');
+      const { FlyToAnimator } = await import('/vtt/js/camera-animator.js');
+      window.__createTestPresetManager = (mapId = 'M01') => {
+        const cam = window.__cam();
+        const animator = new FlyToAnimator(cam, { w: cam.viewportW, h: cam.viewportH });
+        const mgr = new CameraPresetManager(animator);
+        mgr.setCurrentMap(mapId);
+        return { animator, mgr, cam };
+      };
+      window.__waitForAnimComplete = (timeout = 3000) => new Promise(resolve => {
+        const { EventBus } = window.__vtt;
+        let resolved = false;
+        const handler = () => {
+          resolved = true;
+          EventBus.off('camera:animation-complete', handler);
+          resolve();
+        };
+        EventBus.on('camera:animation-complete', handler);
+        setTimeout(() => {
+          if (!resolved) {
+            EventBus.off('camera:animation-complete', handler);
+            resolve();
+          }
+        }, timeout);
+      });
+    });
   });
 
   test('save creates a preset that appears in listForCurrentMap', async ({ page }) => {
     const result = await page.evaluate(async () => {
-      const { CameraPresetManager } = await import('/vtt/js/camera-presets.js');
-      const { FlyToAnimator } = await import('/vtt/js/camera-animator.js');
-      const cam = window.__cam();
-      const animator = new FlyToAnimator(cam, { w: cam.viewportW, h: cam.viewportH });
-      const mgr = new CameraPresetManager(animator);
-      mgr.setCurrentMap('M01');
+      const { animator, mgr, cam } = window.__createTestPresetManager();
 
       const vp = { width: cam.viewportW, height: cam.viewportH };
       const preset = mgr.save('Boss Arena', cam, vp);
@@ -44,36 +65,19 @@ test.describe('CameraPresetManager', () => {
 
   test('recall triggers flyTo to saved position', async ({ page }) => {
     const result = await page.evaluate(async () => {
-      const { CameraPresetManager } = await import('/vtt/js/camera-presets.js');
-      const { FlyToAnimator } = await import('/vtt/js/camera-animator.js');
-      const cam = window.__cam();
-      const animator = new FlyToAnimator(cam, { w: cam.viewportW, h: cam.viewportH });
-      const mgr = new CameraPresetManager(animator);
-      mgr.setCurrentMap('M01');
+      const { animator, mgr, cam } = window.__createTestPresetManager();
 
-      // Save at a specific position
       cam.setPosition(cam.mapW * 0.25, cam.mapH * 0.25, cam._coverZoom * 2);
       const vp = { width: cam.viewportW, height: cam.viewportH };
       const preset = mgr.save('Corner', cam, vp);
 
-      // Move camera away
       cam.setPosition(cam.mapW * 0.5, cam.mapH * 0.5, cam._coverZoom * 1.5);
       const beforeX = cam.x;
       const beforeY = cam.y;
 
-      // Recall — this triggers flyTo
       const recalled = mgr.recall(preset.id);
 
-      // Wait for animation to complete
-      await new Promise(resolve => {
-        const { EventBus } = window.__vtt;
-        const handler = () => {
-          EventBus.off('camera:animation-complete', handler);
-          resolve();
-        };
-        EventBus.on('camera:animation-complete', handler);
-        setTimeout(resolve, 3000);
-      });
+      await window.__waitForAnimComplete();
 
       const moved = cam.x !== beforeX || cam.y !== beforeY;
       animator.destroy();
@@ -86,12 +90,7 @@ test.describe('CameraPresetManager', () => {
 
   test('delete removes preset from list', async ({ page }) => {
     const result = await page.evaluate(async () => {
-      const { CameraPresetManager } = await import('/vtt/js/camera-presets.js');
-      const { FlyToAnimator } = await import('/vtt/js/camera-animator.js');
-      const cam = window.__cam();
-      const animator = new FlyToAnimator(cam, { w: cam.viewportW, h: cam.viewportH });
-      const mgr = new CameraPresetManager(animator);
-      mgr.setCurrentMap('M01');
+      const { animator, mgr, cam } = window.__createTestPresetManager();
 
       const vp = { width: cam.viewportW, height: cam.viewportH };
       const preset = mgr.save('To Delete', cam, vp);
@@ -110,12 +109,7 @@ test.describe('CameraPresetManager', () => {
 
   test('update changes preset name', async ({ page }) => {
     const result = await page.evaluate(async () => {
-      const { CameraPresetManager } = await import('/vtt/js/camera-presets.js');
-      const { FlyToAnimator } = await import('/vtt/js/camera-animator.js');
-      const cam = window.__cam();
-      const animator = new FlyToAnimator(cam, { w: cam.viewportW, h: cam.viewportH });
-      const mgr = new CameraPresetManager(animator);
-      mgr.setCurrentMap('M01');
+      const { animator, mgr, cam } = window.__createTestPresetManager();
 
       const vp = { width: cam.viewportW, height: cam.viewportH };
       const preset = mgr.save('Original', cam, vp);
@@ -131,18 +125,12 @@ test.describe('CameraPresetManager', () => {
 
   test('updatePosition changes camera data', async ({ page }) => {
     const result = await page.evaluate(async () => {
-      const { CameraPresetManager } = await import('/vtt/js/camera-presets.js');
-      const { FlyToAnimator } = await import('/vtt/js/camera-animator.js');
-      const cam = window.__cam();
-      const animator = new FlyToAnimator(cam, { w: cam.viewportW, h: cam.viewportH });
-      const mgr = new CameraPresetManager(animator);
-      mgr.setCurrentMap('M01');
+      const { animator, mgr, cam } = window.__createTestPresetManager();
 
       const vp = { width: cam.viewportW, height: cam.viewportH };
       const preset = mgr.save('Position', cam, vp);
       const originalZoom = preset.camera.zoom;
 
-      // Move camera to a different zoom
       cam.setPosition(cam.mapW * 0.3, cam.mapH * 0.3, cam._coverZoom * 2.5);
       mgr.updatePosition(preset.id, cam, vp);
 
@@ -160,35 +148,18 @@ test.describe('CameraPresetManager', () => {
 
   test('recallByHotkey recalls preset with matching hotkey', async ({ page }) => {
     const result = await page.evaluate(async () => {
-      const { CameraPresetManager } = await import('/vtt/js/camera-presets.js');
-      const { FlyToAnimator } = await import('/vtt/js/camera-animator.js');
-      const cam = window.__cam();
-      const animator = new FlyToAnimator(cam, { w: cam.viewportW, h: cam.viewportH });
-      const mgr = new CameraPresetManager(animator);
-      mgr.setCurrentMap('M01');
+      const { animator, mgr, cam } = window.__createTestPresetManager();
 
-      // Save at a specific zoomed-in position
       cam.setPosition(cam.mapW * 0.25, cam.mapH * 0.25, cam._coverZoom * 2);
       const vp = { width: cam.viewportW, height: cam.viewportH };
       const preset = mgr.save('Hotkey Test', cam, vp, { hotkey: '1' });
 
-      // Move camera away
       cam.setPosition(cam.mapW * 0.5, cam.mapH * 0.5, cam._coverZoom * 1.5);
       const beforeX = cam.x;
 
-      // Recall by hotkey
       const recalled = mgr.recallByHotkey(1);
 
-      // Wait for animation
-      await new Promise(resolve => {
-        const { EventBus } = window.__vtt;
-        const handler = () => {
-          EventBus.off('camera:animation-complete', handler);
-          resolve();
-        };
-        EventBus.on('camera:animation-complete', handler);
-        setTimeout(resolve, 3000);
-      });
+      await window.__waitForAnimComplete();
 
       const moved = cam.x !== beforeX;
       animator.destroy();
@@ -202,12 +173,7 @@ test.describe('CameraPresetManager', () => {
 
   test('exportAll and importAll roundtrip preserves data', async ({ page }) => {
     const result = await page.evaluate(async () => {
-      const { CameraPresetManager } = await import('/vtt/js/camera-presets.js');
-      const { FlyToAnimator } = await import('/vtt/js/camera-animator.js');
-      const cam = window.__cam();
-      const animator = new FlyToAnimator(cam, { w: cam.viewportW, h: cam.viewportH });
-      const mgr1 = new CameraPresetManager(animator);
-      mgr1.setCurrentMap('M01');
+      const { animator, mgr: mgr1, cam } = window.__createTestPresetManager();
 
       const vp = { width: cam.viewportW, height: cam.viewportH };
       mgr1.save('Preset A', cam, vp, { hotkey: '1' });
@@ -216,8 +182,9 @@ test.describe('CameraPresetManager', () => {
 
       const exported = mgr1.exportAll();
 
-      // Create a fresh manager and import
+      // Fresh manager to import into
       localStorage.removeItem('vtt-camera-presets');
+      const { CameraPresetManager } = await import('/vtt/js/camera-presets.js');
       const mgr2 = new CameraPresetManager(animator);
       mgr2.setCurrentMap('M01');
       mgr2.importAll(exported);
@@ -243,15 +210,9 @@ test.describe('CameraPresetManager', () => {
 
   test('presets filter by mapId', async ({ page }) => {
     const result = await page.evaluate(async () => {
-      const { CameraPresetManager } = await import('/vtt/js/camera-presets.js');
-      const { FlyToAnimator } = await import('/vtt/js/camera-animator.js');
-      const cam = window.__cam();
-      const animator = new FlyToAnimator(cam, { w: cam.viewportW, h: cam.viewportH });
-      const mgr = new CameraPresetManager(animator);
+      const { animator, mgr, cam } = window.__createTestPresetManager();
 
       const vp = { width: cam.viewportW, height: cam.viewportH };
-
-      mgr.setCurrentMap('M01');
       mgr.save('Map 1 Preset', cam, vp);
 
       mgr.setCurrentMap('M02');
@@ -276,26 +237,18 @@ test.describe('CameraPresetManager', () => {
   });
 
   test('localStorage persistence survives reload', async ({ page }) => {
-    // Save a preset
     await page.evaluate(async () => {
-      const { CameraPresetManager } = await import('/vtt/js/camera-presets.js');
-      const { FlyToAnimator } = await import('/vtt/js/camera-animator.js');
-      const cam = window.__cam();
-      const animator = new FlyToAnimator(cam, { w: cam.viewportW, h: cam.viewportH });
-      const mgr = new CameraPresetManager(animator);
-      mgr.setCurrentMap('M01');
+      const { animator, mgr, cam } = window.__createTestPresetManager();
       const vp = { width: cam.viewportW, height: cam.viewportH };
       mgr.save('Persistent', cam, vp, { hotkey: '3' });
       animator.destroy();
       mgr.destroy();
     });
 
-    // Reload the page
     await gotoVTT(page);
     await enterMapMode(page);
     await injectTestAccessors(page);
 
-    // Check that the preset survived
     const result = await page.evaluate(async () => {
       const { CameraPresetManager } = await import('/vtt/js/camera-presets.js');
       const { FlyToAnimator } = await import('/vtt/js/camera-animator.js');
@@ -319,18 +272,12 @@ test.describe('CameraPresetManager', () => {
 
   test('duplicate hotkey clears from previous preset', async ({ page }) => {
     const result = await page.evaluate(async () => {
-      const { CameraPresetManager } = await import('/vtt/js/camera-presets.js');
-      const { FlyToAnimator } = await import('/vtt/js/camera-animator.js');
-      const cam = window.__cam();
-      const animator = new FlyToAnimator(cam, { w: cam.viewportW, h: cam.viewportH });
-      const mgr = new CameraPresetManager(animator);
-      mgr.setCurrentMap('M01');
+      const { animator, mgr, cam } = window.__createTestPresetManager();
 
       const vp = { width: cam.viewportW, height: cam.viewportH };
       const presetA = mgr.save('A', cam, vp, { hotkey: '1' });
       const presetB = mgr.save('B', cam, vp);
 
-      // Assign hotkey 1 to preset B — should clear from A
       mgr.update(presetB.id, { hotkey: '1' });
 
       const list = mgr.listForCurrentMap();
@@ -339,10 +286,7 @@ test.describe('CameraPresetManager', () => {
 
       animator.destroy();
       mgr.destroy();
-      return {
-        aHotkey: a.hotkey,
-        bHotkey: b.hotkey,
-      };
+      return { aHotkey: a.hotkey, bHotkey: b.hotkey };
     });
     expect(result.aHotkey).toBeNull();
     expect(result.bHotkey).toBe('1');
@@ -350,11 +294,7 @@ test.describe('CameraPresetManager', () => {
 
   test('recall returns false for nonexistent preset', async ({ page }) => {
     const result = await page.evaluate(async () => {
-      const { CameraPresetManager } = await import('/vtt/js/camera-presets.js');
-      const { FlyToAnimator } = await import('/vtt/js/camera-animator.js');
-      const cam = window.__cam();
-      const animator = new FlyToAnimator(cam, { w: cam.viewportW, h: cam.viewportH });
-      const mgr = new CameraPresetManager(animator);
+      const { animator, mgr } = window.__createTestPresetManager();
       const recalled = mgr.recall('nonexistent-id');
       animator.destroy();
       mgr.destroy();
