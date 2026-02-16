@@ -561,6 +561,12 @@ test.describe('Cross-window camera sync', () => {
       return cam && Math.abs(cam.zoom - prev) > 0.01;
     }, zoomBefore, { timeout: 3000 });
 
+    // Wait for interpolator to fully converge before recording state
+    await display.waitForFunction(() => {
+      const interp = window.__vtt?.interpolator;
+      return !interp || !interp.isRunning;
+    }, { timeout: 3000 });
+
     // Record state
     const before = await display.evaluate(() => {
       const c = window.__vtt.mapRenderer.camera;

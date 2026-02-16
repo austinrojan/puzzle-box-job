@@ -18,6 +18,7 @@ import { CameraSyncEngine } from './camera-sync.js';
 import { FlyToAnimator } from './camera-animator.js';
 import { CameraPresetManager } from './camera-presets.js';
 import { SemanticZoomController } from './semantic-zoom.js';
+import { CameraInterpolator } from './camera-interpolator.js';
 
 const $ = id => document.getElementById(id);
 const delay = ms => new Promise(r => setTimeout(r, ms));
@@ -142,6 +143,10 @@ async function boot() {
     mapContainer.addEventListener('mousedown', () => flyToAnimator.interrupt(), { capture: true });
   }
 
+  // Phase 5: CameraInterpolator — smooth 30fps sync into 60fps rendering
+  const interpolator = new CameraInterpolator(camera, flyToAnimator, { halfLife: 0.05 });
+  syncEngine.setInterpolator(interpolator);
+
   // Phase 5: CameraPresetManager (read-only on Display, receives via PRESET_SYNC)
   const presetManager = new CameraPresetManager(flyToAnimator);
   syncEngine.setPresetManager(presetManager);
@@ -150,7 +155,7 @@ async function boot() {
   const semanticZoom = new SemanticZoomController(mapContainer || $('map-container'), camera);
 
   // Expose debugging interface
-  window.__vtt = { state, store, mapRenderer, tokenManager, effectsEngine, EventBus, clearSavedState, getViewportScale, syncEngine, flyToAnimator, presetManager, semanticZoom };
+  window.__vtt = { state, store, mapRenderer, tokenManager, effectsEngine, EventBus, clearSavedState, getViewportScale, syncEngine, flyToAnimator, interpolator, presetManager, semanticZoom };
 
   // Go live
   state.loaded = true;
