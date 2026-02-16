@@ -499,14 +499,6 @@ function renderPresetList() {
     name.title = 'Click to recall';
     name.addEventListener('click', () => {
       mgr.recall(preset.id);
-      // Broadcast flyTo to Display
-      const cam = ctrl.camera;
-      ctrl.syncEngine?.broadcaster?.sendFlyTo(preset.camera, {
-        duration: preset.transition.duration,
-        rho: preset.transition.rho,
-        presetId: preset.id,
-      });
-      ctrl.syncEngine?.sendNow();
     });
     row.appendChild(name);
 
