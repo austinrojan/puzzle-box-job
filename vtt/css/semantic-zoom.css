@@ -1,0 +1,46 @@
+/* Semantic zoom: progressive detail visibility.
+ *
+ * Each .sz-* class is toggled on the map container by SemanticZoomController.
+ * Elements start hidden (opacity: 0, pointer-events: none) and transition
+ * to visible when their class is active. 200ms transition prevents jarring
+ * pop-in during continuous zoom. */
+
+/* --- Default: hidden --- */
+.token-label,
+.grid-label,
+.condition-icon,
+.hp-bar,
+.token-detail-border {
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 200ms ease-out;
+}
+
+/* --- Grid coordinate labels (showAt: 1.8x) --- */
+.sz-grid-labels .grid-label {
+  opacity: 0.6;
+  pointer-events: auto;
+}
+
+/* --- Token name labels (showAt: 1.2x) --- */
+.sz-token-names .token-label {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+/* --- Condition status icons (showAt: 1.4x) --- */
+.sz-condition-icons .condition-icon {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+/* --- HP bars (showAt: 1.6x) --- */
+.sz-hp-bars .hp-bar {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+/* --- Detailed token borders (showAt: 2.0x) --- */
+.sz-token-detail .token-detail-border {
+  opacity: 1;
+}

@@ -17,6 +17,7 @@ import { initViewportScaler, getViewportScale } from './viewport-scaler.js';
 import { CameraSyncEngine } from './camera-sync.js';
 import { FlyToAnimator } from './camera-animator.js';
 import { CameraPresetManager } from './camera-presets.js';
+import { SemanticZoomController } from './semantic-zoom.js';
 
 const $ = id => document.getElementById(id);
 const delay = ms => new Promise(r => setTimeout(r, ms));
@@ -145,8 +146,11 @@ async function boot() {
   const presetManager = new CameraPresetManager(flyToAnimator);
   syncEngine.setPresetManager(presetManager);
 
+  // Phase 5: Semantic zoom — progressive detail visibility by zoom level
+  const semanticZoom = new SemanticZoomController(mapContainer || $('map-container'), camera);
+
   // Expose debugging interface
-  window.__vtt = { state, store, mapRenderer, tokenManager, effectsEngine, EventBus, clearSavedState, getViewportScale, syncEngine, flyToAnimator, presetManager };
+  window.__vtt = { state, store, mapRenderer, tokenManager, effectsEngine, EventBus, clearSavedState, getViewportScale, syncEngine, flyToAnimator, presetManager, semanticZoom };
 
   // Go live
   state.loaded = true;
