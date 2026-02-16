@@ -16,6 +16,7 @@ import { EffectsEngine } from './effects-engine.js';
 import { initViewportScaler, getViewportScale } from './viewport-scaler.js';
 import { CameraSyncEngine } from './camera-sync.js';
 import { FlyToAnimator } from './camera-animator.js';
+import { CameraPresetManager } from './camera-presets.js';
 
 const $ = id => document.getElementById(id);
 const delay = ms => new Promise(r => setTimeout(r, ms));
@@ -140,8 +141,12 @@ async function boot() {
     mapContainer.addEventListener('mousedown', () => flyToAnimator.interrupt(), { capture: true });
   }
 
+  // Phase 5: CameraPresetManager (read-only on Display, receives via PRESET_SYNC)
+  const presetManager = new CameraPresetManager(flyToAnimator);
+  syncEngine.setPresetManager(presetManager);
+
   // Expose debugging interface
-  window.__vtt = { state, store, mapRenderer, tokenManager, effectsEngine, EventBus, clearSavedState, getViewportScale, syncEngine, flyToAnimator };
+  window.__vtt = { state, store, mapRenderer, tokenManager, effectsEngine, EventBus, clearSavedState, getViewportScale, syncEngine, flyToAnimator, presetManager };
 
   // Go live
   state.loaded = true;

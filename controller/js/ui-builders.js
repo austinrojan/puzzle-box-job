@@ -434,6 +434,99 @@ export function initCondPopupDismiss() {
 }
 
 // ============================================
+// Camera Presets
+// ============================================
+export function initPresets() {
+  const ctrl = () => window.__controller;
+  const broadcastAfter = () => ctrl()?.syncEngine?.sendNow();
+
+  $('#preset-save').addEventListener('click', () => {
+    const mgr = ctrl()?.presetManager;
+    const cam = ctrl()?.camera;
+    if (!mgr || !cam || cam.mapW <= 0) return;
+    const nameInput = $('#preset-name');
+    const name = nameInput.value.trim() || 'Unnamed';
+    const vp = { width: cam.viewportW, height: cam.viewportH };
+    mgr.save(name, cam, vp);
+    nameInput.value = '';
+    renderPresetList();
+    // Broadcast presets to Display
+    ctrl()?.syncEngine?.broadcaster?.sendPresetSync(mgr.exportAll());
+  });
+
+  // Re-render when presets change externally (e.g., via PRESET_SYNC)
+  const { EventBus } = window.__vtt || {};
+  // EventBus may not be on window.__vtt in Controller — use import instead
+  import('../../vtt/js/state.js').then(({ EventBus: EB }) => {
+    EB.on('presets:changed', () => renderPresetList());
+  });
+
+  renderPresetList();
+}
+
+function renderPresetList() {
+  const container = $('#preset-list');
+  if (!container) return;
+  container.textContent = '';
+
+  const ctrl = window.__controller;
+  const mgr = ctrl?.presetManager;
+  if (!mgr) return;
+
+  const presets = mgr.listForCurrentMap();
+  if (presets.length === 0) {
+    const empty = document.createElement('div');
+    empty.className = 'empty-state';
+    empty.textContent = 'No presets saved';
+    container.appendChild(empty);
+    return;
+  }
+
+  for (const preset of presets) {
+    const row = document.createElement('div');
+    row.className = 'preset-item';
+
+    if (preset.hotkey) {
+      const badge = document.createElement('span');
+      badge.className = 'preset-item__hotkey';
+      badge.textContent = preset.hotkey;
+      row.appendChild(badge);
+    }
+
+    const name = document.createElement('span');
+    name.className = 'preset-item__name';
+    name.textContent = preset.name;
+    name.title = 'Click to recall';
+    name.addEventListener('click', () => {
+      mgr.recall(preset.id);
+      // Broadcast flyTo to Display
+      const cam = ctrl.camera;
+      ctrl.syncEngine?.broadcaster?.sendFlyTo(preset.camera, {
+        duration: preset.transition.duration,
+        rho: preset.transition.rho,
+        presetId: preset.id,
+      });
+      ctrl.syncEngine?.sendNow();
+    });
+    row.appendChild(name);
+
+    const del = document.createElement('span');
+    del.className = 'preset-item__delete';
+    del.textContent = '\u2715';
+    del.title = 'Delete preset';
+    del.addEventListener('click', (e) => {
+      e.stopPropagation();
+      mgr.delete(preset.id);
+      renderPresetList();
+      ctrl.syncEngine?.broadcaster?.sendPresetSync(mgr.exportAll());
+    });
+    row.appendChild(del);
+
+    container.appendChild(row);
+  }
+}
+
+// ============================================
 // Effects
 // ============================================
 export function initEffects() {

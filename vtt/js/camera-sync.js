@@ -17,6 +17,7 @@ import {
   sharedToLocal,
   createCameraJumpToMsg,
   createCameraFlyToMsg,
+  createPresetSyncMsg,
   createAnnounceMsg,
   createWelcomeMsg,
   createHeartbeatMsg,
@@ -151,6 +152,12 @@ export class CameraBroadcaster {
     this._transport.send(msg);
   }
 
+  /** Broadcast all presets to receiving windows. */
+  sendPresetSync(presets) {
+    const msg = createPresetSyncMsg(this._senderId, ++this._seq, presets);
+    this._transport.send(msg);
+  }
+
   sendImmediate() {
     this._sendState(performance.now());
   }
@@ -222,11 +229,13 @@ export class CameraReceiver {
     // Phase 5
     this._animator = null;
     this._interpolator = null;
+    this._presetManager = null;
     this._lastFlyToSeq = -1;
   }
 
   setAnimator(animator) { this._animator = animator; }
   setInterpolator(interpolator) { this._interpolator = interpolator; }
+  setPresetManager(pm) { this._presetManager = pm; }
 
   handleMessage(msg) {
     if (msg.type === MSG.CAMERA_SYNC) {
@@ -235,6 +244,8 @@ export class CameraReceiver {
       this._handleJumpTo(msg);
     } else if (msg.type === MSG.CAMERA_FLY_TO) {
       this._handleFlyTo(msg);
+    } else if (msg.type === MSG.PRESET_SYNC) {
+      this._handlePresetSync(msg);
     }
   }
 
@@ -285,6 +296,12 @@ export class CameraReceiver {
       speed,
       suppressBroadcast: true,
     });
+  }
+
+  _handlePresetSync(msg) {
+    if (this._presetManager) {
+      this._presetManager.importAll(msg.presets);
+    }
   }
 
   _applySharedState(centerX, centerY, zoom) {
@@ -563,6 +580,11 @@ export class CameraSyncEngine {
     if (this._broadcaster) this._broadcaster.setInterpolator(interpolator);
   }
 
+  setPresetManager(pm) {
+    this._presetManager = pm;
+    if (this._receiver) this._receiver.setPresetManager(pm);
+  }
+
   // --- Message routing ---
 
   _handleMessage(msg) {
@@ -572,6 +594,7 @@ export class CameraSyncEngine {
       case MSG.CAMERA_SYNC:
       case MSG.CAMERA_JUMP_TO:
       case MSG.CAMERA_FLY_TO:
+      case MSG.PRESET_SYNC:
         if (this._receiver) {
           this._receiver.handleMessage(msg);
         }
@@ -597,6 +620,10 @@ export class CameraSyncEngine {
     // Include map dimensions for headless Camera bootstrapping
     shared.mapW = cam.mapW;
     shared.mapH = cam.mapH;
+    // Phase 5: include presets for late-joining windows
+    if (this._presetManager) {
+      shared.presets = this._presetManager.exportAll();
+    }
     return shared;
   }
 
@@ -622,6 +649,11 @@ export class CameraSyncEngine {
         this._camera.setMapSize(camera.mapW, camera.mapH);
       }
       this._receiver.applyWelcomeState(camera.centerX, camera.centerY, camera.zoom);
+
+      // Phase 5: import presets from WELCOME payload
+      if (camera.presets && this._presetManager) {
+        this._presetManager.importAll(camera.presets);
+      }
     }
 
     this._bestWelcome = null;
