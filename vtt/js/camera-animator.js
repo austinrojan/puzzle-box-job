@@ -89,7 +89,9 @@ export class FlyToAnimator {
     this._easingFn = opts.easing ?? easeInOutCubic;
     this._target = target;
 
-    this._startAnimationLoop();
+    if (this._rafId === null) {
+      this._rafId = requestAnimationFrame(this._tick);
+    }
   }
 
   /**
@@ -131,13 +133,9 @@ export class FlyToAnimator {
     if (rawT >= 1.0) {
       // Animation complete — apply exact target to avoid float drift
       this._applySharedState(this._target);
-      this._status = 'idle';
-      this._path = null;
-      this._startTime = 0;
-      this._easingFn = easeInOutCubic;
-      this._target = null;
-      this._suppressBroadcast = false;
-      this._rafId = null;
+      // _cancelAnimation() is safe here: the rAF that invoked _tick() has already
+      // fired, so cancelAnimationFrame on its stale ID is a spec-defined no-op.
+      this._cancelAnimation();
       EventBus.emit('camera:animation-complete');
       return;
     }
@@ -150,12 +148,6 @@ export class FlyToAnimator {
     const vp = { width: this._viewport.w, height: this._viewport.h };
     const local = sharedToLocal(shared, vp);
     this._camera.setPosition(local.x, local.y, local.zoom);
-  }
-
-  /** Start the rAF loop if not already running. */
-  _startAnimationLoop() {
-    if (this._rafId !== null) return;
-    this._rafId = requestAnimationFrame(this._tick);
   }
 
   /** Stop the rAF loop and reset state. */
