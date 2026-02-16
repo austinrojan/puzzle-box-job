@@ -170,6 +170,16 @@ async function boot() {
     }
   });
 
+  // Orphan overlay initial-boot check: if no Controller connects within 3s,
+  // show the overlay. The peer-join listener above hides it if one connects later.
+  if (orphanOverlay) {
+    setTimeout(() => {
+      if (!syncEngine.registry?.hasRole('controller')) {
+        orphanOverlay.classList.add('orphan-overlay--visible');
+      }
+    }, 3000);
+  }
+
   // Expose debugging interface
   window.__vtt = { state, store, mapRenderer, tokenManager, effectsEngine, EventBus, clearSavedState, getViewportScale, syncEngine, flyToAnimator, interpolator, presetManager, semanticZoom };
 
