@@ -98,15 +98,23 @@ export async function enterMapMode(page) {
 /**
  * Inject VTT accessor shortcuts into the page's window for test convenience.
  * Call in beforeEach after gotoVTT(). Provides:
- * - __cam()      → window.__vtt.mapRenderer.camera (or null)
- * - __animator() → camera._animator (or null)
- * - __edgePan()  → tokenManager._edgePan (or null)
+ * - __cam()            → window.__vtt.mapRenderer.camera (or null)
+ * - __animator()       → camera._animator (or null)
+ * - __edgePan()        → tokenManager._edgePan (or null)
+ * - __flyToAnimator()  → window.__vtt.flyToAnimator (or null)
+ * - __interpolator()   → window.__vtt.interpolator (or null)
+ * - __semanticZoom()   → window.__vtt.semanticZoom (or null)
+ * - __presetManager()  → window.__vtt.presetManager (or null)
  */
 export async function injectTestAccessors(page) {
   await page.evaluate(() => {
     window.__cam = () => window.__vtt?.mapRenderer?.camera ?? null;
     window.__animator = () => window.__vtt?.mapRenderer?.camera?._animator ?? null;
     window.__edgePan = () => window.__vtt?.tokenManager?._edgePan ?? null;
+    window.__flyToAnimator = () => window.__vtt?.flyToAnimator ?? null;
+    window.__interpolator = () => window.__vtt?.interpolator ?? null;
+    window.__semanticZoom = () => window.__vtt?.semanticZoom ?? null;
+    window.__presetManager = () => window.__vtt?.presetManager ?? null;
   });
 }
 
