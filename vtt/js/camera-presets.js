@@ -6,6 +6,7 @@ import { localToShared } from '../../shared/protocol.js';
 import { EventBus } from './state.js';
 
 const STORAGE_KEY = 'vtt-camera-presets';
+const MAX_HOTKEY = 9;
 
 export class CameraPresetManager {
   /** @type {Map<string, CameraPreset>} */
@@ -24,7 +25,7 @@ export class CameraPresetManager {
     this._hotkeyHandler = (e) => {
       if (!e.shiftKey || e.ctrlKey || e.altKey || e.metaKey) return;
       const num = parseInt(e.key);
-      if (isNaN(num) || num < 1 || num > 9) return;
+      if (isNaN(num) || num < 1 || num > MAX_HOTKEY) return;
       if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
       e.preventDefault();
       this.recallByHotkey(num);
@@ -60,7 +61,7 @@ export class CameraPresetManager {
 
     this._presets.set(preset.id, preset);
     this._saveToStorage();
-    EventBus.emit('presets:changed', { presets: this.listForCurrentMap() });
+    this._emitChanged();
     return preset;
   }
 
@@ -113,7 +114,7 @@ export class CameraPresetManager {
 
     Object.assign(preset, changes, { updatedAt: Date.now() });
     this._saveToStorage();
-    EventBus.emit('presets:changed', { presets: this.listForCurrentMap() });
+    this._emitChanged();
   }
 
   /**
@@ -129,7 +130,7 @@ export class CameraPresetManager {
     preset.camera = localToShared(camera, viewport);
     preset.updatedAt = Date.now();
     this._saveToStorage();
-    EventBus.emit('presets:changed', { presets: this.listForCurrentMap() });
+    this._emitChanged();
   }
 
   /**
@@ -139,7 +140,7 @@ export class CameraPresetManager {
   delete(presetId) {
     this._presets.delete(presetId);
     this._saveToStorage();
-    EventBus.emit('presets:changed', { presets: this.listForCurrentMap() });
+    this._emitChanged();
   }
 
   /**
@@ -156,7 +157,7 @@ export class CameraPresetManager {
    */
   setCurrentMap(mapId) {
     this._currentMapId = mapId;
-    EventBus.emit('presets:changed', { presets: this.listForCurrentMap() });
+    this._emitChanged();
   }
 
   /**
@@ -179,7 +180,7 @@ export class CameraPresetManager {
       this._presets.set(p.id, p);
     }
     this._saveToStorage();
-    EventBus.emit('presets:changed', { presets: this.listForCurrentMap() });
+    this._emitChanged();
   }
 
   /** Bind Shift+1..9 keyboard shortcuts for preset recall. */
@@ -193,6 +194,10 @@ export class CameraPresetManager {
   }
 
   // --- Private helpers ---
+
+  _emitChanged() {
+    EventBus.emit('presets:changed', { presets: this.listForCurrentMap() });
+  }
 
   _presetsForCurrentMap() {
     if (!this._currentMapId) return [...this._presets.values()];

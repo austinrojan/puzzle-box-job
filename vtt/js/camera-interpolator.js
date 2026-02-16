@@ -14,6 +14,9 @@ const DEFAULT_HALF_LIFE = 0.05;
  */
 const CONVERGENCE_EPSILON = 0.01;
 
+/** Max dt in seconds — prevents huge jumps after tab visibility changes. */
+const MAX_DT = 0.1;
+
 /**
  * Exponential decay: frame-rate-independent smoothing.
  * Running 60× at 1/60s produces the same result as 1× at 1s.
@@ -83,8 +86,7 @@ export class CameraInterpolator {
     const dt = (now - this._lastFrameTime) / 1000;
     this._lastFrameTime = now;
 
-    // Clamp dt to prevent huge jumps after tab visibility changes
-    const clampedDt = Math.min(dt, 0.1);
+    const clampedDt = Math.min(dt, MAX_DT);
 
     this._current.x = expDecay(this._current.x, this._target.x, this._halfLife, clampedDt);
     this._current.y = expDecay(this._current.y, this._target.y, this._halfLife, clampedDt);
