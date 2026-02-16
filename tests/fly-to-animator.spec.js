@@ -7,13 +7,37 @@ test.describe('FlyToAnimator', () => {
     await gotoVTT(page);
     await enterMapMode(page);
     await injectTestAccessors(page);
+    await page.evaluate(async () => {
+      const { FlyToAnimator } = await import('/vtt/js/camera-animator.js');
+      const { localToShared } = await import('/shared/protocol.js');
+      window.__createTestAnimator = () => {
+        const cam = window.__cam();
+        return new FlyToAnimator(cam, { w: cam.viewportW, h: cam.viewportH });
+      };
+      window.__localToShared = localToShared;
+      window.__waitForAnimComplete = (timeout = 3000) => new Promise(resolve => {
+        const { EventBus } = window.__vtt;
+        let resolved = false;
+        const handler = () => {
+          resolved = true;
+          EventBus.off('camera:animation-complete', handler);
+          resolve();
+        };
+        EventBus.on('camera:animation-complete', handler);
+        setTimeout(() => {
+          if (!resolved) {
+            EventBus.off('camera:animation-complete', handler);
+            resolve();
+          }
+        }, timeout);
+      });
+    });
   });
 
   test('flyTo changes camera position over time', async ({ page }) => {
     const result = await page.evaluate(async () => {
-      const { FlyToAnimator } = await import('/vtt/js/camera-animator.js');
       const cam = window.__cam();
-      const animator = new FlyToAnimator(cam, { w: cam.viewportW, h: cam.viewportH });
+      const animator = window.__createTestAnimator();
       const startX = cam.x;
       const startY = cam.y;
 
@@ -23,34 +47,18 @@ test.describe('FlyToAnimator', () => {
         zoom: cam._coverZoom * 2,
       }, { duration: 300 });
 
-      // Wait for animation to complete
-      await new Promise(resolve => {
-        const { EventBus } = window.__vtt;
-        const handler = () => {
-          EventBus.off('camera:animation-complete', handler);
-          resolve();
-        };
-        EventBus.on('camera:animation-complete', handler);
-        setTimeout(resolve, 2000); // safety timeout
-      });
+      await window.__waitForAnimComplete();
 
       animator.destroy();
-      return {
-        startX,
-        startY,
-        endX: cam.x,
-        endY: cam.y,
-        moved: cam.x !== startX || cam.y !== startY,
-      };
+      return { moved: cam.x !== startX || cam.y !== startY };
     });
     expect(result.moved).toBe(true);
   });
 
   test('isAnimating is true during flyTo, false after completion', async ({ page }) => {
     const result = await page.evaluate(async () => {
-      const { FlyToAnimator } = await import('/vtt/js/camera-animator.js');
       const cam = window.__cam();
-      const animator = new FlyToAnimator(cam, { w: cam.viewportW, h: cam.viewportH });
+      const animator = window.__createTestAnimator();
 
       animator.flyTo({
         centerX: cam.mapW * 0.75,
@@ -59,15 +67,7 @@ test.describe('FlyToAnimator', () => {
       }, { duration: 200 });
       const duringAnimation = animator.isAnimating;
 
-      await new Promise(resolve => {
-        const { EventBus } = window.__vtt;
-        const handler = () => {
-          EventBus.off('camera:animation-complete', handler);
-          resolve();
-        };
-        EventBus.on('camera:animation-complete', handler);
-        setTimeout(resolve, 2000);
-      });
+      await window.__waitForAnimComplete();
 
       const afterAnimation = animator.isAnimating;
       animator.destroy();
@@ -79,36 +79,28 @@ test.describe('FlyToAnimator', () => {
 
   test('interrupt stops animation at current position', async ({ page }) => {
     const result = await page.evaluate(async () => {
-      const { FlyToAnimator } = await import('/vtt/js/camera-animator.js');
       const cam = window.__cam();
-      const animator = new FlyToAnimator(cam, { w: cam.viewportW, h: cam.viewportH });
+      const animator = window.__createTestAnimator();
 
-      // Start a long animation to opposite corner
       animator.flyTo({
         centerX: cam.mapW * 0.75,
         centerY: cam.mapH * 0.75,
         zoom: cam._coverZoom * 2,
       }, { duration: 2000 });
 
-      // Wait one frame to let it start
       await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
 
       const midX = cam.x;
       const midY = cam.y;
       const wasAnimating = animator.isAnimating;
 
-      // Interrupt
       animator.interrupt();
-
-      const afterInterruptAnimating = animator.isAnimating;
-      const afterX = cam.x;
-      const afterY = cam.y;
 
       animator.destroy();
       return {
         wasAnimating,
-        afterInterruptAnimating,
-        positionPreserved: afterX === midX && afterY === midY,
+        afterInterruptAnimating: animator.isAnimating,
+        positionPreserved: cam.x === midX && cam.y === midY,
       };
     });
     expect(result.wasAnimating).toBe(true);
@@ -118,12 +110,9 @@ test.describe('FlyToAnimator', () => {
 
   test('jumpTo applies position instantly with no animation', async ({ page }) => {
     const result = await page.evaluate(async () => {
-      const { FlyToAnimator } = await import('/vtt/js/camera-animator.js');
-      const { localToShared } = await import('/shared/protocol.js');
       const cam = window.__cam();
-      const animator = new FlyToAnimator(cam, { w: cam.viewportW, h: cam.viewportH });
+      const animator = window.__createTestAnimator();
 
-      // Use map center as target — guaranteed within constraints
       const target = {
         centerX: cam.mapW / 2,
         centerY: cam.mapH / 2,
@@ -132,18 +121,14 @@ test.describe('FlyToAnimator', () => {
       animator.jumpTo(target);
 
       const vp = { width: cam.viewportW, height: cam.viewportH };
-      const shared = localToShared(cam, vp);
+      const shared = window.__localToShared(cam, vp);
       const isAnimating = animator.isAnimating;
 
       animator.destroy();
       return {
         isAnimating,
-        centerX: shared.centerX,
-        centerY: shared.centerY,
-        zoom: shared.zoom,
-        targetX: target.centerX,
-        targetY: target.centerY,
-        targetZoom: target.zoom,
+        centerX: shared.centerX, centerY: shared.centerY, zoom: shared.zoom,
+        targetX: target.centerX, targetY: target.centerY, targetZoom: target.zoom,
       };
     });
     expect(result.isAnimating).toBe(false);
@@ -154,12 +139,9 @@ test.describe('FlyToAnimator', () => {
 
   test('prefers-reduced-motion causes flyTo to fall back to jumpTo', async ({ page }) => {
     const result = await page.evaluate(async () => {
-      const { FlyToAnimator } = await import('/vtt/js/camera-animator.js');
-      const { localToShared } = await import('/shared/protocol.js');
       const cam = window.__cam();
-      const animator = new FlyToAnimator(cam, { w: cam.viewportW, h: cam.viewportH });
+      const animator = window.__createTestAnimator();
 
-      // Mock matchMedia to report reduced motion
       const originalMatchMedia = window.matchMedia;
       window.matchMedia = (query) => {
         if (query === '(prefers-reduced-motion: reduce)') {
@@ -168,7 +150,6 @@ test.describe('FlyToAnimator', () => {
         return originalMatchMedia(query);
       };
 
-      // Use map center — guaranteed within constraints
       const target = {
         centerX: cam.mapW / 2,
         centerY: cam.mapH / 2,
@@ -176,21 +157,17 @@ test.describe('FlyToAnimator', () => {
       };
       animator.flyTo(target, { duration: 1000 });
 
-      // With reduced motion, flyTo should have jumped instantly — not animating
       const isAnimating = animator.isAnimating;
       const vp = { width: cam.viewportW, height: cam.viewportH };
-      const shared = localToShared(cam, vp);
+      const shared = window.__localToShared(cam, vp);
 
-      // Restore
       window.matchMedia = originalMatchMedia;
       animator.destroy();
 
       return {
         isAnimating,
-        centerX: shared.centerX,
-        centerY: shared.centerY,
-        targetX: target.centerX,
-        targetY: target.centerY,
+        centerX: shared.centerX, centerY: shared.centerY,
+        targetX: target.centerX, targetY: target.centerY,
       };
     });
     expect(result.isAnimating).toBe(false);
@@ -200,14 +177,11 @@ test.describe('FlyToAnimator', () => {
 
   test('flyTo with identical start and end does not animate', async ({ page }) => {
     const result = await page.evaluate(async () => {
-      const { FlyToAnimator } = await import('/vtt/js/camera-animator.js');
-      const { localToShared } = await import('/shared/protocol.js');
       const cam = window.__cam();
-      const animator = new FlyToAnimator(cam, { w: cam.viewportW, h: cam.viewportH });
+      const animator = window.__createTestAnimator();
 
-      // Get current position in shared coords and flyTo the same spot
       const vp = { width: cam.viewportW, height: cam.viewportH };
-      const current = localToShared(cam, vp);
+      const current = window.__localToShared(cam, vp);
       animator.flyTo({ centerX: current.centerX, centerY: current.centerY, zoom: current.zoom });
 
       const isAnimating = animator.isAnimating;
@@ -219,12 +193,9 @@ test.describe('FlyToAnimator', () => {
 
   test('flyTo endpoint matches target position within tolerance', async ({ page }) => {
     const result = await page.evaluate(async () => {
-      const { FlyToAnimator } = await import('/vtt/js/camera-animator.js');
-      const { localToShared } = await import('/shared/protocol.js');
       const cam = window.__cam();
-      const animator = new FlyToAnimator(cam, { w: cam.viewportW, h: cam.viewportH });
+      const animator = window.__createTestAnimator();
 
-      // Target map center at a zoomed-in level — within constraints
       const target = {
         centerX: cam.mapW / 2,
         centerY: cam.mapH / 2,
@@ -232,30 +203,17 @@ test.describe('FlyToAnimator', () => {
       };
       animator.flyTo(target, { duration: 250 });
 
-      await new Promise(resolve => {
-        const { EventBus } = window.__vtt;
-        const handler = () => {
-          EventBus.off('camera:animation-complete', handler);
-          resolve();
-        };
-        EventBus.on('camera:animation-complete', handler);
-        setTimeout(resolve, 2000);
-      });
+      await window.__waitForAnimComplete();
 
       const vp = { width: cam.viewportW, height: cam.viewportH };
-      const final = localToShared(cam, vp);
+      const final = window.__localToShared(cam, vp);
       animator.destroy();
 
       return {
-        finalX: final.centerX,
-        finalY: final.centerY,
-        finalZoom: final.zoom,
-        targetX: target.centerX,
-        targetY: target.centerY,
-        targetZoom: target.zoom,
+        finalX: final.centerX, finalY: final.centerY, finalZoom: final.zoom,
+        targetX: target.centerX, targetY: target.centerY, targetZoom: target.zoom,
       };
     });
-    // Camera constraints may adjust position, so check with reasonable tolerance
     expect(result.finalX).toBeCloseTo(result.targetX, 0);
     expect(result.finalY).toBeCloseTo(result.targetY, 0);
     expect(result.finalZoom).toBeCloseTo(result.targetZoom, 1);
@@ -263,9 +221,8 @@ test.describe('FlyToAnimator', () => {
 
   test('suppressBroadcast is true during receiver-side animation', async ({ page }) => {
     const result = await page.evaluate(async () => {
-      const { FlyToAnimator } = await import('/vtt/js/camera-animator.js');
       const cam = window.__cam();
-      const animator = new FlyToAnimator(cam, { w: cam.viewportW, h: cam.viewportH });
+      const animator = window.__createTestAnimator();
 
       const beforeFlyTo = animator.suppressBroadcast;
       animator.flyTo({
@@ -278,15 +235,7 @@ test.describe('FlyToAnimator', () => {
       });
       const duringFlyTo = animator.suppressBroadcast;
 
-      await new Promise(resolve => {
-        const { EventBus } = window.__vtt;
-        const handler = () => {
-          EventBus.off('camera:animation-complete', handler);
-          resolve();
-        };
-        EventBus.on('camera:animation-complete', handler);
-        setTimeout(resolve, 2000);
-      });
+      await window.__waitForAnimComplete();
 
       const afterFlyTo = animator.suppressBroadcast;
       animator.destroy();
@@ -299,22 +248,17 @@ test.describe('FlyToAnimator', () => {
 
   test('second flyTo interrupts first and starts new animation', async ({ page }) => {
     const result = await page.evaluate(async () => {
-      const { FlyToAnimator } = await import('/vtt/js/camera-animator.js');
-      const { localToShared } = await import('/shared/protocol.js');
       const cam = window.__cam();
-      const animator = new FlyToAnimator(cam, { w: cam.viewportW, h: cam.viewportH });
+      const animator = window.__createTestAnimator();
 
-      // Start first (long) animation to one corner at zoom
       animator.flyTo({
         centerX: cam.mapW * 0.75,
         centerY: cam.mapH * 0.75,
         zoom: cam._coverZoom * 2,
       }, { duration: 5000 });
 
-      // Wait one frame
       await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
 
-      // Start second animation to map center — should cancel first
       const target2 = {
         centerX: cam.mapW / 2,
         centerY: cam.mapH / 2,
@@ -324,30 +268,19 @@ test.describe('FlyToAnimator', () => {
 
       const isAnimating = animator.isAnimating;
 
-      await new Promise(resolve => {
-        const { EventBus } = window.__vtt;
-        const handler = () => {
-          EventBus.off('camera:animation-complete', handler);
-          resolve();
-        };
-        EventBus.on('camera:animation-complete', handler);
-        setTimeout(resolve, 2000);
-      });
+      await window.__waitForAnimComplete();
 
       const vp = { width: cam.viewportW, height: cam.viewportH };
-      const final = localToShared(cam, vp);
+      const final = window.__localToShared(cam, vp);
       animator.destroy();
 
       return {
         isAnimating,
-        finalX: final.centerX,
-        finalY: final.centerY,
-        targetX: target2.centerX,
-        targetY: target2.centerY,
+        finalX: final.centerX, finalY: final.centerY,
+        targetX: target2.centerX, targetY: target2.centerY,
       };
     });
     expect(result.isAnimating).toBe(true);
-    // Should end at second target, not first
     expect(result.finalX).toBeCloseTo(result.targetX, 0);
     expect(result.finalY).toBeCloseTo(result.targetY, 0);
   });
