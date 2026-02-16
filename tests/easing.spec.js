@@ -7,34 +7,47 @@ test.describe('Easing functions — pure math', () => {
     await gotoVTT(page);
   });
 
-  test('easeInOutCubic: boundary values 0, 0.5, 1', async ({ page }) => {
-    const result = await page.evaluate(async () => {
-      const { easeInOutCubic } = await import('/vtt/js/easing.js');
-      return {
-        at0: easeInOutCubic(0),
-        at05: easeInOutCubic(0.5),
-        at1: easeInOutCubic(1),
-      };
+  // Parametrized: boundary values (0→0, 1→1) for all easing functions
+  for (const fnName of ['easeInOutCubic', 'easeOutQuint', 'easeInOutQuart', 'linear']) {
+    test(`${fnName}: boundary values (0→0, 1→1)`, async ({ page }) => {
+      const result = await page.evaluate(async (name) => {
+        const mod = await import('/vtt/js/easing.js');
+        return { at0: mod[name](0), at1: mod[name](1) };
+      }, fnName);
+      expect(result.at0).toBe(0);
+      expect(result.at1).toBe(1);
     });
-    expect(result.at0).toBe(0);
-    expect(result.at05).toBe(0.5);
-    expect(result.at1).toBe(1);
-  });
+  }
 
-  test('easeInOutCubic: monotonically increasing', async ({ page }) => {
-    const isMonotonic = await page.evaluate(async () => {
-      const { easeInOutCubic } = await import('/vtt/js/easing.js');
-      let prev = -1;
-      for (let i = 0; i <= 100; i++) {
-        const t = i / 100;
-        const val = easeInOutCubic(t);
-        if (val < prev - 1e-10) return false;
-        prev = val;
-      }
-      return true;
+  // Parametrized: monotonically increasing
+  for (const fnName of ['easeInOutCubic', 'easeOutQuint', 'easeInOutQuart']) {
+    test(`${fnName}: monotonically increasing`, async ({ page }) => {
+      const isMonotonic = await page.evaluate(async (name) => {
+        const mod = await import('/vtt/js/easing.js');
+        const fn = mod[name];
+        let prev = -1;
+        for (let i = 0; i <= 100; i++) {
+          const t = i / 100;
+          const val = fn(t);
+          if (val < prev - 1e-10) return false;
+          prev = val;
+        }
+        return true;
+      }, fnName);
+      expect(isMonotonic).toBe(true);
     });
-    expect(isMonotonic).toBe(true);
-  });
+  }
+
+  // InOut curves pass through midpoint 0.5→0.5
+  for (const fnName of ['easeInOutCubic', 'easeInOutQuart']) {
+    test(`${fnName}: midpoint 0.5→0.5`, async ({ page }) => {
+      const result = await page.evaluate(async (name) => {
+        const mod = await import('/vtt/js/easing.js');
+        return mod[name](0.5);
+      }, fnName);
+      expect(result).toBe(0.5);
+    });
+  }
 
   test('easeInOutCubic: symmetric around midpoint', async ({ page }) => {
     const maxError = await page.evaluate(async () => {
@@ -59,58 +72,5 @@ test.describe('Easing functions — pure math', () => {
       return true;
     });
     expect(allEqual).toBe(true);
-  });
-
-  test('easeOutQuint: boundary values 0 and 1', async ({ page }) => {
-    const result = await page.evaluate(async () => {
-      const { easeOutQuint } = await import('/vtt/js/easing.js');
-      return { at0: easeOutQuint(0), at1: easeOutQuint(1) };
-    });
-    expect(result.at0).toBe(0);
-    expect(result.at1).toBe(1);
-  });
-
-  test('easeOutQuint: monotonically increasing', async ({ page }) => {
-    const isMonotonic = await page.evaluate(async () => {
-      const { easeOutQuint } = await import('/vtt/js/easing.js');
-      let prev = -1;
-      for (let i = 0; i <= 100; i++) {
-        const t = i / 100;
-        const val = easeOutQuint(t);
-        if (val < prev - 1e-10) return false;
-        prev = val;
-      }
-      return true;
-    });
-    expect(isMonotonic).toBe(true);
-  });
-
-  test('easeInOutQuart: boundary values and midpoint', async ({ page }) => {
-    const result = await page.evaluate(async () => {
-      const { easeInOutQuart } = await import('/vtt/js/easing.js');
-      return {
-        at0: easeInOutQuart(0),
-        at05: easeInOutQuart(0.5),
-        at1: easeInOutQuart(1),
-      };
-    });
-    expect(result.at0).toBe(0);
-    expect(result.at05).toBe(0.5);
-    expect(result.at1).toBe(1);
-  });
-
-  test('easeInOutQuart: monotonically increasing', async ({ page }) => {
-    const isMonotonic = await page.evaluate(async () => {
-      const { easeInOutQuart } = await import('/vtt/js/easing.js');
-      let prev = -1;
-      for (let i = 0; i <= 100; i++) {
-        const t = i / 100;
-        const val = easeInOutQuart(t);
-        if (val < prev - 1e-10) return false;
-        prev = val;
-      }
-      return true;
-    });
-    expect(isMonotonic).toBe(true);
   });
 });
