@@ -334,6 +334,17 @@ export class CameraReceiver {
 
   applyWelcomeState(centerX, centerY, zoom) {
     this._applySharedState(centerX, centerY, zoom);
+
+    // Sync interpolator to prevent snap-back from stale _current
+    if (this._interpolator) {
+      const cam = this._camera;
+      const vp = cameraViewport(cam);
+      if (viewportReady(vp)) {
+        const local = sharedToLocal({ centerX, centerY, zoom }, vp);
+        this._interpolator.setTarget(local);
+        this._interpolator.snapToTarget();
+      }
+    }
   }
 
   removeSender(senderId) {

@@ -121,6 +121,31 @@ test.describe('Fit-to-tokens computation — bounding box math', () => {
     expect(zoom).toBeGreaterThan(0);
   });
 
+  test('flyToTokens ignores opts.gridSize in favor of cellPx param', async ({ page }) => {
+    const r = await page.evaluate(async () => {
+      const { flyToTokens } = await import('/vtt/js/fit-to-tokens.js');
+      const targets = [];
+      const mockAnimator = { flyTo: (t) => targets.push(t) };
+      const tokens = [{ tokenId: 'T01', col: 2, row: 2, size: 1, visible: true }];
+      const viewport = { w: 1920, h: 1080 };
+      const tokenDefs = { T01: { isPC: true } };
+
+      // Call with cellPx=70, but opts.gridSize=999 (should be ignored)
+      flyToTokens(mockAnimator, tokens, viewport, 70, tokenDefs, [], { gridSize: 999 });
+
+      // Call with cellPx=70, no opts.gridSize
+      flyToTokens(mockAnimator, tokens, viewport, 70, tokenDefs, [], {});
+
+      // Both should produce the same target (cellPx=70 wins in both cases)
+      return {
+        target1: targets[0],
+        target2: targets[1],
+        zoomsMatch: targets[0]?.zoom === targets[1]?.zoom,
+      };
+    });
+    expect(r.zoomsMatch).toBe(true);
+  });
+
   test('large token (size=2) produces wider bounding box', async ({ page }) => {
     const result = await page.evaluate(async () => {
       const { computeFitToTokens } = await import('/vtt/js/fit-to-tokens.js');

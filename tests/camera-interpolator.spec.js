@@ -163,6 +163,48 @@ test.describe('CameraInterpolator', () => {
       await page.evaluate(() => window.__testInterpolator.destroy());
     });
 
+    test('setTarget syncs _current from live camera when restarting after convergence', async ({ page }) => {
+      const r = await page.evaluate(() => {
+        const cam = window.__vtt.mapRenderer.camera;
+        // Zoom in to 3x so camera has room to pan (avoid vacuous pass at cover zoom)
+        cam.setPosition(cam.mapW * 0.2, cam.mapH * 0.2, cam._coverZoom * 3);
+        const startX = cam.x;
+
+        const animator = window.__vtt.flyToAnimator || { isAnimating: false, suppressBroadcast: false };
+        const { CameraInterpolator } = window.__interpolatorModule;
+        const interp = new CameraInterpolator(cam, animator);
+
+        // Set initial target and converge at current position
+        interp.setTarget({ x: cam.x, y: cam.y, zoom: cam.zoom });
+        interp.snapToTarget();
+
+        const convergedX = cam.x;
+
+        // Externally move camera (simulate user drag or animator)
+        // Move toward center to stay within bounds
+        const visW = cam.viewportW / cam.zoom;
+        const visH = cam.viewportH / cam.zoom;
+        const moveX = Math.min(cam.x + 200, cam.mapW - visW);
+        const moveY = Math.min(cam.y + 200, cam.mapH - visH);
+        cam.setPosition(moveX, moveY, cam.zoom);
+        const movedX = cam.x;
+
+        // Verify camera actually moved (guard against vacuous pass)
+        const didMove = Math.abs(movedX - convergedX) > 50;
+
+        // Now set a new target — _current should sync from live camera
+        interp.setTarget({ x: cam.x + 10, y: cam.y + 10, zoom: cam.zoom });
+
+        const current = interp._current;
+        interp.destroy();
+        return { currentX: current.x, movedX, convergedX, didMove };
+      });
+      // Ensure the camera actually moved (precondition)
+      expect(r.didMove).toBe(true);
+      // _current should be near the externally-moved position, not the old converged position
+      expect(r.currentX).toBeCloseTo(r.movedX, 0);
+    });
+
     test('skips interpolation while animator is animating', async ({ page }) => {
       const result = await page.evaluate(() => {
         const { CameraInterpolator } = window.__interpolatorModule;

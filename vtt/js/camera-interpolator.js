@@ -56,6 +56,8 @@ export class CameraInterpolator {
     this._hasTarget = true;
 
     if (!this._isRunning) {
+      // Sync from live camera to prevent lerping from stale convergence point
+      this._current = { x: this._camera.x, y: this._camera.y, zoom: this._camera.zoom };
       this._lastFrameTime = performance.now();
       this._startLoop();
     }

@@ -98,7 +98,7 @@ export function flyToTokens(animator, tokens, viewport, cellPx, tokenDefs, initi
     inInitiative: initiativeIds.has(t.tokenId),
   }));
 
-  const target = computeFitToTokens(tokenData, viewport, { gridSize: cellPx, ...opts });
+  const target = computeFitToTokens(tokenData, viewport, { ...opts, gridSize: cellPx });
 
   if (!target) {
     return null;
