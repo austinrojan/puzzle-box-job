@@ -689,3 +689,77 @@ test.describe('Cross-window camera sync', () => {
     expect(ctrlCam.centerY).toBeCloseTo(displayCam.centerY, 0);
   });
 });
+
+test.describe('Batch 4 defensive guards', () => {
+  test('broadcaster sends cloned messages (not mutable template)', async ({ page }) => {
+    await page.goto('/vtt/', { waitUntil: 'domcontentloaded' });
+    const r = await page.evaluate(async () => {
+      const { CameraBroadcaster } = await import('/vtt/js/camera-sync.js');
+      const camera = { x: 100, y: 50, zoom: 1.5, viewportW: 1920, viewportH: 1080 };
+      const sent = [];
+      const transport = { send: m => sent.push(m) };
+      const b = new CameraBroadcaster(camera, transport, 'test');
+      b._sendState(0);
+
+      // Mutate camera and send again
+      camera.x = 500;
+      b._sendState(100);
+
+      // Each sent message should be a distinct object
+      return {
+        count: sent.length,
+        distinct: sent.length >= 2 ? sent[0] !== sent[1] : false,
+      };
+    });
+    expect(r.count).toBe(2);
+    expect(r.distinct).toBe(true);
+  });
+
+  test('_handleMessage rejects malformed CAMERA_SYNC (missing centerX)', async ({ page }) => {
+    await page.goto('/vtt/', { waitUntil: 'domcontentloaded' });
+    const r = await page.evaluate(async () => {
+      const { CameraSyncEngine } = await import('/vtt/js/camera-sync.js');
+      const { PROTOCOL_VERSION } = await import('/shared/protocol.js');
+      const cam = {
+        x: 0, y: 0, zoom: 1, viewportW: 1920, viewportH: 1080, mapW: 1000, mapH: 1000,
+        deserialize(s) { this.x = s.x; this.y = s.y; this.zoom = s.zoom; },
+      };
+      const origX = cam.x;
+      // Use correct constructor signature, then start to create receiver
+      const engine = new CameraSyncEngine({ camera: cam, role: 'display' });
+      engine.start();
+      // Call _handleMessage directly with malformed CAMERA_SYNC (missing centerX)
+      engine._handleMessage({
+        type: 'camera:sync',
+        centerY: 200,
+        zoom: 1,
+        seq: 1,
+        senderId: 'bad',
+        _v: PROTOCOL_VERSION,
+      });
+      const afterX = cam.x;
+      engine.destroy();
+      // Without validation, cam.x becomes NaN from the missing centerX
+      // With validation, the message is rejected and cam.x stays at 0
+      return { unchanged: afterX === origX };
+    });
+    expect(r.unchanged).toBe(true);
+  });
+
+  test('_persistToSessionStorage skips when viewport not ready', async ({ page }) => {
+    await page.goto('/vtt/', { waitUntil: 'domcontentloaded' });
+    const r = await page.evaluate(async () => {
+      sessionStorage.removeItem('vtt-camera-state');
+      const { CameraSyncEngine } = await import('/vtt/js/camera-sync.js');
+      // Camera with zero viewport — simulates pre-map-load state
+      const cam = { x: 100, y: 200, zoom: 1, mapW: 0, mapH: 0, viewportW: 0, viewportH: 0 };
+      // Use correct constructor signature; don't call start() to avoid real transport
+      const engine = new CameraSyncEngine({ camera: cam, role: 'display' });
+      engine._persistToSessionStorage();
+      const stored = sessionStorage.getItem('vtt-camera-state');
+      engine.destroy();
+      return { stored };
+    });
+    expect(r.stored).toBeNull();
+  });
+});

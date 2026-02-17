@@ -24,6 +24,7 @@ import {
   createGoodbyeMsg,
   MSG,
   PROTOCOL_VERSION,
+  validateMessage,
 } from '../../shared/protocol.js';
 
 // --- Constants ---
@@ -199,7 +200,7 @@ export class CameraBroadcaster {
     this._msgTemplate.zoom = shared.zoom;
     this._msgTemplate.seq = ++this._seq;
 
-    this._transport.send(this._msgTemplate);
+    this._transport.send({ ...this._msgTemplate });
 
     this._lastCenterX = shared.centerX;
     this._lastCenterY = shared.centerY;
@@ -608,6 +609,8 @@ export class CameraSyncEngine {
 
   _handleMessage(msg) {
     if (!msg || !msg.type) return;
+    const { valid } = validateMessage(msg);
+    if (!valid) return;
 
     switch (msg.type) {
       case MSG.CAMERA_SYNC:
@@ -697,11 +700,11 @@ export class CameraSyncEngine {
     this._persistToSessionStorage();
     if (this._registry) this._registry.stop();
     if (this._broadcaster) this._broadcaster.stop();
-    this._transport.disconnect();
+    if (this._transport) this._transport.disconnect();
   }
 
   _onPageShow(event) {
-    if (!this._transport.connected) {
+    if (!this._transport || !this._transport.connected) {
       this._transport.connect();
       if (event.persisted) {
         this._tryRestore();
@@ -720,6 +723,7 @@ export class CameraSyncEngine {
     try {
       const cam = this._camera;
       const vp = cameraViewport(cam);
+      if (!viewportReady(vp)) return;
       const shared = localToShared(cam, vp);
       const data = {
         centerX: shared.centerX,
@@ -763,7 +767,7 @@ export class CameraSyncEngine {
   }
 
   _reconnect() {
-    if (!this._transport.connected) return;
+    if (!this._transport?.connected) return;
     this._registry.start();
     if (this._broadcaster) {
       this._broadcaster.start();
