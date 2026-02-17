@@ -8,8 +8,9 @@ test.describe('Semantic zoom', () => {
   });
 
   test('no semantic zoom classes at cover zoom', async ({ page }) => {
-    // Ensure camera is at cover zoom
+    // Reset any classes activated during boot, then set cover zoom
     await page.evaluate(() => {
+      window.__vtt.semanticZoom.reset();
       window.__vtt.mapRenderer.camera.fitCover();
     });
 

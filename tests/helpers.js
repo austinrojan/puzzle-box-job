@@ -118,8 +118,24 @@ export async function injectTestAccessors(page) {
   });
 }
 
+/**
+ * Inject a style that disables all CSS transitions on the page.
+ * Useful for density/layout tests that read computed styles — prevents
+ * mid-transition intermediate values from causing flaky assertions.
+ */
+export async function disableTransitions(page) {
+  await page.evaluate(() => {
+    if (document.getElementById('disable-transitions')) return;
+    const style = document.createElement('style');
+    style.id = 'disable-transitions';
+    style.textContent = '*, *::before, *::after { transition-duration: 0s !important; }';
+    document.head.appendChild(style);
+  });
+}
+
 export async function expectDensityReduces(page, expect, selector, property, setup) {
   await gotoDMGuide(page);
+  await disableTransitions(page);
   if (setup) await setup(page);
   const defaultVal = await page.locator(selector).first().evaluate(
     (el, prop) => parseFloat(getComputedStyle(el)[prop]), property
@@ -127,6 +143,7 @@ export async function expectDensityReduces(page, expect, selector, property, set
   await page.evaluate(() => localStorage.setItem('ui-density', 'compact'));
   await page.reload();
   await waitForDMBoot(page);
+  await disableTransitions(page);  // Re-inject after reload
   if (setup) await setup(page);
   const compactVal = await page.locator(selector).first().evaluate(
     (el, prop) => parseFloat(getComputedStyle(el)[prop]), property
