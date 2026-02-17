@@ -285,12 +285,18 @@ test.describe('Constraint integration — zoom floor and pan clamping', () => {
     const result = await page.evaluate(() => {
       const cam = __cam();
       if (!cam) return null;
+      // Explicit dimensions for deterministic coverZoom regardless of VTT state
+      cam.mapW = 3840; cam.mapH = 2160;
+      cam.viewportW = cam.viewportW || 960;
+      cam.viewportH = cam.viewportH || 540;
+      cam._updateCoverZoom();
       cam.fitCover();
       const before = cam.screenToWorld(400, 300);
       cam.zoomAt(400, 300, -1.0);
       const after = cam.screenToWorld(400, 300);
       return { dx: Math.abs(after.x - before.x), dy: Math.abs(after.y - before.y) };
     });
+    expect(result).not.toBeNull();
     expect(result.dx).toBeLessThan(1);
     expect(result.dy).toBeLessThan(1);
   });

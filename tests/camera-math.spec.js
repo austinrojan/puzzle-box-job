@@ -111,9 +111,13 @@ test.describe('Camera math — world-space model', () => {
     const result = await page.evaluate(() => {
       const cam = window.__vtt?.mapRenderer?.camera;
       if (!cam) return null;
-      cam.x = 0; cam.y = 0; cam.zoom = 2.0;
+      // Explicit dimensions prevent _applyHardBounds from clamping the result
+      cam.mapW = 10000; cam.mapH = 10000;
+      cam._coverZoom = 0.1;
+      cam.x = 2000; cam.y = 2000; cam.zoom = 2.0;
+      const xBefore = cam.x;
       cam.panBy(100, 0);
-      return cam.x; // should be -50 (= -100/2)
+      return cam.x - xBefore; // should be -50 (= -100/2)
     });
     expect(result).not.toBeNull();
     expect(Math.abs(result - (-50))).toBeLessThan(0.01);

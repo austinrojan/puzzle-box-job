@@ -55,8 +55,11 @@ test.describe('Center-point camera model', () => {
 });
 
 test.describe('Phase 4 protocol message validation', () => {
+  test.beforeEach(async ({ page }) => {
+    await page.goto('/vtt/', { waitUntil: 'load' });
+  });
+
   test('validates CAMERA_SYNC message', async ({ page }) => {
-    await page.goto('/vtt/', { waitUntil: 'domcontentloaded' });
     const r = await page.evaluate(async () => {
       const { validateMessage, createCameraSyncMsg } = await import('/shared/protocol.js');
       const msg = createCameraSyncMsg(100, 200, 1.5, 1, 'abc123');
@@ -66,7 +69,6 @@ test.describe('Phase 4 protocol message validation', () => {
   });
 
   test('validates ANNOUNCE message', async ({ page }) => {
-    await page.goto('/vtt/', { waitUntil: 'domcontentloaded' });
     const r = await page.evaluate(async () => {
       const { validateMessage, createAnnounceMsg } = await import('/shared/protocol.js');
       return validateMessage(createAnnounceMsg('win1', 'controller'));
@@ -75,7 +77,6 @@ test.describe('Phase 4 protocol message validation', () => {
   });
 
   test('rejects CAMERA_SYNC missing seq', async ({ page }) => {
-    await page.goto('/vtt/', { waitUntil: 'domcontentloaded' });
     const r = await page.evaluate(async () => {
       const { validateMessage, MSG, PROTOCOL_VERSION } = await import('/shared/protocol.js');
       return validateMessage({ type: MSG.CAMERA_SYNC, centerX: 1, centerY: 2, zoom: 1, senderId: 'x', _v: PROTOCOL_VERSION });
@@ -84,7 +85,6 @@ test.describe('Phase 4 protocol message validation', () => {
   });
 
   test('msg() helper prevents payload from overriding type', async ({ page }) => {
-    await page.goto('/vtt/', { waitUntil: 'domcontentloaded' });
     const r = await page.evaluate(async () => {
       const { createCameraSyncMsg, MSG } = await import('/shared/protocol.js');
       const msg = createCameraSyncMsg(100, 200, 1.5, 1, 'abc');
@@ -95,7 +95,6 @@ test.describe('Phase 4 protocol message validation', () => {
   });
 
   test('createCameraFlyToMsg preserves senderId/seq over payload', async ({ page }) => {
-    await page.goto('/vtt/', { waitUntil: 'domcontentloaded' });
     const r = await page.evaluate(async () => {
       const { createCameraFlyToMsg } = await import('/shared/protocol.js');
       const msg = createCameraFlyToMsg('real-sender', 42,
@@ -109,7 +108,6 @@ test.describe('Phase 4 protocol message validation', () => {
   });
 
   test('rejects CAMERA_FLY_TO missing seq', async ({ page }) => {
-    await page.goto('/vtt/', { waitUntil: 'domcontentloaded' });
     const r = await page.evaluate(async () => {
       const { validateMessage, MSG, PROTOCOL_VERSION } = await import('/shared/protocol.js');
       return validateMessage({
@@ -124,7 +122,6 @@ test.describe('Phase 4 protocol message validation', () => {
   });
 
   test('localToShared handles zoom=0 gracefully', async ({ page }) => {
-    await page.goto('/vtt/', { waitUntil: 'domcontentloaded' });
     const r = await page.evaluate(async () => {
       const { localToShared } = await import('/shared/protocol.js');
       const result = localToShared({ x: 100, y: 200, zoom: 0 }, { width: 1920, height: 1080 });
@@ -138,7 +135,6 @@ test.describe('Phase 4 protocol message validation', () => {
   });
 
   test('sharedToLocal handles zoom=0 gracefully', async ({ page }) => {
-    await page.goto('/vtt/', { waitUntil: 'domcontentloaded' });
     const r = await page.evaluate(async () => {
       const { sharedToLocal } = await import('/shared/protocol.js');
       const result = sharedToLocal({ centerX: 500, centerY: 300, zoom: 0 }, { width: 1920, height: 1080 });
