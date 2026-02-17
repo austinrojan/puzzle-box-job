@@ -103,7 +103,8 @@ test.describe('Phase 5 Integration', () => {
     await ctrl.evaluate(() => {
       const mgr = window.__controller.presetManager;
       const presets = mgr.listForCurrentMap();
-      if (presets.length > 0) mgr.recall(presets[0].id);
+      if (presets.length === 0) throw new Error('Expected at least one preset after save');
+      mgr.recall(presets[0].id);
     });
 
     // Display should animate toward coverZoom (lower zoom than current)
@@ -226,26 +227,50 @@ test.describe('Phase 5 Integration', () => {
         { timeout: 5000 }
       );
 
-      // Wait for election convergence
-      await new Promise(r => setTimeout(r, 500));
+      // Wait for election convergence — both have determined authority status
+      await Promise.all([
+        ctrl1.waitForFunction(
+          () => window.__controller?.election?.isAuthority !== undefined,
+          { timeout: 5000 }
+        ),
+        ctrl2.waitForFunction(
+          () => window.__controller?.election?.isAuthority !== undefined,
+          { timeout: 5000 }
+        ),
+      ]);
+      // Small buffer for claim exchange to settle
+      await new Promise(r => setTimeout(r, 100));
 
       // Identify authority and non-authority
       const id1 = await ctrl1.evaluate(() => window.__controller.syncEngine.windowId);
       const id2 = await ctrl2.evaluate(() => window.__controller.syncEngine.windowId);
       const nonAuthority = id1 < id2 ? ctrl2 : ctrl1;
 
-      // Record Display position
-      const before = await display.evaluate(() => {
-        const cam = window.__vtt.mapRenderer.camera;
-        return { x: cam.x, y: cam.y, zoom: cam.zoom };
-      });
-
-      // Non-authority clicks Frame Tokens — should NOT broadcast
-      // (authority gating in ui-builders.js prevents sendFlyTo)
+      // Verify non-authority election state
       const nonAuthIsAuthority = await nonAuthority.evaluate(
         () => window.__controller.election.isAuthority
       );
       expect(nonAuthIsAuthority).toBe(false);
+
+      // Intercept transport.send on non-authority to capture any flyTo messages
+      await nonAuthority.evaluate(() => {
+        window.__flyTosSent = [];
+        const transport = window.__controller.syncEngine._transport;
+        const origSend = transport.send.bind(transport);
+        transport.send = (msg) => {
+          if (msg.type === 'camera:fly-to') window.__flyTosSent.push(msg);
+          origSend(msg);
+        };
+      });
+
+      // Non-authority clicks Frame Tokens — UI gating should prevent sendFlyTo
+      // (ui-builders.js line 249: checks election.isAuthority before sendFlyTo)
+      await nonAuthority.click('#btn-frame-tokens');
+      await new Promise(r => setTimeout(r, 500));
+
+      // Verify no CAMERA_FLY_TO was sent by non-authority
+      const flyToCount = await nonAuthority.evaluate(() => window.__flyTosSent.length);
+      expect(flyToCount).toBe(0);
     } finally {
       await context.close();
     }

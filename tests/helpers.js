@@ -193,6 +193,7 @@ export async function injectAnimationWaitHelper(page) {
       setTimeout(() => {
         if (!resolved) {
           EventBus.off('camera:animation-complete', handler);
+          console.warn('[test] __waitForAnimComplete timed out after', timeout, 'ms — animation may not have completed');
           resolve();
         }
       }, timeout);
