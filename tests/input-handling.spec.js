@@ -128,9 +128,13 @@ test.describe('Phase 2: Input handling', () => {
   });
 
   test('plus key zooms in at center', async ({ page }) => {
-    const zoomBefore = await page.evaluate(() =>
-      window.__vtt?.mapRenderer?.camera?.zoom
-    );
+    // Normalize zoom to cover and read in one evaluate — prevents stale value
+    // from ResizeObserver settling between separate evaluate calls
+    const zoomBefore = await page.evaluate(() => {
+      const cam = window.__vtt.mapRenderer.camera;
+      cam.fitCover();
+      return cam.zoom;
+    });
     await page.keyboard.press('Equal'); // '=' key = '+' without Shift
     await page.waitForFunction((prev) => {
       const z = window.__vtt?.mapRenderer?.camera?.zoom;

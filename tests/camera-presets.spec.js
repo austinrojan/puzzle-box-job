@@ -12,6 +12,7 @@ test.describe('CameraPresetManager', () => {
     await page.evaluate(async () => {
       const { CameraPresetManager } = await import('/vtt/js/camera-presets.js');
       const { FlyToAnimator } = await import('/vtt/js/camera-animator.js');
+      window.__CameraPresetManager = CameraPresetManager;
       window.__createTestPresetManager = (mapId = 'M01') => {
         const cam = window.__cam();
         const animator = new FlyToAnimator(cam, { w: cam.viewportW, h: cam.viewportH });
@@ -157,7 +158,7 @@ test.describe('CameraPresetManager', () => {
   });
 
   test('exportAll and importAll roundtrip preserves data', async ({ page }) => {
-    const result = await page.evaluate(async () => {
+    const result = await page.evaluate(() => {
       const { animator, mgr: mgr1, cam } = window.__createTestPresetManager();
 
       const vp = { width: cam.viewportW, height: cam.viewportH };
@@ -169,8 +170,7 @@ test.describe('CameraPresetManager', () => {
 
       // Fresh manager to import into
       localStorage.removeItem('vtt-camera-presets');
-      const { CameraPresetManager } = await import('/vtt/js/camera-presets.js');
-      const mgr2 = new CameraPresetManager(animator);
+      const mgr2 = new window.__CameraPresetManager(animator);
       mgr2.setCurrentMap('M01');
       mgr2.importAll(exported);
 
