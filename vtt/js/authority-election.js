@@ -24,7 +24,7 @@ export class AuthorityElection {
     // Only Controllers participate in election
     if (role === 'controller') {
       this._boundHandleMessage = (msg) => this._handleMessage(msg);
-      this._transport.onMessage(this._boundHandleMessage);
+      this._unsubscribeTransport = this._transport.onMessage(this._boundHandleMessage);
 
       this._boundOnJoin = ({ peerId, peerRole }) => {
         if (peerRole === 'controller') {
@@ -97,6 +97,10 @@ export class AuthorityElection {
 
   destroy() {
     this._isAuthority = false;
+    if (this._unsubscribeTransport) {
+      this._unsubscribeTransport();
+      this._unsubscribeTransport = null;
+    }
     if (this._boundOnJoin) {
       EventBus.off('camera-sync:peer-join', this._boundOnJoin);
       EventBus.off('camera-sync:peer-leave', this._boundOnLeave);

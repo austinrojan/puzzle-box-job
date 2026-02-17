@@ -175,9 +175,10 @@ export class CameraPresetManager {
    * @param {CameraPreset[]} presets
    */
   importAll(presets) {
+    if (!Array.isArray(presets) || presets.length === 0) return;
     this._presets.clear();
     for (const p of presets) {
-      this._presets.set(p.id, p);
+      if (p && p.id) this._presets.set(p.id, p);
     }
     this._saveToStorage();
     this._emitChanged();

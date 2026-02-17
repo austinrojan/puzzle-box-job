@@ -152,4 +152,45 @@ test.describe('BroadcastChannelTransport', () => {
     });
     expect(type).toBe('broadcast-channel');
   });
+
+  test('onMessage returns unsubscribe function', async ({ page }) => {
+    const result = await page.evaluate(async () => {
+      const { BroadcastChannelTransport } = await import('/shared/sync/BroadcastChannelTransport.js');
+      const t = new BroadcastChannelTransport('test-unsub-type');
+      const unsub = t.onMessage(() => {});
+      const isFunc = typeof unsub === 'function';
+      t.destroy();
+      return isFunc;
+    });
+    expect(result).toBe(true);
+  });
+
+  test('unsubscribe removes handler — no further messages received', async ({ page }) => {
+    const result = await page.evaluate(async () => {
+      const { BroadcastChannelTransport } = await import('/shared/sync/BroadcastChannelTransport.js');
+      const t1 = new BroadcastChannelTransport('test-unsub-verify');
+      const t2 = new BroadcastChannelTransport('test-unsub-verify');
+
+      let count = 0;
+      const unsub = t1.onMessage(() => { count++; });
+      await t1.connect();
+      await t2.connect();
+
+      t2.send({ type: 'test', _v: 1 });
+      await new Promise(r => setTimeout(r, 100));
+      const beforeUnsub = count;
+
+      unsub();
+
+      t2.send({ type: 'test2', _v: 1 });
+      await new Promise(r => setTimeout(r, 100));
+      const afterUnsub = count;
+
+      t1.destroy();
+      t2.destroy();
+      return { beforeUnsub, afterUnsub };
+    });
+    expect(result.beforeUnsub).toBe(1);
+    expect(result.afterUnsub).toBe(1);
+  });
 });

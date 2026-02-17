@@ -27,7 +27,7 @@ export function wrapWithDebugLogging(transport, label) {
 
   const originalOnMessage = transport.onMessage.bind(transport);
   transport.onMessage = (handler) => {
-    originalOnMessage((msg) => {
+    return originalOnMessage((msg) => {
       const from = (msg.senderId || msg.windowId || '?').slice(0, 6);
       console.log(
         `%c[${label}] << ${msg.type} from ${from}`,

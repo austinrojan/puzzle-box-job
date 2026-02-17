@@ -287,4 +287,57 @@ test.describe('CameraPresetManager', () => {
     });
     expect(result.recalled).toBe(false);
   });
+
+  test('importAll([]) does not wipe existing presets', async ({ page }) => {
+    const result = await page.evaluate(async () => {
+      const { animator, mgr, cam } = window.__createTestPresetManager();
+      const vp = { width: cam.viewportW, height: cam.viewportH };
+      mgr.save('Keep Me', cam, vp);
+      const before = mgr.listForCurrentMap().length;
+      mgr.importAll([]);
+      const after = mgr.listForCurrentMap().length;
+      animator.destroy();
+      mgr.destroy();
+      return { before, after };
+    });
+    expect(result.before).toBe(1);
+    expect(result.after).toBe(1);
+  });
+
+  test('importAll(null) does not throw', async ({ page }) => {
+    const result = await page.evaluate(async () => {
+      const { animator, mgr } = window.__createTestPresetManager();
+      try {
+        mgr.importAll(null);
+        mgr.importAll(undefined);
+        mgr.importAll('not-an-array');
+        animator.destroy();
+        mgr.destroy();
+        return { threw: false };
+      } catch (e) {
+        animator.destroy();
+        mgr.destroy();
+        return { threw: true, error: e.message };
+      }
+    });
+    expect(result.threw).toBe(false);
+  });
+
+  test('importAll skips entries without id', async ({ page }) => {
+    const result = await page.evaluate(async () => {
+      const { animator, mgr } = window.__createTestPresetManager();
+      mgr.importAll([
+        { id: 'a', name: 'Valid', camera: {}, mapId: 'M01' },
+        null,
+        { name: 'No ID' },
+        { id: 'b', name: 'Also Valid', camera: {}, mapId: 'M01' },
+      ]);
+      const list = mgr.listForCurrentMap();
+      animator.destroy();
+      mgr.destroy();
+      return { count: list.length, names: list.map(p => p.name).sort() };
+    });
+    expect(result.count).toBe(2);
+    expect(result.names).toEqual(['Also Valid', 'Valid']);
+  });
 });

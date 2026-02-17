@@ -303,7 +303,7 @@ export class CameraReceiver {
   }
 
   _handlePresetSync(msg) {
-    if (this._presetManager) {
+    if (this._presetManager && Array.isArray(msg.presets)) {
       this._presetManager.importAll(msg.presets);
     }
   }

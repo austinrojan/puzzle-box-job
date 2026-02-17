@@ -25,6 +25,9 @@ export class BroadcastChannelTransport extends ISyncTransport {
 
   onMessage(handler) {
     this._messageHandlers.push(handler);
+    return () => {
+      this._messageHandlers = this._messageHandlers.filter(h => h !== handler);
+    };
   }
 
   onConnectionChange(handler) {

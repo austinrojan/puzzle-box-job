@@ -24,6 +24,7 @@ export class ISyncTransport {
   /**
    * Register a handler for incoming messages.
    * @param {(msg: Object) => void} handler
+   * @returns {Function} Unsubscribe function — call to remove this handler.
    */
   onMessage(handler) {
     throw new Error('ISyncTransport.onMessage not implemented');
