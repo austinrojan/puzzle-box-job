@@ -97,7 +97,7 @@ const REQUIRED_FIELDS = {
   [MSG.GOODBYE]:                ['windowId'],
 
   // Phase 5: Cinematic camera
-  [MSG.CAMERA_FLY_TO]:          ['target', 'senderId'],
+  [MSG.CAMERA_FLY_TO]:          ['target', 'senderId', 'seq'],
   [MSG.PRESET_SYNC]:            ['presets', 'senderId'],
   [MSG.AUTHORITY_CLAIM]:        ['windowId', 'role'],
 };
@@ -105,7 +105,7 @@ const REQUIRED_FIELDS = {
 // --- Factory functions ---
 
 function msg(type, payload) {
-  return payload ? { type, ...payload, _v: PROTOCOL_VERSION }
+  return payload ? { ...payload, type, _v: PROTOCOL_VERSION }
                  : { type, _v: PROTOCOL_VERSION };
 }
 
@@ -171,12 +171,13 @@ export const createGoodbyeMsg = (windowId) =>
   msg(MSG.GOODBYE, { windowId });
 
 // Phase 5: Cinematic camera factories
-export const createCameraFlyToMsg = (senderId, seq, payload) =>
+export const createCameraFlyToMsg = (senderId, seq, target, payload = {}) =>
   msg(MSG.CAMERA_FLY_TO, {
+    ...payload,
+    target,
     senderId,
     seq,
     ts: performance.timeOrigin + performance.now(),
-    ...payload,
   });
 
 export const createPresetSyncMsg = (senderId, seq, presets) =>
@@ -191,6 +192,7 @@ export const createAuthorityClaimMsg = (windowId, role) =>
 // Derivation: centerX = (viewportW/2) / zoom + camera.x
 
 export function localToShared(camera, viewport) {
+  if (!camera.zoom) return { centerX: camera.x, centerY: camera.y, zoom: 0 };
   return {
     centerX: camera.x + (viewport.width / 2) / camera.zoom,
     centerY: camera.y + (viewport.height / 2) / camera.zoom,
@@ -199,6 +201,7 @@ export function localToShared(camera, viewport) {
 }
 
 export function sharedToLocal(shared, viewport) {
+  if (!shared.zoom) return { x: shared.centerX, y: shared.centerY, zoom: 0 };
   return {
     x: shared.centerX - (viewport.width / 2) / shared.zoom,
     y: shared.centerY - (viewport.height / 2) / shared.zoom,

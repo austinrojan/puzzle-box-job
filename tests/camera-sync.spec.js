@@ -82,6 +82,74 @@ test.describe('Phase 4 protocol message validation', () => {
     });
     expect(r.valid).toBe(false);
   });
+
+  test('msg() helper prevents payload from overriding type', async ({ page }) => {
+    await page.goto('/vtt/', { waitUntil: 'domcontentloaded' });
+    const r = await page.evaluate(async () => {
+      const { createCameraSyncMsg, MSG } = await import('/shared/protocol.js');
+      const msg = createCameraSyncMsg(100, 200, 1.5, 1, 'abc');
+      return { type: msg.type, hasVersion: '_v' in msg };
+    });
+    expect(r.type).toBe('camera:sync');
+    expect(r.hasVersion).toBe(true);
+  });
+
+  test('createCameraFlyToMsg preserves senderId/seq over payload', async ({ page }) => {
+    await page.goto('/vtt/', { waitUntil: 'domcontentloaded' });
+    const r = await page.evaluate(async () => {
+      const { createCameraFlyToMsg } = await import('/shared/protocol.js');
+      const msg = createCameraFlyToMsg('real-sender', 42,
+        { centerX: 0.5, centerY: 0.5, zoom: 1.5 },
+        { senderId: 'evil-sender', seq: 999 }
+      );
+      return { senderId: msg.senderId, seq: msg.seq };
+    });
+    expect(r.senderId).toBe('real-sender');
+    expect(r.seq).toBe(42);
+  });
+
+  test('rejects CAMERA_FLY_TO missing seq', async ({ page }) => {
+    await page.goto('/vtt/', { waitUntil: 'domcontentloaded' });
+    const r = await page.evaluate(async () => {
+      const { validateMessage, MSG, PROTOCOL_VERSION } = await import('/shared/protocol.js');
+      return validateMessage({
+        type: MSG.CAMERA_FLY_TO,
+        target: { centerX: 0.5, centerY: 0.5, zoom: 1 },
+        senderId: 'x',
+        _v: PROTOCOL_VERSION,
+      });
+    });
+    expect(r.valid).toBe(false);
+    expect(r.error).toContain('seq');
+  });
+
+  test('localToShared handles zoom=0 gracefully', async ({ page }) => {
+    await page.goto('/vtt/', { waitUntil: 'domcontentloaded' });
+    const r = await page.evaluate(async () => {
+      const { localToShared } = await import('/shared/protocol.js');
+      const result = localToShared({ x: 100, y: 200, zoom: 0 }, { width: 1920, height: 1080 });
+      return {
+        isFiniteCX: Number.isFinite(result.centerX),
+        isFiniteCY: Number.isFinite(result.centerY),
+      };
+    });
+    expect(r.isFiniteCX).toBe(true);
+    expect(r.isFiniteCY).toBe(true);
+  });
+
+  test('sharedToLocal handles zoom=0 gracefully', async ({ page }) => {
+    await page.goto('/vtt/', { waitUntil: 'domcontentloaded' });
+    const r = await page.evaluate(async () => {
+      const { sharedToLocal } = await import('/shared/protocol.js');
+      const result = sharedToLocal({ centerX: 500, centerY: 300, zoom: 0 }, { width: 1920, height: 1080 });
+      return {
+        isFiniteX: Number.isFinite(result.x),
+        isFiniteY: Number.isFinite(result.y),
+      };
+    });
+    expect(r.isFiniteX).toBe(true);
+    expect(r.isFiniteY).toBe(true);
+  });
 });
 
 test.describe('CameraBroadcaster', () => {

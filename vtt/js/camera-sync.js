@@ -142,8 +142,7 @@ export class CameraBroadcaster {
 
   /** Broadcast a flyTo command to all receiving windows. */
   sendFlyTo(target, opts = {}) {
-    const msg = createCameraFlyToMsg(this._senderId, ++this._seq, {
-      target,
+    const msg = createCameraFlyToMsg(this._senderId, ++this._seq, target, {
       duration: opts.duration ?? null,
       rho: opts.rho ?? 1.42,
       speed: opts.speed ?? 1.2,

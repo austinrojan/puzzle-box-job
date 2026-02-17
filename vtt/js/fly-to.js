@@ -30,6 +30,11 @@ export function computeFlyToPath(start, end, opts = {}) {
   const V = opts.speed ?? DEFAULT_SPEED;
   const screenW = opts.screenWidth ?? 1920;
 
+  // Guard against zero or negative zoom — return immediate jump
+  if (start.zoom <= 0 || end.zoom <= 0) {
+    return { duration: 0, at: () => ({ centerX: end.centerX, centerY: end.centerY, zoom: end.zoom }) };
+  }
+
   // Convert zoom to visible width: w = screenWidth / zoom
   const w0 = screenW / start.zoom;
   const w1 = screenW / end.zoom;

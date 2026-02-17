@@ -119,6 +119,36 @@ test.describe('FlyTo path computation — van Wijk & Nuij', () => {
     expect(maxJumpRatio).toBeLessThan(0.1);
   });
 
+  test('zoom=0 returns immediate jump to end', async ({ page }) => {
+    const r = await page.evaluate(async () => {
+      const { computeFlyToPath } = await import('/vtt/js/fly-to.js');
+      const start = { centerX: 100, centerY: 100, zoom: 0 };
+      const end = { centerX: 500, centerY: 500, zoom: 2 };
+      const path = computeFlyToPath(start, end, { screenWidth: 1920 });
+      return {
+        duration: path.duration,
+        endPoint: path.at(1),
+        isFinite: Number.isFinite(path.duration),
+      };
+    });
+    expect(r.duration).toBe(0);
+    expect(r.endPoint.centerX).toBe(500);
+    expect(r.endPoint.centerY).toBe(500);
+    expect(r.endPoint.zoom).toBe(2);
+  });
+
+  test('negative zoom returns immediate jump to end', async ({ page }) => {
+    const r = await page.evaluate(async () => {
+      const { computeFlyToPath } = await import('/vtt/js/fly-to.js');
+      const start = { centerX: 0, centerY: 0, zoom: 1 };
+      const end = { centerX: 500, centerY: 500, zoom: -1 };
+      const path = computeFlyToPath(start, end, { screenWidth: 1920 });
+      return { duration: path.duration, endPoint: path.at(0.5) };
+    });
+    expect(r.duration).toBe(0);
+    expect(r.endPoint.centerX).toBe(500);
+  });
+
   test('center position progresses monotonically for same-zoom path', async ({ page }) => {
     const isMonotonic = await page.evaluate(async () => {
       const { computeFlyToPath } = await import('/vtt/js/fly-to.js');
