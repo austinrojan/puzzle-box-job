@@ -1202,11 +1202,29 @@ export class Camera {
         Math.abs(dxScreen) + Math.abs(dyScreen)
       );
 
-      this.x = this._panStartCamX - dxScreen / (this.zoom * this.viewportScale);
-      this.y = this._panStartCamY - dyScreen / (this.zoom * this.viewportScale);
-      this._velocityTracker.addSample(e.clientX, e.clientY, performance.now());
+      // Preserve start-relative calculation (no floating-point drift)
+      const rawX = this._panStartCamX - dxScreen / (this.zoom * this.viewportScale);
+      const rawY = this._panStartCamY - dyScreen / (this.zoom * this.viewportScale);
 
-      this._applyConstraints();
+      this.x = rawX;
+      this.y = rawY;
+      this._applyConstraints(); // Hard-clamps this.x/this.y
+
+      // Feed overflow into elastic offset
+      const overflowX = rawX - this.x;
+      const overflowY = rawY - this.y;
+
+      if (this._gestureActive) {
+        // For mouse drag, overflow is total from start (not accumulated)
+        this._cumulativeOverflowX = overflowX;
+        this._cumulativeOverflowY = overflowY;
+        this._feedElasticOverflow(overflowX, overflowY);
+        if (overflowX !== 0 || overflowY !== 0) {
+          EventBus.emit('camera:changed');
+        }
+      }
+
+      this._velocityTracker.addSample(e.clientX, e.clientY, performance.now());
     });
 
     window.addEventListener('mouseup', (e) => {
@@ -1214,12 +1232,25 @@ export class Camera {
       if (!this._panning || e.button !== this._panButton) return;
       this._panning = false;
       this._panButton = -1;
-      this._isDragging = false;
-      if (this._el) {
-        this._el.classList.remove('panning');
-        this._el.style.cursor = this.spaceHeld ? 'grab' : '';
+      this._setPanCursor(false);
+
+      // Phase 6: compute release velocity for inertial coast
+      const velocity = this._velocityTracker.getVelocity();
+      this._velocityTracker.reset();
+      const speed = Math.sqrt(velocity.vx ** 2 + velocity.vy ** 2);
+      const INERTIA_THRESHOLD = 100; // px/s
+
+      if (this._gestures) this._gestures.release('DRAG_PAN');
+
+      if (this._momentumEnabled && speed > INERTIA_THRESHOLD) {
+        // Inertial coast — _gestureActive stays true
+        if (this._gestures) this._gestures.request('INERTIA');
+        this._startInertialCoast({ x: velocity.vx, y: velocity.vy });
+      } else {
+        this._gestureActive = false;
+        if (this._gestures) this._gestures.request('SNAP_BACK');
+        this._snapBackElastic();
       }
-      this._handleDragRelease();
     });
 
     el.addEventListener('contextmenu', (e) => {
@@ -1331,6 +1362,11 @@ export class Camera {
   }
 
   _startPan(e, button) {
+    this._cancelInertialCoast();
+    if (this._elasticAnimator) this._elasticAnimator.cancel();
+    if (this._trackpadDetector) this._trackpadDetector.cancel();
+    if (this._gestures) this._gestures.request('DRAG_PAN');
+
     this._panning = true;
     this._pendingPan = false;
     this._panButton = button;
@@ -1339,7 +1375,14 @@ export class Camera {
     this._panStartCamX = this.x;
     this._panStartCamY = this.y;
     this._panScreenDist = 0;
-    this._isDragging = true;
+
+    // Phase 6: dual-position elastic model
+    this._gestureActive = true;
+    this._cumulativeOverflowX = 0;
+    this._cumulativeOverflowY = 0;
+    this.elasticOffsetX = 0;
+    this.elasticOffsetY = 0;
+
     if (this._animator) this._animator.cancel();
     this._velocityTracker.reset();
     this._setPanCursor(true);
@@ -1350,16 +1393,19 @@ export class Camera {
    * Called when mousemove exceeds DRAG_THRESHOLD after _initPendingPan().
    * Does NOT re-capture clientX/Y — _initPendingPan already stored the
    * mousedown origin, so the drag starts from the original click point,
-   * not the threshold-crossing point. The _isDragging=true and animator
-   * cancel mirror _startPan() to ensure elastic bounds activate regardless
-   * of which entry path initiated the drag.
+   * not the threshold-crossing point.
    */
   _commitPan() {
     this._panning = true;
     this._pendingPan = false;
     this._panButton = 0;
-    this._isDragging = true;
+    this._gestureActive = true;
+    this._cumulativeOverflowX = 0;
+    this._cumulativeOverflowY = 0;
+    this.elasticOffsetX = 0;
+    this.elasticOffsetY = 0;
     if (this._animator) this._animator.cancel();
+    if (this._elasticAnimator) this._elasticAnimator.cancel();
     this._setPanCursor(true);
   }
 
@@ -1367,9 +1413,13 @@ export class Camera {
     this._panning = false;
     this._pendingPan = false;
     this._panButton = -1;
-    this._isDragging = false;
+    // Full elastic cleanup: no inertial coast from blur/mouseleave
+    this._gestureActive = false;
+    this._cancelInertialCoast();
     this._setPanCursor(false);
-    this._triggerSnapBack();
+    if (this._gestures) this._gestures.request('SNAP_BACK');
+    // Zero velocity — blur/mouseleave should NOT trigger inertial coast
+    this._snapBackElastic({ vx: 0, vy: 0 });
   }
 
   _setPanCursor(active) {
