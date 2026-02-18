@@ -443,6 +443,7 @@ export class Camera {
     this._animator = null;  // CameraAnimator — created in attachTo()
     this._isDragging = false;       // Mouse-drag only; keyboard pan uses hard bounds
     this._dmCanZoomPastCover = false;
+    this._lastClampedZoom = NaN;
     this._velocityTracker = new VelocityTracker();
     this._momentumEnabled = true;
   }
@@ -662,7 +663,20 @@ export class Camera {
   // --- Constraint pipeline ---
 
   _applyConstraints() {
-    this.zoom = Math.max(this._getMinZoom(), Math.min(MAX_ZOOM, this.zoom));
+    const minZoom = this._getMinZoom();
+    if (this.zoom < minZoom) {
+      if (this._lastClampedZoom !== this.zoom) {
+        console.debug(
+          `[Camera] Zoom ${this.zoom.toFixed(4)} clamped to coverZoom ` +
+          `${minZoom.toFixed(4)} (viewport ${this.viewportW}\u00D7${this.viewportH}, ` +
+          `map ${this.mapW}\u00D7${this.mapH})`
+        );
+        this._lastClampedZoom = this.zoom;
+      }
+      this.zoom = minZoom;
+    } else {
+      this.zoom = Math.min(MAX_ZOOM, this.zoom);
+    }
 
     if (this.mapW > 0 && this.mapH > 0) {
       if (this._isDragging) this._applyElasticBounds();
