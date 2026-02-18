@@ -49,6 +49,9 @@ export const MSG = Object.freeze({
   CAMERA_FLY_TO:           'camera:fly-to',
   PRESET_SYNC:             'preset:sync',
   AUTHORITY_CLAIM:         'authority:claim',
+
+  // Phase 5.5: Viewport reporting
+  VIEWPORT_REPORT:         'camera:viewport-report',
 });
 
 // O(1) lookup set for validation
@@ -100,6 +103,9 @@ const REQUIRED_FIELDS = {
   [MSG.CAMERA_FLY_TO]:          ['target', 'senderId', 'seq'],
   [MSG.PRESET_SYNC]:            ['presets', 'senderId'],
   [MSG.AUTHORITY_CLAIM]:        ['windowId', 'role'],
+
+  // Phase 5.5: Viewport reporting
+  [MSG.VIEWPORT_REPORT]:        ['viewportW', 'viewportH', 'coverZoom'],
 };
 
 // --- Factory functions ---
@@ -185,6 +191,10 @@ export const createPresetSyncMsg = (senderId, seq, presets) =>
 
 export const createAuthorityClaimMsg = (windowId, role) =>
   msg(MSG.AUTHORITY_CLAIM, { windowId, role });
+
+// Phase 5.5: Viewport report factory
+export const createViewportReportMsg = (viewportW, viewportH, coverZoom, senderId) =>
+  msg(MSG.VIEWPORT_REPORT, { viewportW, viewportH, coverZoom, senderId });
 
 // --- Center-point camera model (Phase 4) ---
 // Local camera: { x, y, zoom } where (x,y) = top-left world-space corner

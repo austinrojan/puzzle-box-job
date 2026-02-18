@@ -22,6 +22,7 @@ import {
   createWelcomeMsg,
   createHeartbeatMsg,
   createGoodbyeMsg,
+  createViewportReportMsg,
   MSG,
   PROTOCOL_VERSION,
   validateMessage,
