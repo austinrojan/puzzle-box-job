@@ -158,12 +158,8 @@ test.describe('VIEWPORT_REPORT cross-window', () => {
     const ctrl = await bootController(context);
     await waitForControllerMap(ctrl, 5000);
 
-    // The initial 200ms report may have fired before Controller booted.
-    // Trigger a fresh VIEWPORT_REPORT by calling _sendViewportReport() directly.
-    await display.evaluate(() => {
-      window.__vtt.syncEngine._sendViewportReport();
-    });
-
+    // VIEWPORT_REPORT is now sent on ANNOUNCE (peer join), so Controller
+    // should receive it automatically after the handshake completes.
     await ctrl.waitForFunction(
       () => window.__controller?.syncEngine?.displayViewport != null,
       { timeout: 5000 }

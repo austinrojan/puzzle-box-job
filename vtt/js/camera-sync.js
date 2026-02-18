@@ -655,6 +655,11 @@ export class CameraSyncEngine {
         this._registry.handleMessage(msg, (announcerId, announcerRole) => {
           return this._onAnnounce(announcerId, announcerRole);
         });
+        // When Display receives an ANNOUNCE from a new peer, send VIEWPORT_REPORT
+        // so the Controller gets Display dimensions regardless of boot order.
+        if (this._role === 'display' && msg.type === MSG.ANNOUNCE) {
+          setTimeout(() => this._sendViewportReport(), 50);
+        }
         break;
     }
   }
