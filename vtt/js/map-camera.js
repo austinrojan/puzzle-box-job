@@ -44,6 +44,12 @@ class CameraAnimator {
     this._springX = null;
     this._springY = null;
     this._tick = this._tick.bind(this);
+    this._momentumMode = false;
+    this._momentumVx = 0;
+    this._momentumVy = 0;
+    this._momentumStartTime = null;
+    this._momentumLastTime = null;
+    this._tickMomentum = this._tickMomentum.bind(this);
   }
 
   snapBack(current, target, velocity = { vx: 0, vy: 0 }) {
@@ -110,6 +116,63 @@ class CameraAnimator {
     this._startTime = null;
     this._springX = null;
     this._springY = null;
+    this._momentumMode = false;
+    this._momentumVx = 0;
+    this._momentumVy = 0;
+  }
+
+  momentum(velocity) {
+    const zoom = this._camera.zoom;
+    const scale = zoom * this._camera.viewportScale;
+    this.cancel();
+    this._momentumVx = -velocity.vx / scale;
+    this._momentumVy = -velocity.vy / scale;
+    this._momentumMode = true;
+    this._momentumStartTime = null;
+    this._rafId = requestAnimationFrame(this._tickMomentum);
+  }
+
+  _tickMomentum(now) {
+    if (!this._momentumMode) return;
+    if (this._momentumStartTime === null) {
+      this._momentumStartTime = now;
+      this._momentumLastTime = now;
+      this._rafId = requestAnimationFrame(this._tickMomentum);
+      return;
+    }
+    const dt = (now - this._momentumLastTime) / 1000;
+    this._momentumLastTime = now;
+    if (dt > 0.1) { this._stopMomentum(); return; }
+
+    const decay = Math.exp(-MOMENTUM_FRICTION * dt);
+    this._momentumVx *= decay;
+    this._momentumVy *= decay;
+
+    const speed = Math.sqrt(this._momentumVx ** 2 + this._momentumVy ** 2);
+    if (speed < MOMENTUM_MIN_VELOCITY / this._camera.zoom) {
+      this._stopMomentum(); return;
+    }
+
+    const prevX = this._camera.x;
+    const prevY = this._camera.y;
+    this._camera.x += this._momentumVx * dt;
+    this._camera.y += this._momentumVy * dt;
+    this._camera._applyConstraints();
+
+    const clampedX = Math.abs(this._camera.x - (prevX + this._momentumVx * dt)) > 0.1;
+    const clampedY = Math.abs(this._camera.y - (prevY + this._momentumVy * dt)) > 0.1;
+    if (clampedX) this._momentumVx = 0;
+    if (clampedY) this._momentumVy = 0;
+    if (clampedX && clampedY) { this._stopMomentum(); return; }
+
+    this._rafId = requestAnimationFrame(this._tickMomentum);
+  }
+
+  _stopMomentum() {
+    this._momentumMode = false;
+    this._momentumVx = 0;
+    this._momentumVy = 0;
+    if (this._rafId) { cancelAnimationFrame(this._rafId); this._rafId = null; }
   }
 }
 
