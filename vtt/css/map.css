@@ -12,6 +12,7 @@
 }
 
 #map-container.panning { cursor: grabbing; }
+#map-container.coasting { cursor: grab; }
 #map-container.dragging-token { cursor: none; }
 
 /* All canvas layers fill the container identically */

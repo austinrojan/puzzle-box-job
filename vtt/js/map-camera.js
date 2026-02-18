@@ -30,10 +30,6 @@ const DEFAULT_SPRING_STIFFNESS = 200;
 const SETTLE_THRESHOLD_PX = 0.5;
 const SETTLE_THRESHOLD_VEL = 0.5;
 
-// --- Momentum panning constants (Phase 5.5) ---
-const MOMENTUM_FRICTION = 8;
-const MOMENTUM_MIN_VELOCITY = 50;
-const MOMENTUM_MAX_VELOCITY = 4000;
 const VELOCITY_SAMPLE_COUNT = 4;
 
 class CameraAnimator {
@@ -46,12 +42,6 @@ class CameraAnimator {
     this._springX = null;
     this._springY = null;
     this._tick = this._tick.bind(this);
-    this._momentumMode = false;
-    this._momentumVx = 0;
-    this._momentumVy = 0;
-    this._momentumStartTime = null;
-    this._momentumLastTime = null;
-    this._tickMomentum = this._tickMomentum.bind(this);
   }
 
   snapBack(current, target, velocity = { vx: 0, vy: 0 }) {
@@ -119,63 +109,6 @@ class CameraAnimator {
     this._startTime = null;
     this._springX = null;
     this._springY = null;
-    this._momentumMode = false;
-    this._momentumVx = 0;
-    this._momentumVy = 0;
-  }
-
-  momentum(velocity) {
-    const zoom = this._camera.zoom;
-    const scale = zoom * this._camera.viewportScale;
-    this.cancel();
-    this._momentumVx = -velocity.vx / scale;
-    this._momentumVy = -velocity.vy / scale;
-    this._momentumMode = true;
-    this._momentumStartTime = null;
-    this._rafId = requestAnimationFrame(this._tickMomentum);
-  }
-
-  _tickMomentum(now) {
-    if (!this._momentumMode) return;
-    if (this._momentumStartTime === null) {
-      this._momentumStartTime = now;
-      this._momentumLastTime = now;
-      this._rafId = requestAnimationFrame(this._tickMomentum);
-      return;
-    }
-    const dt = (now - this._momentumLastTime) / 1000;
-    this._momentumLastTime = now;
-    if (dt > 0.1) { this._stopMomentum(); return; }
-
-    const decay = Math.exp(-MOMENTUM_FRICTION * dt);
-    this._momentumVx *= decay;
-    this._momentumVy *= decay;
-
-    const speed = Math.sqrt(this._momentumVx ** 2 + this._momentumVy ** 2);
-    if (speed < MOMENTUM_MIN_VELOCITY / this._camera.zoom) {
-      this._stopMomentum(); return;
-    }
-
-    const prevX = this._camera.x;
-    const prevY = this._camera.y;
-    this._camera.x += this._momentumVx * dt;
-    this._camera.y += this._momentumVy * dt;
-    this._camera._applyConstraints();
-
-    const clampedX = Math.abs(this._camera.x - (prevX + this._momentumVx * dt)) > 0.1;
-    const clampedY = Math.abs(this._camera.y - (prevY + this._momentumVy * dt)) > 0.1;
-    if (clampedX) this._momentumVx = 0;
-    if (clampedY) this._momentumVy = 0;
-    if (clampedX && clampedY) { this._stopMomentum(); return; }
-
-    this._rafId = requestAnimationFrame(this._tickMomentum);
-  }
-
-  _stopMomentum() {
-    this._momentumMode = false;
-    this._momentumVx = 0;
-    this._momentumVy = 0;
-    if (this._rafId) { cancelAnimationFrame(this._rafId); this._rafId = null; }
   }
 }
 
@@ -591,7 +524,6 @@ export class Camera {
     this._boundsCache = new BoundsCache();
     this._keyboard = new KeyboardController(this);
     this._animator = null;  // CameraAnimator — created in attachTo()
-    this._isDragging = false;       // Mouse-drag only; keyboard pan uses hard bounds
     this._dmCanZoomPastCover = false;
     this._lastClampedZoom = NaN;
     this._velocityTracker = new VelocityTracker();
@@ -793,36 +725,6 @@ export class Camera {
     this.y = this._clampAxis(this.y, visH, this.mapH);
   }
 
-  _applyElasticBounds() {
-    if (this.mapW <= 0 || this.mapH <= 0) return;
-    const visW = this.viewportW / this.zoom;
-    const visH = this.viewportH / this.zoom;
-    this.x = this._elasticClampAxis(this.x, visW, this.mapW, this.viewportW);
-    this.y = this._elasticClampAxis(this.y, visH, this.mapH, this.viewportH);
-  }
-
-  _elasticClampAxis(pos, visSize, mapSize, vpDim) {
-    if (visSize >= mapSize) {
-      const center = -(visSize - mapSize) / 2;
-      const overshoot = pos - center;
-      if (Math.abs(overshoot) < 0.5) return center;
-      const screenOvershoot = overshoot * this.zoom;
-      const dampened = rubberBand(Math.abs(screenOvershoot), vpDim);
-      return center + Math.sign(overshoot) * dampened / this.zoom;
-    }
-    const min = 0;
-    const max = mapSize - visSize;
-    if (pos < min) {
-      const screenOvershoot = (min - pos) * this.zoom;
-      return min - rubberBand(screenOvershoot, vpDim) / this.zoom;
-    }
-    if (pos > max) {
-      const screenOvershoot = (pos - max) * this.zoom;
-      return max + rubberBand(screenOvershoot, vpDim) / this.zoom;
-    }
-    return pos;
-  }
-
   // --- Constraint pipeline ---
 
   _applyConstraints() {
@@ -857,61 +759,6 @@ export class Camera {
         || this.elasticOffsetX !== 0 || this.elasticOffsetY !== 0) {
       EventBus.emit('camera:changed');
     }
-  }
-
-  _triggerSnapBack() {
-    if (this.mapW <= 0 || this.mapH <= 0) return;
-    if (!this._animator) return;
-    const visW = this.viewportW / this.zoom;
-    const visH = this.viewportH / this.zoom;
-    const targetX = this._clampAxis(this.x, visW, this.mapW);
-    const targetY = this._clampAxis(this.y, visH, this.mapH);
-    if (Math.abs(this.x - targetX) < 0.5 && Math.abs(this.y - targetY) < 0.5) return;
-    this._animator.snapBack({ x: this.x, y: this.y }, { x: targetX, y: targetY });
-  }
-
-  _handleDragRelease() {
-    const velocity = this._velocityTracker.getVelocity();
-    const speed = Math.sqrt(velocity.vx ** 2 + velocity.vy ** 2);
-    if (speed > MOMENTUM_MAX_VELOCITY) {
-      const scale = MOMENTUM_MAX_VELOCITY / speed;
-      velocity.vx *= scale;
-      velocity.vy *= scale;
-    }
-    const pastBounds = this._isPastBounds();
-    if (pastBounds) {
-      this._triggerSnapBackWithVelocity(velocity);
-    } else if (this._momentumEnabled && speed > MOMENTUM_MIN_VELOCITY) {
-      this._animator.momentum(velocity);
-    }
-  }
-
-  _isPastBounds() {
-    if (this.mapW <= 0 || this.mapH <= 0) return false;
-    const visW = this.viewportW / this.zoom;
-    const visH = this.viewportH / this.zoom;
-    const clampedX = this._clampAxis(this.x, visW, this.mapW);
-    const clampedY = this._clampAxis(this.y, visH, this.mapH);
-    return Math.abs(this.x - clampedX) > 0.5 || Math.abs(this.y - clampedY) > 0.5;
-  }
-
-  _triggerSnapBackWithVelocity(velocity) {
-    if (this.mapW <= 0 || this.mapH <= 0) return;
-    if (!this._animator) return;
-    const visW = this.viewportW / this.zoom;
-    const visH = this.viewportH / this.zoom;
-    const targetX = this._clampAxis(this.x, visW, this.mapW);
-    const targetY = this._clampAxis(this.y, visH, this.mapH);
-    if (Math.abs(this.x - targetX) < 0.5 && Math.abs(this.y - targetY) < 0.5) return;
-    const worldVelocity = {
-      vx: -velocity.vx / (this.zoom * this.viewportScale),
-      vy: -velocity.vy / (this.zoom * this.viewportScale),
-    };
-    this._animator.snapBack(
-      { x: this.x, y: this.y },
-      { x: targetX, y: targetY },
-      worldVelocity
-    );
   }
 
   // --- Phase 6: Elastic offset methods ---
