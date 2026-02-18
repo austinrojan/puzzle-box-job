@@ -7,6 +7,7 @@
 
 import { EventBus } from './state.js';
 import { normalizeWheel } from './normalize-wheel.js';
+import { TrackpadGestureDetector, classifyWheelDevice } from './trackpad-gesture.js';
 
 // --- Constants ---
 const MIN_ZOOM = 0.1;              // absolute floor (safety valve)
@@ -459,11 +460,13 @@ class KeyboardController {
       if (e.key === '+' || e.key === '=') {
         e.preventDefault();
         this._camera.zoomToCenter(ZOOM_STEP_KEY);
+        if (this._camera._smoothZoom) this._camera._smoothZoom.retarget();
         return;
       }
       if (e.key === '-') {
         e.preventDefault();
         this._camera.zoomToCenter(-ZOOM_STEP_KEY);
+        if (this._camera._smoothZoom) this._camera._smoothZoom.retarget();
         return;
       }
       // Zoom presets (Shift+0 = ')', Shift+1 = '!' on US keyboards)
@@ -1146,14 +1149,62 @@ export class Camera {
   }
 
   _attachWheelHandler(el) {
+    this._trackpadDetector = new TrackpadGestureDetector({
+      onGestureStart: () => {
+        this._cancelInertialCoast();
+        if (this._elasticAnimator) this._elasticAnimator.cancel();
+        if (this._gestures) this._gestures.request('SCROLL_PAN');
+        this._gestureActive = true;
+        this._momentumScrollActive = false;
+        this._cumulativeOverflowX = 0;
+        this._cumulativeOverflowY = 0;
+      },
+      onMomentumStart: () => {
+        this._momentumScrollActive = true;
+      },
+      onGestureEnd: () => {
+        this._gestureActive = false;
+        this._momentumScrollActive = false;
+        if (this._gestures) {
+          this._gestures.release('SCROLL_PAN');
+          this._gestures.request('SNAP_BACK');
+        }
+        this._snapBackElastic();
+      }
+    });
+
     el.addEventListener('wheel', (e) => {
       e.preventDefault();
       const { dx, dy, dz } = normalizeWheel(e);
+
       if (dz !== 0) {
+        // Ctrl/meta + wheel → zoom path (pinch synthesis on trackpads)
+        const device = classifyWheelDevice(e);
         const screen = this.eventToScreen(e);
-        this.zoomAt(screen.x, screen.y, dz * -ZOOM_SENSITIVITY);
+
+        if (device === 'mouse') {
+          // Smooth animated zoom for ctrl+mouse-wheel
+          if (this._gestures) this._gestures.request('ZOOM_ANIMATE');
+          this._smoothZoom.onWheelZoom(dz, screen.x, screen.y);
+        } else {
+          // Trackpad pinch: direct 1:1 zoom (existing behavior)
+          if (this._gestures) this._gestures.request('PINCH_ZOOM');
+          this.zoomAt(screen.x, screen.y, dz * -ZOOM_SENSITIVITY);
+        }
       } else if (dx !== 0 || dy !== 0) {
-        this.panBy(-dx, -dy);
+        // Non-ctrl wheel: classify device to decide zoom vs pan
+        const device = classifyWheelDevice(e);
+
+        if (device === 'mouse') {
+          // Mouse scroll wheel → smooth animated zoom (scroll up = zoom in)
+          const screen = this.eventToScreen(e);
+          if (this._gestures) this._gestures.request('ZOOM_ANIMATE');
+          this._smoothZoom.onWheelZoom(dy / 100, screen.x, screen.y);
+        } else {
+          // Trackpad two-finger scroll → pan with gesture detection
+          this._trackpadDetector.handleWheel(e);
+          this.panBy(-dx, -dy);
+        }
       }
     }, { passive: false });
   }
