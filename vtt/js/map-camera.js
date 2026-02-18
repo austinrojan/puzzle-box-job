@@ -30,6 +30,12 @@ const SPRING_OMEGA = Math.sqrt(SPRING_STIFFNESS); // ≈ 14.14
 const SETTLE_THRESHOLD_PX = 0.5;
 const SETTLE_THRESHOLD_VEL = 0.5;
 
+// --- Momentum panning constants (Phase 5.5) ---
+const MOMENTUM_FRICTION = 8;
+const MOMENTUM_MIN_VELOCITY = 50;
+const MOMENTUM_MAX_VELOCITY = 4000;
+const VELOCITY_SAMPLE_COUNT = 4;
+
 class CameraAnimator {
   constructor(camera) {
     this._camera = camera;
@@ -104,6 +110,45 @@ class CameraAnimator {
     this._startTime = null;
     this._springX = null;
     this._springY = null;
+  }
+}
+
+export class VelocityTracker {
+  constructor() {
+    this._samples = [];
+    this._index = 0;
+    this._count = 0;
+  }
+
+  reset() {
+    this._samples.length = 0;
+    this._index = 0;
+    this._count = 0;
+  }
+
+  addSample(x, y, t) {
+    if (this._samples.length < VELOCITY_SAMPLE_COUNT) {
+      this._samples.push({ x, y, t });
+    } else {
+      this._samples[this._index] = { x, y, t };
+    }
+    this._index = (this._index + 1) % VELOCITY_SAMPLE_COUNT;
+    this._count++;
+  }
+
+  getVelocity() {
+    const n = Math.min(this._count, VELOCITY_SAMPLE_COUNT);
+    if (n < 2) return { vx: 0, vy: 0 };
+    const oldestIdx = this._count < VELOCITY_SAMPLE_COUNT ? 0 : this._index;
+    const newestIdx = (this._index - 1 + VELOCITY_SAMPLE_COUNT) % VELOCITY_SAMPLE_COUNT;
+    const oldest = this._samples[oldestIdx];
+    const newest = this._samples[newestIdx];
+    const dt = (newest.t - oldest.t) / 1000;
+    if (dt < 0.008) return { vx: 0, vy: 0 };
+    return {
+      vx: (newest.x - oldest.x) / dt,
+      vy: (newest.y - oldest.y) / dt,
+    };
   }
 }
 
