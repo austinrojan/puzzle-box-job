@@ -728,10 +728,6 @@ export class Camera {
   // --- Constraint pipeline ---
 
   _applyConstraints() {
-    const prevX = this.x;
-    const prevY = this.y;
-    const prevZoom = this.zoom;
-
     // 1. Zoom bounds
     const minZoom = this._getMinZoom();
     if (this.zoom < minZoom) {
@@ -754,11 +750,9 @@ export class Camera {
       this._applyHardBounds();
     }
 
-    // 3. Emit if changed (include elastic offset for visual updates)
-    if (this.x !== prevX || this.y !== prevY || this.zoom !== prevZoom
-        || this.elasticOffsetX !== 0 || this.elasticOffsetY !== 0) {
-      EventBus.emit('camera:changed');
-    }
+    // 3. Always emit — callers like setPosition() depend on this to notify
+    // observers (semantic zoom, BroadcastChannel sync, etc.).
+    EventBus.emit('camera:changed');
   }
 
   // --- Phase 6: Elastic offset methods ---
