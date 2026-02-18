@@ -532,6 +532,11 @@ export class CameraSyncEngine {
     this._bestWelcome = null;
     this._welcomeTimer = null;
 
+    // Phase 5.5: VIEWPORT_REPORT
+    this._displayViewport = null;
+    this._lastReportedVpW = 0;
+    this._lastReportedVpH = 0;
+
     this._onPageHide = this._onPageHide.bind(this);
     this._onPageShow = this._onPageShow.bind(this);
     this._onVisibilityChange = this._onVisibilityChange.bind(this);
@@ -562,6 +567,11 @@ export class CameraSyncEngine {
       this._broadcaster.start();
     } else if (this._role === 'display') {
       this._receiver = new CameraReceiver(this._camera, null);
+
+      // Phase 5.5: Send VIEWPORT_REPORT on resize
+      EventBus.on('camera:viewport-resized', () => {
+        this._sendViewportReport();
+      });
     }
     // dm-guide: no broadcaster, no receiver
 
@@ -583,6 +593,10 @@ export class CameraSyncEngine {
     EventBus.on('camera-sync:reconnect', this._onReconnectEvent);
 
     this._registry.start();
+
+    if (this._role === 'display') {
+      setTimeout(() => this._sendViewportReport(), 200);
+    }
   }
 
   // --- Phase 5: Animator/Interpolator delegation ---
@@ -621,6 +635,17 @@ export class CameraSyncEngine {
         if (this._receiver) {
           this._receiver.handleMessage(msg);
         }
+        break;
+
+      case MSG.VIEWPORT_REPORT:
+        this._displayViewport = {
+          width: msg.viewportW,
+          height: msg.viewportH,
+          coverZoom: msg.coverZoom,
+          senderId: msg.senderId,
+          timestamp: performance.now(),
+        };
+        EventBus.emit('display:viewport-updated', this._displayViewport);
         break;
 
       case MSG.ANNOUNCE:
@@ -817,6 +842,15 @@ export class CameraSyncEngine {
     }
   }
 
+  _sendViewportReport() {
+    if (!this._transport?.connected) return;
+    const cam = this._camera;
+    if (!cam || cam.viewportW <= 0 || cam.viewportH <= 0) return;
+    this._transport.send(createViewportReportMsg(
+      cam.viewportW, cam.viewportH, cam._coverZoom, this._windowId
+    ));
+  }
+
   // --- Debug ---
 
   getDebugState() {
@@ -839,4 +873,11 @@ export class CameraSyncEngine {
   get registry() { return this._registry; }
   get transport() { return this._transport; }
   get windowId() { return this._windowId; }
+  get displayViewport() {
+    return this._displayViewport
+      ? { width: this._displayViewport.width,
+          height: this._displayViewport.height,
+          coverZoom: this._displayViewport.coverZoom }
+      : null;
+  }
 }
