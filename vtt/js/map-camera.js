@@ -823,6 +823,11 @@ export class Camera {
   // --- Constraint pipeline ---
 
   _applyConstraints() {
+    const prevX = this.x;
+    const prevY = this.y;
+    const prevZoom = this.zoom;
+
+    // 1. Zoom bounds
     const minZoom = this._getMinZoom();
     if (this.zoom < minZoom) {
       if (this._lastClampedZoom !== this.zoom) {
@@ -838,12 +843,17 @@ export class Camera {
       this.zoom = Math.min(MAX_ZOOM, this.zoom);
     }
 
+    // 2. Pan boundaries: ALWAYS hard clamp.
+    // Elastic offset is managed separately by _feedElasticOverflow().
     if (this.mapW > 0 && this.mapH > 0) {
-      if (this._isDragging) this._applyElasticBounds();
-      else this._applyHardBounds();
+      this._applyHardBounds();
     }
 
-    EventBus.emit('camera:changed');
+    // 3. Emit if changed (include elastic offset for visual updates)
+    if (this.x !== prevX || this.y !== prevY || this.zoom !== prevZoom
+        || this.elasticOffsetX !== 0 || this.elasticOffsetY !== 0) {
+      EventBus.emit('camera:changed');
+    }
   }
 
   _triggerSnapBack() {
