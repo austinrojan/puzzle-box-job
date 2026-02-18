@@ -190,7 +190,6 @@ test.describe('Cover zoom gap', () => {
       cam.mapW = 2880; cam.mapH = 1620; // cover zoom ≈ 0.667
       cam._updateCoverZoom();
       cam.zoom = 0.8;
-      cam._isDragging = false;
       cam._applyConstraints();
       return { zoom: cam.zoom, coverZoom: cam._coverZoom };
     });

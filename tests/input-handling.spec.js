@@ -199,12 +199,17 @@ test.describe('Phase 2: Input handling', () => {
     await page.mouse.down({ button: 'left' });
     await page.mouse.move(cx + 50, cy, { steps: 5 });
 
-    const isDragging = await page.evaluate(() => __cam()?._isDragging);
-    expect(isDragging).toBe(true);
+    const isGestureActive = await page.evaluate(() => __cam()?._gestureActive);
+    expect(isGestureActive).toBe(true);
 
-    // Release — should trigger snap-back and clear _isDragging
+    // Release — should trigger snap-back and clear _gestureActive
     await page.mouse.up({ button: 'left' });
-    const isDraggingAfter = await page.evaluate(() => __cam()?._isDragging);
-    expect(isDraggingAfter).toBe(false);
+    // Wait for inertial coast / snap-back to settle
+    await page.waitForFunction(() => {
+      const cam = window.__vtt?.mapRenderer?.camera;
+      return cam && !cam._gestureActive;
+    }, { timeout: 3000 });
+    const isGestureActiveAfter = await page.evaluate(() => __cam()?._gestureActive);
+    expect(isGestureActiveAfter).toBe(false);
   });
 });

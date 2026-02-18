@@ -72,41 +72,47 @@ test.describe('Pure math — clampAxis and rubberBand', () => {
     expect(result.y).toBeCloseTo(-350); // -(1200-500)/2
   });
 
-  test('elastic: within bounds returns position unchanged', async ({ page }) => {
+  test('panBy within bounds produces zero elastic offset', async ({ page }) => {
     const result = await page.evaluate(() => {
       const cam = __cam();
       if (!cam) return null;
-      cam.mapW = 2000; cam.mapH = 2000;
-      cam.viewportW = 1000; cam.viewportH = 1000;
-      cam.zoom = 1.0;
-      return cam._elasticClampAxis(500, 1000, 2000, 1000);
+      cam.zoom = 2.0;
+      cam._applyConstraints();
+      // Pan within bounds
+      cam._gestureActive = true;
+      cam._cumulativeOverflowX = 0;
+      cam.panBy(10, 0);
+      return { offsetX: cam.elasticOffsetX, offsetY: cam.elasticOffsetY };
     });
-    expect(result).toBeCloseTo(500);
+    expect(result.offsetX).toBe(0);
+    expect(result.offsetY).toBe(0);
   });
 
-  test('elastic: past boundary pulls toward boundary', async ({ page }) => {
+  test('_feedElasticOverflow: past boundary produces rubber-banded offset', async ({ page }) => {
     const result = await page.evaluate(() => {
       const cam = __cam();
       if (!cam) return null;
-      cam.zoom = 1.0;
-      const past = cam._elasticClampAxis(-100, 1000, 2000, 1000);
-      return { past };
+      cam._gestureActive = true;
+      cam._feedElasticOverflow(-100, 0);
+      return { offsetX: cam.elasticOffsetX };
     });
-    expect(result.past).toBeLessThan(0);
-    expect(result.past).toBeGreaterThan(-100);
+    expect(result.offsetX).toBeLessThan(0);
+    expect(Math.abs(result.offsetX)).toBeLessThan(100);
   });
 
-  test('elastic: diminishing returns on deeper overshoot', async ({ page }) => {
+  test('rubber-band: diminishing returns on deeper overshoot', async ({ page }) => {
     const result = await page.evaluate(() => {
       const cam = __cam();
       if (!cam) return null;
-      cam.zoom = 1.0;
-      const shallow = cam._elasticClampAxis(-50, 1000, 2000, 1000);
-      const deep = cam._elasticClampAxis(-500, 1000, 2000, 1000);
+      cam._gestureActive = true;
+      cam._feedElasticOverflow(-50, 0);
+      const shallowAbs = Math.abs(cam.elasticOffsetX);
+      cam._feedElasticOverflow(-500, 0);
+      const deepAbs = Math.abs(cam.elasticOffsetX);
       return {
-        shallowAbs: Math.abs(shallow),
-        deepAbs: Math.abs(deep),
-        ratio: Math.abs(deep) / Math.abs(shallow)
+        shallowAbs,
+        deepAbs,
+        ratio: deepAbs / shallowAbs
       };
     });
     expect(result.deepAbs).toBeGreaterThan(result.shallowAbs);
@@ -309,37 +315,52 @@ test.describe('Elastic overscroll + snap-back', () => {
     await injectTestAccessors(page);
   });
 
-  test('_isDragging=true enables elastic mode (not hard clamp)', async ({ page }) => {
+  test('_gestureActive=true + panBy past boundary produces elastic offset (cam.x stays clamped)', async ({ page }) => {
     const result = await page.evaluate(() => {
       const cam = __cam();
       if (!cam) return null;
       cam.zoom = 2.0;
-      cam._isDragging = true;
-      cam.x = -200;
       cam._applyConstraints();
-      const elasticX = cam.x;
-      cam._isDragging = false;
-      cam._applyConstraints();
+      // Pan to boundary first
+      for (let i = 0; i < 200; i++) cam.panBy(50, 0);
+      // Now activate gesture and push past
+      cam._gestureActive = true;
+      cam._cumulativeOverflowX = 0;
+      cam.panBy(200, 0);
+      const elasticX = cam.elasticOffsetX;
       const hardX = cam.x;
-      return { elasticX, hardX };
+      // Deactivate and verify hard clamp persists
+      cam._gestureActive = false;
+      cam._applyConstraints();
+      const afterX = cam.x;
+      return { elasticX, hardX, afterX };
     });
-    expect(result.elasticX).toBeLessThan(0);
-    expect(result.elasticX).toBeGreaterThan(-200);
-    expect(result.hardX).toBeCloseTo(0, 0);
+    // Elastic offset is nonzero (visual displacement exists)
+    expect(Math.abs(result.elasticX)).toBeGreaterThan(0);
+    // Logical camera.x stays at hard boundary (>= 0)
+    expect(result.hardX).toBeGreaterThanOrEqual(0);
+    // After deactivation, still clamped
+    expect(result.afterX).toBeGreaterThanOrEqual(0);
   });
 
-  test('_triggerSnapBack settles within bounds after ~600ms', async ({ page }) => {
+  test('_snapBackElastic settles elastic offset to zero', async ({ page }) => {
     await page.evaluate(() => {
       const cam = __cam();
       if (!cam) return;
-      cam.zoom = 2.0;
-      cam.x = -50;
-      cam._isDragging = false;
-      cam._triggerSnapBack();
+      cam.elasticOffsetX = 50;
+      cam.elasticOffsetY = 30;
+      cam._snapBackElastic();
     });
-    await page.waitForFunction(() => (__cam()?.x ?? -999) >= -1.0, { timeout: 3000 });
-    const x = await page.evaluate(() => __cam()?.x);
-    expect(x).toBeGreaterThanOrEqual(-1.0);
+    await page.waitForFunction(() => {
+      const cam = window.__vtt?.mapRenderer?.camera;
+      return cam && Math.abs(cam.elasticOffsetX) < 1.0 && Math.abs(cam.elasticOffsetY) < 1.0;
+    }, { timeout: 3000 });
+    const result = await page.evaluate(() => ({
+      x: __cam().elasticOffsetX,
+      y: __cam().elasticOffsetY
+    }));
+    expect(Math.abs(result.x)).toBeLessThan(1.0);
+    expect(Math.abs(result.y)).toBeLessThan(1.0);
   });
 });
 
@@ -360,9 +381,17 @@ test.describe('E2E — mouse-driven boundary interactions', () => {
     await page.mouse.down({ button: 'right' });
     await page.mouse.move(box.x + box.width + 200, box.y + box.height / 2, { steps: 10 });
     await page.mouse.up({ button: 'right' });
-    await page.waitForFunction(() => (__cam()?.x ?? -999) >= -1.0, { timeout: 3000 });
-    const x = await page.evaluate(() => __cam()?.x);
-    expect(x).toBeGreaterThanOrEqual(-1.0);
+    // Wait for elastic offset to settle (snap-back animation)
+    await page.waitForFunction(() => {
+      const cam = window.__vtt?.mapRenderer?.camera;
+      return cam && Math.abs(cam.elasticOffsetX) < 1.0 && !cam._gestureActive;
+    }, { timeout: 3000 });
+    const result = await page.evaluate(() => ({
+      x: __cam().x,
+      elasticX: __cam().elasticOffsetX
+    }));
+    expect(result.x).toBeGreaterThanOrEqual(-1.0);
+    expect(Math.abs(result.elasticX)).toBeLessThan(1.0);
   });
 
   test('keyboard pan stops at map edges', async ({ page }) => {
