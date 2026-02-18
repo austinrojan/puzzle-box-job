@@ -215,6 +215,151 @@ export class VelocityTracker {
   }
 }
 
+// ============================================================
+// Smooth Zoom Animator (Phase 6)
+// ============================================================
+//
+// Converts discrete mouse wheel zoom into smooth animated transitions.
+// Each wheel notch sets a target zoom level, and an exponential lerp
+// in log-space chases it. Rapid scrolling accumulates a larger delta,
+// creating natural acceleration. Trackpad pinch bypasses this (direct 1:1).
+
+const SMOOTH_ZOOM_LERP = 0.15;       // Per-frame lerp factor
+const SMOOTH_ZOOM_EPSILON = 0.001;    // Convergence threshold (log-space)
+const ZOOM_PER_NOTCH = 1.15;          // ~15% zoom per mouse wheel notch
+
+class SmoothZoomAnimator {
+  constructor(camera) {
+    this._camera = camera;
+    this._targetZoom = camera.zoom;
+    this._animating = false;
+    this._anchor = { wx: 0, wy: 0, sx: 0, sy: 0 };
+    this._rafId = null;
+    this._step = this._step.bind(this);
+  }
+
+  onWheelZoom(dz, screenX, screenY) {
+    const direction = dz < 0 ? 1 : -1;
+    const factor = Math.pow(ZOOM_PER_NOTCH, Math.abs(dz) * direction);
+    const minZoom = this._camera._getMinZoom();
+    this._targetZoom = Math.max(minZoom, Math.min(MAX_ZOOM, this._targetZoom * factor));
+
+    this._anchor.sx = screenX;
+    this._anchor.sy = screenY;
+    const worldPt = this._camera.screenToWorld(screenX, screenY);
+    this._anchor.wx = worldPt.x;
+    this._anchor.wy = worldPt.y;
+
+    if (!this._animating) {
+      this._animating = true;
+      this._rafId = requestAnimationFrame(this._step);
+    }
+  }
+
+  _step() {
+    const cam = this._camera;
+    const logCurrent = Math.log(cam.zoom);
+    const logTarget = Math.log(this._targetZoom);
+    const logNew = logCurrent + (logTarget - logCurrent) * SMOOTH_ZOOM_LERP;
+    const newZoom = Math.exp(logNew);
+
+    cam.zoom = newZoom;
+    cam.x = this._anchor.wx - this._anchor.sx / newZoom;
+    cam.y = this._anchor.wy - this._anchor.sy / newZoom;
+    cam._applyConstraints();
+
+    if (Math.abs(logNew - logTarget) > SMOOTH_ZOOM_EPSILON) {
+      this._rafId = requestAnimationFrame(this._step);
+    } else {
+      cam.zoom = this._targetZoom;
+      cam.x = this._anchor.wx - this._anchor.sx / this._targetZoom;
+      cam.y = this._anchor.wy - this._anchor.sy / this._targetZoom;
+      cam._applyConstraints();
+      this._animating = false;
+      this._rafId = null;
+    }
+  }
+
+  retarget() {
+    this._targetZoom = this._camera.zoom;
+    if (this._animating) {
+      cancelAnimationFrame(this._rafId);
+      this._animating = false;
+      this._rafId = null;
+    }
+  }
+
+  cancel() {
+    if (this._rafId) {
+      cancelAnimationFrame(this._rafId);
+      this._rafId = null;
+    }
+    this._animating = false;
+    this._targetZoom = this._camera.zoom;
+  }
+}
+
+// ============================================================
+// Gesture State Machine (Phase 6)
+// ============================================================
+//
+// Coordinates concurrent input gestures to prevent conflicts.
+// Higher-priority gestures cancel lower-priority ones.
+// Same-priority gestures retarget rather than conflict.
+
+const GESTURE_PRIORITY = {
+  IDLE: 0,
+  SNAP_BACK: 1,
+  INERTIA: 2,
+  ZOOM_ANIMATE: 3,
+  SCROLL_PAN: 4,
+  PINCH_ZOOM: 5,
+  DRAG_PAN: 6
+};
+
+class GestureStateMachine {
+  constructor(camera) {
+    this._camera = camera;
+    this._activeGesture = 'IDLE';
+  }
+
+  request(gesture) {
+    const newPriority = GESTURE_PRIORITY[gesture];
+    const currentPriority = GESTURE_PRIORITY[this._activeGesture];
+    if (newPriority >= currentPriority) {
+      this._cancelCurrent();
+      this._activeGesture = gesture;
+      return true;
+    }
+    return false;
+  }
+
+  release(gesture) {
+    if (this._activeGesture === gesture) {
+      this._activeGesture = 'IDLE';
+    }
+  }
+
+  _cancelCurrent() {
+    switch (this._activeGesture) {
+      case 'INERTIA':
+        this._camera._cancelInertialCoast();
+        break;
+      case 'SNAP_BACK':
+        if (this._camera._elasticAnimator) this._camera._elasticAnimator.cancel();
+        break;
+      case 'ZOOM_ANIMATE':
+        if (this._camera._smoothZoom) this._camera._smoothZoom.cancel();
+        break;
+      case 'SCROLL_PAN':
+        if (this._camera._trackpadDetector) this._camera._trackpadDetector.cancel();
+        break;
+    }
+  }
+
+  get current() { return this._activeGesture; }
+}
+
 /**
  * Caches an element's bounding rect to avoid triggering layout reflow
  * on every mouse event. Invalidated by ResizeObserver, window resize,
