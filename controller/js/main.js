@@ -57,7 +57,7 @@ election.elect();
 // When a preset is recalled, broadcast flyTo to Display (authority-gated)
 EventBus.on('presets:recalled', ({ preset }) => {
   if (!election.isAuthority) return;
-  syncEngine.broadcaster?.sendFlyTo(preset.camera, {
+  syncEngine.sendFlyTo(preset.camera, {
     duration: preset.transition.duration,
     rho: preset.transition.rho,
     presetId: preset.id,

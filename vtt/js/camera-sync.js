@@ -803,6 +803,20 @@ export class CameraSyncEngine {
     }
   }
 
+  /** Broadcast a flyTo command to all receiving windows. */
+  sendFlyTo(target, opts) {
+    if (this._broadcaster) {
+      this._broadcaster.sendFlyTo(target, opts);
+    }
+  }
+
+  /** Broadcast all presets to receiving windows. */
+  sendPresetSync(presets) {
+    if (this._broadcaster) {
+      this._broadcaster.sendPresetSync(presets);
+    }
+  }
+
   // --- Debug ---
 
   getDebugState() {

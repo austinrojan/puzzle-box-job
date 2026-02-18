@@ -247,7 +247,7 @@ export function initMapCamera() {
     );
 
     if (result && ctrl.election?.isAuthority) {
-      ctrl.syncEngine?.broadcaster?.sendFlyTo(result.target, result.flyOpts);
+      ctrl.syncEngine?.sendFlyTo(result.target, result.flyOpts);
     }
   });
 }
@@ -479,7 +479,7 @@ export function initPresets() {
     renderPresetList();
     // Broadcast presets to Display (authority-gated)
     if (ctrl()?.election?.isAuthority) {
-      ctrl()?.syncEngine?.broadcaster?.sendPresetSync(mgr.exportAll());
+      ctrl()?.syncEngine?.sendPresetSync(mgr.exportAll());
     }
   });
 
@@ -540,7 +540,7 @@ function renderPresetList() {
       mgr.delete(preset.id);
       renderPresetList();
       if (ctrl.election?.isAuthority) {
-        ctrl.syncEngine?.broadcaster?.sendPresetSync(mgr.exportAll());
+        ctrl.syncEngine?.sendPresetSync(mgr.exportAll());
       }
     });
     row.appendChild(del);
