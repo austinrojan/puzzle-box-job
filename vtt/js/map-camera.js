@@ -25,8 +25,7 @@ function rubberBand(distance, dimension, c = 0.55) {
 }
 
 // --- Spring animation ---
-const SPRING_STIFFNESS = 200;
-const SPRING_OMEGA = Math.sqrt(SPRING_STIFFNESS); // ≈ 14.14
+const DEFAULT_SPRING_STIFFNESS = 200;
 const SETTLE_THRESHOLD_PX = 0.5;
 const SETTLE_THRESHOLD_VEL = 0.5;
 
@@ -37,8 +36,10 @@ const MOMENTUM_MAX_VELOCITY = 4000;
 const VELOCITY_SAMPLE_COUNT = 4;
 
 class CameraAnimator {
-  constructor(camera) {
+  constructor(camera, { stiffness = DEFAULT_SPRING_STIFFNESS } = {}) {
     this._camera = camera;
+    this._stiffness = stiffness;
+    this._omega = Math.sqrt(stiffness);
     this._rafId = null;
     this._startTime = null;
     this._springX = null;
@@ -71,12 +72,13 @@ class CameraAnimator {
 
   // Critically damped spring: x(t) = (A + B*t) * e^(-ω*t)
   _solveSpring(displacement, velocity, t) {
+    const omega = this._omega;
     const A = displacement;
-    const B = velocity + SPRING_OMEGA * displacement;
-    const exp = Math.exp(-SPRING_OMEGA * t);
+    const B = velocity + omega * displacement;
+    const exp = Math.exp(-omega * t);
     return {
       position: (A + B * t) * exp,
-      velocity: (B - SPRING_OMEGA * (A + B * t)) * exp
+      velocity: (B - omega * (A + B * t)) * exp
     };
   }
 
@@ -591,9 +593,22 @@ export class Camera {
     this._lastClampedZoom = NaN;
     this._velocityTracker = new VelocityTracker();
     this._momentumEnabled = true;
+
+    // Phase 6: dual-position elastic offset
+    this.elasticOffsetX = 0;       // visual displacement beyond hard bounds (world-space)
+    this.elasticOffsetY = 0;       // visual displacement beyond hard bounds (world-space)
+    this._gestureActive = false;   // true when any gesture feeds elastic offset
+    this._momentumScrollActive = false;  // true during trackpad momentum (dampened rubber-band)
+    this._cumulativeOverflowX = 0; // accumulated overflow for rubber-band calculation
+    this._cumulativeOverflowY = 0;
+    this._inertiaRafId = null;     // rAF ID for inertial coast animation
   }
 
   // --- Coordinate conversion ---
+
+  /** Visual camera position including elastic overscroll offset. */
+  get visualX() { return this.x + this.elasticOffsetX; }
+  get visualY() { return this.y + this.elasticOffsetY; }
 
   /**
    * Convert screen coordinates (CSS pixels relative to canvas top-left)
@@ -886,6 +901,120 @@ export class Camera {
     );
   }
 
+  // --- Phase 6: Elastic offset methods ---
+
+  /**
+   * Feed overflow (distance past hard bounds) into the elastic offset.
+   * The rubber-band formula operates in screen-space pixels for consistent
+   * resistance feel, then converts back to world-space for the offset.
+   */
+  _feedElasticOverflow(overflowX, overflowY) {
+    if (!this._gestureActive) return;
+
+    // Dampen rubber-band during trackpad momentum (c=0.3 vs 0.55)
+    const c = this._momentumScrollActive ? 0.3 : 0.55;
+
+    if (overflowX !== 0) {
+      const screenOverflow = overflowX * this.zoom;
+      const dampened = rubberBand(Math.abs(screenOverflow), this.viewportW, c);
+      this.elasticOffsetX = Math.sign(overflowX) * dampened / this.zoom;
+    } else {
+      this.elasticOffsetX = 0;
+    }
+
+    if (overflowY !== 0) {
+      const screenOverflow = overflowY * this.zoom;
+      const dampened = rubberBand(Math.abs(screenOverflow), this.viewportH, c);
+      this.elasticOffsetY = Math.sign(overflowY) * dampened / this.zoom;
+    } else {
+      this.elasticOffsetY = 0;
+    }
+  }
+
+  /**
+   * Trigger spring snap-back from current elastic offset to zero.
+   * Uses the elastic animator (stiffness=400, omega~20) for snappier feel.
+   * @param {{ vx: number, vy: number }} velocity Initial velocity (world-space px/s)
+   */
+  _snapBackElastic(velocity = { vx: 0, vy: 0 }) {
+    this._cumulativeOverflowX = 0;
+    this._cumulativeOverflowY = 0;
+
+    if (Math.abs(this.elasticOffsetX) < 0.5 && Math.abs(this.elasticOffsetY) < 0.5) {
+      this.elasticOffsetX = 0;
+      this.elasticOffsetY = 0;
+      EventBus.emit('camera:changed');
+      return;
+    }
+
+    if (this._elasticAnimator) {
+      this._elasticAnimator.snapBack(
+        { x: this.elasticOffsetX, y: this.elasticOffsetY },
+        { x: 0, y: 0 },
+        velocity
+      );
+    }
+  }
+
+  /**
+   * Start inertial coast after mouse drag release.
+   * Uses panBy() so overflow naturally feeds elastic offset.
+   * @param {{ x: number, y: number }} velocity Screen px/s
+   */
+  _startInertialCoast(velocity) {
+    this._gestureActive = true;
+    let vx = velocity.x;
+    let vy = velocity.y;
+    let lastTime = performance.now();
+
+    const FRICTION = 0.96;
+    const STOP_THRESHOLD = 10;
+    const MAX_DT = 64;
+
+    if (this._el) this._el.classList.add('coasting');
+
+    const tick = (timestamp) => {
+      const rawDt = timestamp - lastTime;
+      const dt = Math.min(rawDt, MAX_DT) / 1000;
+      lastTime = timestamp;
+
+      const frictionFactor = Math.pow(FRICTION, rawDt / 16.67);
+      vx *= frictionFactor;
+      vy *= frictionFactor;
+
+      const speed = Math.sqrt(vx * vx + vy * vy);
+      if (speed < STOP_THRESHOLD) {
+        this._gestureActive = false;
+        this._inertiaRafId = null;
+        if (this._el) this._el.classList.remove('coasting');
+        if (this._gestures) {
+          this._gestures.release('INERTIA');
+          this._gestures.request('SNAP_BACK');
+        }
+        this._snapBackElastic({
+          vx: vx / this.zoom,
+          vy: vy / this.zoom
+        });
+        return;
+      }
+
+      // panBy expects screen-space deltas; velocity is screen px/s
+      this.panBy(-vx * dt, -vy * dt);
+      this._inertiaRafId = requestAnimationFrame(tick);
+    };
+
+    this._inertiaRafId = requestAnimationFrame(tick);
+  }
+
+  _cancelInertialCoast() {
+    if (this._inertiaRafId) {
+      cancelAnimationFrame(this._inertiaRafId);
+      this._inertiaRafId = null;
+      this._gestureActive = false;
+      if (this._el) this._el.classList.remove('coasting');
+    }
+  }
+
   // --- Zoom operations ---
 
   /**
@@ -1083,7 +1212,38 @@ export class Camera {
     this._boundsCache.observe(el);
     this._preventBrowserZoom();
     this._keyboard.attach();
-    this._animator = new CameraAnimator(this);
+    this._animator = new CameraAnimator(this, { stiffness: 200 });
+
+    // Phase 6: elastic offset animator (stiffness=400 for snappier feel).
+    // Its _tick updates elasticOffsetX/Y instead of camera.x/y.
+    this._elasticAnimator = new CameraAnimator(this, { stiffness: 400 });
+    this._elasticAnimator._tick = ((cam) => {
+      const anim = cam._elasticAnimator;
+      return (timestamp) => {
+        if (!anim._startTime) anim._startTime = timestamp;
+        const elapsed = Math.min((timestamp - anim._startTime) / 1000, 2.0);
+        const rx = anim._resolveAxis(anim._springX, elapsed);
+        const ry = anim._resolveAxis(anim._springY, elapsed);
+        cam.elasticOffsetX = rx.value;
+        cam.elasticOffsetY = ry.value;
+        EventBus.emit('camera:changed');
+        if (rx.settled && ry.settled) {
+          cam.elasticOffsetX = 0;
+          cam.elasticOffsetY = 0;
+          cam._cumulativeOverflowX = 0;
+          cam._cumulativeOverflowY = 0;
+          EventBus.emit('camera:changed');
+          anim.cancel();
+          if (cam._gestures) cam._gestures.release('SNAP_BACK');
+        } else {
+          anim._rafId = requestAnimationFrame(anim._tick);
+        }
+      };
+    })(this);
+
+    this._smoothZoom = new SmoothZoomAnimator(this);
+    this._gestures = new GestureStateMachine(this);
+
     this._attachWheelHandler(el);
     this._attachMouseHandlers(el);
     this._attachSpaceKey();
