@@ -443,6 +443,8 @@ export class Camera {
     this._animator = null;  // CameraAnimator — created in attachTo()
     this._isDragging = false;       // Mouse-drag only; keyboard pan uses hard bounds
     this._dmCanZoomPastCover = false;
+    this._velocityTracker = new VelocityTracker();
+    this._momentumEnabled = true;
   }
 
   // --- Coordinate conversion ---
@@ -681,6 +683,50 @@ export class Camera {
     this._animator.snapBack({ x: this.x, y: this.y }, { x: targetX, y: targetY });
   }
 
+  _handleDragRelease() {
+    const velocity = this._velocityTracker.getVelocity();
+    const speed = Math.sqrt(velocity.vx ** 2 + velocity.vy ** 2);
+    if (speed > MOMENTUM_MAX_VELOCITY) {
+      const scale = MOMENTUM_MAX_VELOCITY / speed;
+      velocity.vx *= scale;
+      velocity.vy *= scale;
+    }
+    const pastBounds = this._isPastBounds();
+    if (pastBounds) {
+      this._triggerSnapBackWithVelocity(velocity);
+    } else if (this._momentumEnabled && speed > MOMENTUM_MIN_VELOCITY) {
+      this._animator.momentum(velocity);
+    }
+  }
+
+  _isPastBounds() {
+    if (this.mapW <= 0 || this.mapH <= 0) return false;
+    const visW = this.viewportW / this.zoom;
+    const visH = this.viewportH / this.zoom;
+    const clampedX = this._clampAxis(this.x, visW, this.mapW);
+    const clampedY = this._clampAxis(this.y, visH, this.mapH);
+    return Math.abs(this.x - clampedX) > 0.5 || Math.abs(this.y - clampedY) > 0.5;
+  }
+
+  _triggerSnapBackWithVelocity(velocity) {
+    if (this.mapW <= 0 || this.mapH <= 0) return;
+    if (!this._animator) return;
+    const visW = this.viewportW / this.zoom;
+    const visH = this.viewportH / this.zoom;
+    const targetX = this._clampAxis(this.x, visW, this.mapW);
+    const targetY = this._clampAxis(this.y, visH, this.mapH);
+    if (Math.abs(this.x - targetX) < 0.5 && Math.abs(this.y - targetY) < 0.5) return;
+    const worldVelocity = {
+      vx: -velocity.vx / (this.zoom * this.viewportScale),
+      vy: -velocity.vy / (this.zoom * this.viewportScale),
+    };
+    this._animator.snapBack(
+      { x: this.x, y: this.y },
+      { x: targetX, y: targetY },
+      worldVelocity
+    );
+  }
+
   // --- Zoom operations ---
 
   /**
@@ -819,6 +865,7 @@ export class Camera {
 
       this.x = this._panStartCamX - dxScreen / (this.zoom * this.viewportScale);
       this.y = this._panStartCamY - dyScreen / (this.zoom * this.viewportScale);
+      this._velocityTracker.addSample(e.clientX, e.clientY, performance.now());
 
       this._applyConstraints();
     });
@@ -833,7 +880,7 @@ export class Camera {
         this._el.classList.remove('panning');
         this._el.style.cursor = this.spaceHeld ? 'grab' : '';
       }
-      this._triggerSnapBack();
+      this._handleDragRelease();
     });
 
     el.addEventListener('contextmenu', (e) => {
@@ -895,6 +942,9 @@ export class Camera {
         this._applyConstraints();
       }
     });
+    EventBus.on('camera:momentum-toggle', (enabled) => {
+      this._momentumEnabled = enabled;
+    });
 
     this._attachSafetyGuards(el);
   }
@@ -921,6 +971,7 @@ export class Camera {
     this._panScreenDist = 0;
     this._isDragging = true;
     if (this._animator) this._animator.cancel();
+    this._velocityTracker.reset();
     this._setPanCursor(true);
   }
 
