@@ -1042,6 +1042,12 @@ export class Camera {
     this.x += worldBefore.x - worldAfter.x;
     this.y += worldBefore.y - worldAfter.y;
     this._applyConstraints();
+
+    // Recalculate elastic offset with new zoom-derived bounds
+    if (this.elasticOffsetX !== 0 || this.elasticOffsetY !== 0) {
+      this._feedElasticOverflow(this._cumulativeOverflowX, this._cumulativeOverflowY);
+      EventBus.emit('camera:changed');
+    }
   }
 
   /**
@@ -1063,9 +1069,44 @@ export class Camera {
    * inversion and division by zoom.
    */
   panBy(dx, dy) {
-    this.x -= dx / this.zoom;
-    this.y -= dy / this.zoom;
+    const rawX = this.x - dx / this.zoom;
+    const rawY = this.y - dy / this.zoom;
+
+    // Store unclamped position, let _applyConstraints() hard-clamp
+    this.x = rawX;
+    this.y = rawY;
     this._applyConstraints();
+
+    // Compute overflow: difference between desired and clamped position
+    const overflowX = rawX - this.x;
+    const overflowY = rawY - this.y;
+
+    if (this._gestureActive) {
+      if (overflowX !== 0) {
+        if (Math.sign(overflowX) === Math.sign(this._cumulativeOverflowX) || this._cumulativeOverflowX === 0) {
+          this._cumulativeOverflowX += overflowX;
+        } else {
+          this._cumulativeOverflowX = overflowX;
+        }
+      } else {
+        this._cumulativeOverflowX *= 0.8;
+        if (Math.abs(this._cumulativeOverflowX) < 0.1) this._cumulativeOverflowX = 0;
+      }
+
+      if (overflowY !== 0) {
+        if (Math.sign(overflowY) === Math.sign(this._cumulativeOverflowY) || this._cumulativeOverflowY === 0) {
+          this._cumulativeOverflowY += overflowY;
+        } else {
+          this._cumulativeOverflowY = overflowY;
+        }
+      } else {
+        this._cumulativeOverflowY *= 0.8;
+        if (Math.abs(this._cumulativeOverflowY) < 0.1) this._cumulativeOverflowY = 0;
+      }
+
+      this._feedElasticOverflow(this._cumulativeOverflowX, this._cumulativeOverflowY);
+      EventBus.emit('camera:changed');
+    }
   }
 
   /**
