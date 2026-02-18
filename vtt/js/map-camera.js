@@ -616,15 +616,15 @@ export class Camera {
    */
   screenToWorld(sx, sy) {
     return {
-      x: sx / this.zoom + this.x,
-      y: sy / this.zoom + this.y
+      x: sx / this.zoom + this.visualX,
+      y: sy / this.zoom + this.visualY
     };
   }
 
   worldToScreen(wx, wy) {
     return {
-      x: (wx - this.x) * this.zoom,
-      y: (wy - this.y) * this.zoom
+      x: (wx - this.visualX) * this.zoom,
+      y: (wy - this.visualY) * this.zoom
     };
   }
 
@@ -668,8 +668,8 @@ export class Camera {
     ctx.setTransform(
       this.zoom, 0,
       0, this.zoom,
-      -this.x * this.zoom,
-      -this.y * this.zoom
+      -this.visualX * this.zoom,
+      -this.visualY * this.zoom
     );
   }
 
