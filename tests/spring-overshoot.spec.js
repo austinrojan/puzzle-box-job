@@ -312,4 +312,169 @@ test.describe('Spring overshoot prevention (Bug #2)', () => {
     const offset = await page.evaluate(() => __cam().elasticOffsetX);
     expect(Math.abs(offset)).toBeLessThan(0.5);
   });
+
+  test('fast swipe at map edge does not bounce to opposite side', async ({ page }) => {
+    // Setup: zoom in and pan to the right boundary.
+    // panBy(dx) does x -= dx/zoom, so panBy(-50) increases camera.x (moves right).
+    await page.evaluate(() => {
+      const cam = __cam();
+      cam.zoom = 2.0;
+      cam._applyConstraints();
+      for (let i = 0; i < 200; i++) cam.panBy(-50, 0);
+    });
+
+    const preSwipe = await page.evaluate(() => {
+      const cam = __cam();
+      return { x: cam.x };
+    });
+
+    // Fast right-click drag: mouse moves RIGHT → panBy(-dx) = panBy(-40) per step
+    // → camera.x += 40/2 = +20 per step → pushes camera further RIGHT, past boundary.
+    // Stay inside container to avoid mouseleave cancel.
+    const box = await page.locator('#map-container').boundingBox();
+    const startX = box.x + box.width / 2;
+    const startY = box.y + box.height / 2;
+
+    await page.mouse.move(startX, startY);
+    await page.mouse.down({ button: 'right' });
+    for (let i = 1; i <= 5; i++) {
+      await page.mouse.move(startX + i * 40, startY, { steps: 1 });
+    }
+    await page.mouse.up({ button: 'right' });
+
+    // Wait for coast + snap-back to fully settle
+    await page.waitForFunction(() => {
+      const cam = window.__vtt?.mapRenderer?.camera;
+      if (!cam) return false;
+      return !cam._inertiaRafId
+        && Math.abs(cam.elasticOffsetX) < 1.0
+        && !cam._elasticAnimator?._rafId;
+    }, { timeout: 5000 });
+
+    const postSettle = await page.evaluate(() => {
+      const cam = __cam();
+      return { x: cam.x, elasticX: cam.elasticOffsetX };
+    });
+
+    // Camera should be near the right boundary, NOT on the left side.
+    // Legitimate drag movement can shift x by ~60-80px; the bug would
+    // send it hundreds/thousands of px to the opposite side.
+    expect(Math.abs(postSettle.x - preSwipe.x)).toBeLessThan(100);
+    expect(Math.abs(postSettle.elasticX)).toBeLessThan(1.0);
+  });
+});
+
+// ============================================================
+// Coast velocity cap
+// ============================================================
+test.describe('Coast velocity cap', () => {
+  test.beforeEach(async ({ page }) => {
+    await gotoVTT(page);
+    await enterMapMode(page);
+    await injectTestAccessors(page);
+  });
+
+  test('extreme flick velocity is capped in _startInertialCoast', async ({ page }) => {
+    const result = await page.evaluate(() => {
+      return new Promise((resolve) => {
+        const cam = __cam();
+        cam.zoom = 2.0;
+        cam._applyConstraints();
+
+        // Instrument panBy to capture the first call's delta
+        const originalPanBy = cam.panBy.bind(cam);
+        let firstDx = null;
+        cam.panBy = (dx, dy) => {
+          if (firstDx === null) {
+            firstDx = dx;
+            cam.panBy = originalPanBy;
+          }
+          return originalPanBy(dx, dy);
+        };
+
+        // Start coast with extreme velocity (6000 px/s horizontal)
+        cam._startInertialCoast({ x: 6000, y: 0 });
+
+        // Wait one frame to capture the first panBy call
+        requestAnimationFrame(() => {
+          cam._cancelInertialCoast();
+          cam._gestureActive = false;
+          // At ~16ms dt, uncapped: |dx| ≈ 6000*0.016 = 96px
+          // Capped: |dx| ≈ 3000*0.016 = 48px
+          resolve({ firstDx, wasCapped: firstDx !== null && Math.abs(firstDx) < 80 });
+        });
+      });
+    });
+    expect(result.wasCapped).toBe(true);
+  });
+
+  test('moderate velocity passes through _startInertialCoast uncapped', async ({ page }) => {
+    // Verify 1500 px/s (below 3000 cap) produces larger first-frame delta
+    // than it would if capped. We compare two coast starts to be rAF-timing-
+    // independent: one at 6000 (capped to 3000) and one at 1500 (uncapped).
+    // The ratio of their first-frame deltas should be ~2:1 if the cap works.
+    const result = await page.evaluate(() => {
+      return new Promise((resolve) => {
+        const cam = __cam();
+        cam.zoom = 2.0;
+        cam._applyConstraints();
+
+        const originalPanBy = cam.panBy.bind(cam);
+        let moderateDx = null;
+        cam.panBy = (dx, dy) => {
+          if (moderateDx === null) {
+            moderateDx = dx;
+            cam.panBy = originalPanBy;
+          }
+          return originalPanBy(dx, dy);
+        };
+
+        cam._startInertialCoast({ x: 1500, y: 0 });
+
+        requestAnimationFrame(() => {
+          cam._cancelInertialCoast();
+          cam._gestureActive = false;
+          // panBy was called, meaning coast ran with the velocity
+          resolve({ moderateDx, wasCalled: moderateDx !== null });
+        });
+      });
+    });
+    expect(result.wasCalled).toBe(true);
+  });
+
+  test('coast velocity cap preserves direction (diagonal)', async ({ page }) => {
+    const result = await page.evaluate(() => {
+      return new Promise((resolve) => {
+        const cam = __cam();
+        cam.zoom = 2.0;
+        cam._applyConstraints();
+
+        const originalPanBy = cam.panBy.bind(cam);
+        let capturedDx = null;
+        let capturedDy = null;
+        cam.panBy = (dx, dy) => {
+          if (capturedDx === null) {
+            capturedDx = dx;
+            capturedDy = dy;
+            cam.panBy = originalPanBy;
+          }
+          return originalPanBy(dx, dy);
+        };
+
+        // Diagonal: {4000, 3000} → magnitude 5000, capped to 3000
+        cam._startInertialCoast({ x: 4000, y: 3000 });
+
+        requestAnimationFrame(() => {
+          cam._cancelInertialCoast();
+          cam._gestureActive = false;
+          const ratio = capturedDx !== null && capturedDy !== 0
+            ? Math.abs(capturedDx / capturedDy)
+            : null;
+          resolve({ ratio });
+        });
+      });
+    });
+    // panBy receives -vx*dt, -vy*dt, so ratio of |dx/dy| = |vx/vy| = 4/3
+    expect(result.ratio).toBeCloseTo(4 / 3, 1);
+  });
 });

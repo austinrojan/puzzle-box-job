@@ -857,6 +857,16 @@ export class Camera {
    * @param {{ x: number, y: number }} velocity Screen px/s
    */
   _startInertialCoast(velocity) {
+    // Layer 3: Coast velocity cap (upstream overshoot defense).
+    // Limits extreme flick velocities before they reach the spring.
+    // 3000 px/s matches Leaflet's inertiaMaxSpeed recommendation.
+    const MAX_COAST_SPEED = 3000;
+    const speed = Math.sqrt(velocity.x ** 2 + velocity.y ** 2);
+    if (speed > MAX_COAST_SPEED) {
+      const scale = MAX_COAST_SPEED / speed;
+      velocity = { x: velocity.x * scale, y: velocity.y * scale };
+    }
+
     this._gestureActive = true;
     let vx = velocity.x;
     let vy = velocity.y;
