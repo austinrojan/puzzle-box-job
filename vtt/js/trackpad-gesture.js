@@ -11,6 +11,12 @@ const TIMEOUT_MOMENTUM_MS = 100;
 const MOMENTUM_CANCEL_SPIKE = 1.5;
 const MOMENTUM_CANCEL_GAP_MS = 120;
 
+// --- Stateful Device Classifier (Phase S1) ---
+const CLASSIFIER_SILENCE_MS = 400;
+const CLASSIFIER_WINDOW_SIZE = 6;
+const CLASSIFIER_MOUSE_THRESHOLD = 4;
+const CLASSIFIER_TRACKPAD_THRESHOLD = 2;
+
 export class TrackpadGestureDetector {
   constructor(callbacks = {}) {
     this._callbacks = callbacks;
@@ -91,10 +97,133 @@ export class TrackpadGestureDetector {
   }
 }
 
+// ============================================================
+// Stateful Wheel Device Classifier (Phase S1)
+// ============================================================
+//
+// Maintains a running belief about whether the active input device
+// is a mouse scroll wheel or a trackpad, updated incrementally as
+// WheelEvents arrive. Replaces the stateless classifyWheelDevice()
+// heuristic that made per-event decisions.
+//
+// Six discriminative signals scored over a sliding window of 6 events:
+//   1. Inter-event timing (trackpad <25ms, mouse >80ms)
+//   2. Fractional deltas (strong trackpad indicator)
+//   3. Simultaneous deltaX + deltaY (strong trackpad indicator)
+//   4. deltaMode LINE (strong mouse indicator, Firefox only)
+//   5. Very small deltas <4px (weak trackpad indicator)
+//   6. Large integer vertical-only delta (weak mouse indicator)
+//
+// Asymmetric thresholds (hysteresis): 4 mouse signals to enter
+// mouse classification, 2 trackpad signals to leave it.
+// "Default to pan when uncertain" — safer than triggering zoom.
+
+export class WheelDeviceClassifier {
+  constructor() {
+    /** @type {'unknown' | 'mouse' | 'trackpad'} */
+    this._device = 'unknown';
+    this._lastEventTime = 0;
+    /** @type {Array<{absX: number, absY: number, isFractional: boolean, hasBothAxes: boolean, deltaMode: number, gap: number}>} */
+    this._events = [];
+  }
+
+  /**
+   * Process a WheelEvent and return the current device classification.
+   * Always returns 'mouse' or 'trackpad', never 'unknown'.
+   * When uncertain, defaults to 'trackpad' (safe — routes to pan).
+   * @param {WheelEvent} e
+   * @returns {'mouse' | 'trackpad'}
+   */
+  classify(e) {
+    const now = performance.now();
+    const gap = now - this._lastEventTime;
+
+    // Silence reset: user may have switched devices
+    if (gap > CLASSIFIER_SILENCE_MS) {
+      this._device = 'unknown';
+      this._events = [];
+    }
+
+    // Record event summary
+    this._events.push({
+      absX: Math.abs(e.deltaX),
+      absY: Math.abs(e.deltaY),
+      isFractional: (e.deltaY % 1 !== 0) || (e.deltaX % 1 !== 0),
+      hasBothAxes: e.deltaX !== 0 && e.deltaY !== 0,
+      deltaMode: e.deltaMode,
+      gap
+    });
+    if (this._events.length > CLASSIFIER_WINDOW_SIZE) {
+      this._events.shift();
+    }
+    this._lastEventTime = now;
+
+    // Score window
+    const scores = this._scoreWindow();
+
+    // Bayesian-style update with hysteresis
+    if (this._device === 'unknown') {
+      this._device = scores.mouseSignals >= 2 ? 'mouse' : 'trackpad';
+    } else if (this._device === 'trackpad'
+               && scores.mouseSignals >= CLASSIFIER_MOUSE_THRESHOLD) {
+      this._device = 'mouse';
+    } else if (this._device === 'mouse'
+               && scores.trackpadSignals >= CLASSIFIER_TRACKPAD_THRESHOLD) {
+      this._device = 'trackpad';
+    }
+
+    return this._device;
+  }
+
+  _scoreWindow() {
+    let mouseSignals = 0;
+    let trackpadSignals = 0;
+
+    for (const evt of this._events) {
+      const maxDelta = Math.max(evt.absX, evt.absY);
+
+      // Signal 1: Inter-event timing
+      if (evt.gap > 0 && evt.gap < 25) trackpadSignals++;
+      if (evt.gap > 80) mouseSignals++;
+
+      // Signal 2: Fractional deltas
+      if (evt.isFractional) trackpadSignals++;
+
+      // Signal 3: Simultaneous axes
+      if (evt.hasBothAxes) trackpadSignals++;
+
+      // Signal 4: deltaMode LINE (Firefox only)
+      if (evt.deltaMode === 1) mouseSignals++;
+
+      // Signal 5: Very small deltas
+      if (maxDelta > 0 && maxDelta < 4) trackpadSignals++;
+
+      // Signal 6: Large integer vertical-only delta
+      if (maxDelta >= 50 && maxDelta % 1 === 0 && evt.absX === 0) {
+        mouseSignals++;
+      }
+    }
+
+    return { mouseSignals, trackpadSignals };
+  }
+
+  /** Current classification. Returns 'trackpad' when 'unknown' (safe default). */
+  get device() {
+    return this._device === 'unknown' ? 'trackpad' : this._device;
+  }
+
+  /** Force reset to unknown state. */
+  reset() {
+    this._device = 'unknown';
+    this._events = [];
+    this._lastEventTime = 0;
+  }
+}
+
 /**
- * Heuristic to classify a wheel event as mouse or trackpad.
- * Mouse wheels produce large integer deltas (>=50, integer, no horizontal).
- * Trackpad produces small/fractional deltas at high frequency.
+ * @deprecated Use WheelDeviceClassifier instead. This stateless per-event
+ * heuristic is the root cause of bugs #3, #4, and #5. Retained for
+ * backward compatibility; will be removed in Phase S5.
  */
 export function classifyWheelDevice(e) {
   const absY = Math.abs(e.deltaY);
