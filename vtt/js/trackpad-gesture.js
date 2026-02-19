@@ -136,12 +136,13 @@ export class WheelDeviceClassifier {
    */
   classify(e) {
     const now = performance.now();
-    const gap = now - this._lastEventTime;
+    let gap = now - this._lastEventTime;
 
     // Silence reset: user may have switched devices
     if (gap > CLASSIFIER_SILENCE_MS) {
       this._device = 'unknown';
       this._events = [];
+      gap = 0; // First event after silence has no meaningful predecessor
     }
 
     // Record event summary
@@ -195,11 +196,11 @@ export class WheelDeviceClassifier {
       // Signal 4: deltaMode LINE (Firefox only)
       if (evt.deltaMode === 1) mouseSignals++;
 
-      // Signal 5: Very small deltas
-      if (maxDelta > 0 && maxDelta < 4) trackpadSignals++;
+      // Signal 5: Very small deltas (pixel mode only — line-mode 3 ≠ 3px)
+      if (maxDelta > 0 && maxDelta < 4 && evt.deltaMode === 0) trackpadSignals++;
 
-      // Signal 6: Large integer vertical-only delta
-      if (maxDelta >= 50 && maxDelta % 1 === 0 && evt.absX === 0) {
+      // Signal 6: Large integer vertical-only delta (only if timing is ambiguous/slow)
+      if (maxDelta >= 50 && maxDelta % 1 === 0 && evt.absX === 0 && evt.gap > 40) {
         mouseSignals++;
       }
     }
