@@ -258,3 +258,31 @@ export async function waitForDisplayPhase5(display, timeoutMs = 5000) {
     { timeout: timeoutMs }
   );
 }
+
+/**
+ * Dispatch wheel events with mocked performance.now() gaps.
+ * Mocks time only during synchronous dispatch, then restores immediately
+ * so rAF-based animations (SmoothZoomAnimator) use real time.
+ */
+export async function dispatchMouseWheelSequence(page, opts = {}) {
+  await page.evaluate((o) => {
+    const origNow = performance.now.bind(performance);
+    let mockTime = origNow();
+    performance.now = () => mockTime;
+    const el = document.getElementById('map-container');
+    for (let i = 0; i < o.count; i++) {
+      mockTime += o.gapMs;
+      el.dispatchEvent(new WheelEvent('wheel', {
+        deltaY: o.deltaY, deltaX: o.deltaX, deltaMode: 0,
+        ctrlKey: o.ctrlKey, bubbles: true, cancelable: true
+      }));
+    }
+    performance.now = origNow;
+  }, {
+    count: opts.count ?? 3,
+    gapMs: opts.gapMs ?? 200,
+    deltaY: opts.deltaY ?? -100,
+    deltaX: opts.deltaX ?? 0,
+    ctrlKey: opts.ctrlKey ?? false,
+  });
+}

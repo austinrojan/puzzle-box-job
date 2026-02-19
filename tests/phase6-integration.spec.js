@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { gotoVTT, enterMapMode, injectTestAccessors } from './helpers.js';
+import { gotoVTT, enterMapMode, injectTestAccessors, dispatchMouseWheelSequence } from './helpers.js';
 
 // ============================================================
 // Trackpad elastic overscroll
@@ -174,24 +174,7 @@ test.describe('Smooth zoom animation', () => {
   test('mouse wheel scroll triggers smooth zoom (not pan)', async ({ page }) => {
     const beforeZoom = await page.evaluate(() => __cam().zoom);
 
-    // Mock performance.now() for deterministic timing signals.
-    // dispatchEvent is synchronous, so the classifier sees mocked gaps.
-    // Restore immediately so SmoothZoomAnimator's rAF loop uses real time.
-    await page.evaluate(() => {
-      const origNow = performance.now.bind(performance);
-      let mockTime = origNow();
-      performance.now = () => mockTime;
-
-      const el = document.getElementById('map-container');
-      for (let i = 0; i < 3; i++) {
-        mockTime += 200; // Simulated 200ms mouse-wheel gaps
-        el.dispatchEvent(new WheelEvent('wheel', {
-          deltaY: -100, deltaX: 0, deltaMode: 0,
-          ctrlKey: false, bubbles: true, cancelable: true
-        }));
-      }
-      performance.now = origNow;
-    });
+    await dispatchMouseWheelSequence(page);
 
     // Wait for smooth zoom animation to settle
     await page.waitForFunction(() => {
@@ -300,24 +283,7 @@ test.describe('Stateful device classification', () => {
   test('mouse wheel without ctrl triggers zoom (via timing gaps)', async ({ page }) => {
     const before = await page.evaluate(() => __cam().zoom);
 
-    // Mock performance.now() for deterministic timing signals.
-    // dispatchEvent is synchronous, so the classifier sees mocked gaps.
-    // Restore immediately so SmoothZoomAnimator's rAF loop uses real time.
-    await page.evaluate(() => {
-      const origNow = performance.now.bind(performance);
-      let mockTime = origNow();
-      performance.now = () => mockTime;
-
-      const el = document.getElementById('map-container');
-      for (let i = 0; i < 3; i++) {
-        mockTime += 200; // Simulated 200ms mouse-wheel gaps
-        el.dispatchEvent(new WheelEvent('wheel', {
-          deltaY: -100, deltaX: 0, deltaMode: 0,
-          ctrlKey: false, bubbles: true, cancelable: true
-        }));
-      }
-      performance.now = origNow;
-    });
+    await dispatchMouseWheelSequence(page);
 
     // Wait for smooth zoom animation to settle
     await page.waitForFunction(() => {
