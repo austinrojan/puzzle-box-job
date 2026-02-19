@@ -787,6 +787,29 @@ export class Camera {
   }
 
   /**
+   * Clamp velocity to prevent critically damped spring overshoot.
+   *
+   * For a critically damped spring x(t) = (A + B·t) · e^(-ω·t) where
+   * A = displacement, B = velocity + ω·displacement, the spring crosses
+   * its target when B has the opposite sign of A. The zero-overshoot
+   * threshold is v_critical = -ω·d (B = 0 → pure exponential decay).
+   *
+   * @param {number} v     Initial velocity (px/s). Negative = toward target for d > 0.
+   * @param {number} d     Initial displacement from target (px).
+   * @param {number} omega Spring natural frequency (√stiffness).
+   * @returns {number} Clamped velocity guaranteeing no overshoot.
+   */
+  _clampSpringVelocity(v, d, omega) {
+    if (d === 0) return v;
+    const vCritical = -omega * d;
+    if (d > 0) {
+      return Math.max(v, vCritical);
+    } else {
+      return Math.min(v, vCritical);
+    }
+  }
+
+  /**
    * Trigger spring snap-back from current elastic offset to zero.
    * Uses the elastic animator (stiffness=400, omega~20) for snappier feel.
    * @param {{ vx: number, vy: number }} velocity Initial velocity (world-space px/s)
