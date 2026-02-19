@@ -270,14 +270,21 @@ export async function dispatchMouseWheelSequence(page, opts = {}) {
     let mockTime = origNow();
     performance.now = () => mockTime;
     const el = document.getElementById('map-container');
-    for (let i = 0; i < o.count; i++) {
-      mockTime += o.gapMs;
-      el.dispatchEvent(new WheelEvent('wheel', {
-        deltaY: o.deltaY, deltaX: o.deltaX, deltaMode: 0,
-        ctrlKey: o.ctrlKey, bubbles: true, cancelable: true
-      }));
+    const rect = el.getBoundingClientRect();
+    const cx = rect.left + rect.width / 2;
+    const cy = rect.top + rect.height / 2;
+    try {
+      for (let i = 0; i < o.count; i++) {
+        mockTime += o.gapMs;
+        el.dispatchEvent(new WheelEvent('wheel', {
+          deltaY: o.deltaY, deltaX: o.deltaX, deltaMode: 0,
+          ctrlKey: o.ctrlKey, bubbles: true, cancelable: true,
+          clientX: cx, clientY: cy,
+        }));
+      }
+    } finally {
+      performance.now = origNow;
     }
-    performance.now = origNow;
   }, {
     count: opts.count ?? 3,
     gapMs: opts.gapMs ?? 200,

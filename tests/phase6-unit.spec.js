@@ -151,6 +151,9 @@ test.describe('Dual-position elastic model', () => {
       cam._momentumScrollActive = false;
       cam._feedElasticOverflow(200, 0);
       const activeOffset = cam.elasticOffsetX;
+      // Reset state between phases for isolation
+      cam.elasticOffsetX = 0;
+      cam._cumulativeOverflowX = 0;
       cam._momentumScrollActive = true;
       cam._feedElasticOverflow(200, 0);
       const momentumOffset = cam.elasticOffsetX;
@@ -190,6 +193,8 @@ test.describe('Dual-position elastic model', () => {
         elasticX: cam.elasticOffsetX,
       };
     });
+    // Precondition: camera reached the left boundary (x=0)
+    expect(result.atBoundary).toBeCloseTo(0, 0);
     // camera.x should still be at the hard boundary (NOT < 0)
     expect(result.x).toBeCloseTo(result.atBoundary, 0);
     expect(result.x).toBeGreaterThanOrEqual(0);

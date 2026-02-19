@@ -76,11 +76,16 @@ test.describe('Pure math — clampAxis and rubberBand', () => {
     const result = await page.evaluate(() => {
       const cam = __cam();
       if (!cam) return null;
+      // Set map dimensions so bounds exist (Pure math block doesn't call enterMapMode)
+      cam.mapW = 2000; cam.mapH = 2000;
+      cam.viewportW = 800; cam.viewportH = 800;
       cam.zoom = 2.0;
+      cam.x = 400; cam.y = 400; // well within bounds
       cam._applyConstraints();
       // Pan within bounds
       cam._gestureActive = true;
       cam._cumulativeOverflowX = 0;
+      cam._cumulativeOverflowY = 0;
       cam.panBy(10, 0);
       return { offsetX: cam.elasticOffsetX, offsetY: cam.elasticOffsetY };
     });

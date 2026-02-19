@@ -237,6 +237,6 @@ test.describe('WheelDeviceClassifier', () => {
       return { trackpadEventsToFlip, mouseEventsToFlip };
     });
     // Should take fewer events to escape mouse than to enter it
-    expect(result.trackpadEventsToFlip).toBeLessThanOrEqual(result.mouseEventsToFlip);
+    expect(result.trackpadEventsToFlip).toBeLessThan(result.mouseEventsToFlip);
   });
 });

@@ -22,6 +22,7 @@ const COVER_ZOOM_EPSILON = 0.001;
 // the further you overshoot, preventing the viewport from ever reaching
 // infinite displacement. c=0.55 matches the native iOS feel.
 function rubberBand(distance, dimension, c = 0.55) {
+  if (dimension <= 0) return 0;
   return (distance * dimension * c) / (dimension + c * distance);
 }
 

@@ -29,14 +29,18 @@ test.describe('Trackpad elastic overscroll', () => {
     // deltaX: -15 → normalizeWheel dx: -15 → panBy(15, 0) → camera moves left
     await page.evaluate(() => {
       const el = document.getElementById('map-container');
+      const rect = el.getBoundingClientRect();
+      const cx = rect.left + rect.width / 2;
+      const cy = rect.top + rect.height / 2;
       for (let i = 0; i < 10; i++) {
         el.dispatchEvent(new WheelEvent('wheel', {
           deltaY: 0, deltaX: -15, deltaMode: 0,
-          ctrlKey: false, bubbles: true, cancelable: true
+          ctrlKey: false, bubbles: true, cancelable: true,
+          clientX: cx, clientY: cy,
         }));
       }
     });
-    await page.waitForTimeout(50);
+    // panBy + elastic offset are synchronous — no wait needed
 
     const result = await page.evaluate(() => {
       const cam = __cam();
@@ -59,10 +63,14 @@ test.describe('Trackpad elastic overscroll', () => {
 
     await page.evaluate(() => {
       const el = document.getElementById('map-container');
+      const rect = el.getBoundingClientRect();
+      const cx = rect.left + rect.width / 2;
+      const cy = rect.top + rect.height / 2;
       for (let i = 0; i < 10; i++) {
         el.dispatchEvent(new WheelEvent('wheel', {
           deltaY: 0, deltaX: -15, deltaMode: 0,
-          ctrlKey: false, bubbles: true, cancelable: true
+          ctrlKey: false, bubbles: true, cancelable: true,
+          clientX: cx, clientY: cy,
         }));
       }
     });
@@ -205,13 +213,17 @@ test.describe('Gesture preemption', () => {
       cam._applyConstraints();
       // Simulate trackpad scroll gesture start (small fractional delta)
       const el = document.getElementById('map-container');
+      const rect = el.getBoundingClientRect();
       el.dispatchEvent(new WheelEvent('wheel', {
         deltaY: 3.5, deltaX: 0, deltaMode: 0,
-        ctrlKey: false, bubbles: true, cancelable: true
+        ctrlKey: false, bubbles: true, cancelable: true,
+        clientX: rect.left + rect.width / 2,
+        clientY: rect.top + rect.height / 2,
       }));
     });
 
     const gestureBeforeDrag = await page.evaluate(() => __cam()._gestures?.current);
+    expect(gestureBeforeDrag).toBe('SCROLL_PAN');
 
     // Now start a mouse drag (higher priority)
     const canvas = page.locator('#map-container');
@@ -237,6 +249,12 @@ test.describe('Stateful device classification', () => {
   });
 
   test('fast trackpad scroll does NOT trigger zoom (bug #4 regression)', async ({ page }) => {
+    // Zoom in so pan has room to operate at all viewports
+    await page.evaluate(() => {
+      const cam = __cam();
+      cam.zoom = 2.0;
+      cam._applyConstraints();
+    });
     const before = await page.evaluate(() => __cam().zoom);
 
     // Dispatch 10 rapid wheel events mimicking fast trackpad scroll.
@@ -244,14 +262,20 @@ test.describe('Stateful device classification', () => {
     // would misidentify as mouse and route to SmoothZoomAnimator.
     await page.evaluate(() => {
       const el = document.getElementById('map-container');
+      const rect = el.getBoundingClientRect();
+      const cx = rect.left + rect.width / 2;
+      const cy = rect.top + rect.height / 2;
       for (let i = 0; i < 10; i++) {
         el.dispatchEvent(new WheelEvent('wheel', {
           deltaY: -80, deltaX: 0, deltaMode: 0,
-          ctrlKey: false, bubbles: true, cancelable: true
+          ctrlKey: false, bubbles: true, cancelable: true,
+          clientX: cx, clientY: cy,
         }));
       }
     });
-    await page.waitForTimeout(50);
+    // Negative assertion: need time-based wait since we're verifying nothing happens.
+    // Condition-based waiting is inappropriate for "nothing changed" assertions.
+    await page.waitForTimeout(100);
 
     const after = await page.evaluate(() => __cam().zoom);
 
@@ -267,14 +291,18 @@ test.describe('Stateful device classification', () => {
 
     await page.evaluate(() => {
       const el = document.getElementById('map-container');
+      const rect = el.getBoundingClientRect();
+      const cx = rect.left + rect.width / 2;
+      const cy = rect.top + rect.height / 2;
       for (let i = 0; i < 5; i++) {
         el.dispatchEvent(new WheelEvent('wheel', {
           deltaY: -5, deltaX: 0, deltaMode: 0,
-          ctrlKey: true, bubbles: true, cancelable: true
+          ctrlKey: true, bubbles: true, cancelable: true,
+          clientX: cx, clientY: cy,
         }));
       }
     });
-    await page.waitForTimeout(50);
+    // zoomAt is synchronous — no wait needed
 
     const after = await page.evaluate(() => __cam().zoom);
     expect(after).not.toBeCloseTo(before, 4);

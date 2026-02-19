@@ -31,6 +31,7 @@ export class TrackpadGestureDetector {
   handleWheel(e) {
     const now = performance.now();
     const absDelta = Math.abs(e.deltaY) + Math.abs(e.deltaX);
+    if (absDelta === 0) return; // Ignore zero-delta events (e.g. ctrl-only gesture start)
     const timeSinceLast = now - this._lastEventTime;
     clearTimeout(this._endTimer);
 
