@@ -1240,8 +1240,23 @@ export class Camera {
         const elapsed = Math.min((timestamp - anim._startTime) / 1000, 2.0);
         const rx = anim._resolveAxis(anim._springX, elapsed);
         const ry = anim._resolveAxis(anim._springY, elapsed);
-        cam.elasticOffsetX = rx.value;
-        cam.elasticOffsetY = ry.value;
+
+        // Layer 2: Position safety net (secondary overshoot defense).
+        // Elastic offset must not change sign during snap-back.
+        // Catches floating-point edge cases where velocity clamp produces
+        // a B coefficient that is very slightly negative due to rounding.
+        let valX = rx.value;
+        let valY = ry.value;
+        if (anim._springX) {
+          if (anim._springX.displacement > 0 && valX < 0) valX = 0;
+          else if (anim._springX.displacement < 0 && valX > 0) valX = 0;
+        }
+        if (anim._springY) {
+          if (anim._springY.displacement > 0 && valY < 0) valY = 0;
+          else if (anim._springY.displacement < 0 && valY > 0) valY = 0;
+        }
+        cam.elasticOffsetX = valX;
+        cam.elasticOffsetY = valY;
         EventBus.emit('camera:changed');
         if (rx.settled && ry.settled) {
           cam.elasticOffsetX = 0;

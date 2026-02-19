@@ -182,6 +182,38 @@ test.describe('Spring no-overshoot guarantee', () => {
     });
     expect(pos).toBeLessThan(0.5);
   });
+
+  test('position safety net clamps sub-pixel overshoot to zero', async ({ page }) => {
+    const result = await page.evaluate(() => {
+      return new Promise((resolve) => {
+        const cam = __cam();
+        // Set very small elastic offset
+        cam.elasticOffsetX = 0.7;
+        cam.elasticOffsetY = 0;
+
+        // Trigger snap-back with exactly critical velocity.
+        // At critical velocity, B should be exactly 0, but float rounding
+        // might produce a tiny negative B → sub-pixel overshoot.
+        const omega = cam._elasticAnimator._omega;
+        cam._snapBackElastic({ vx: -omega * 0.7, vy: 0 });
+
+        // Monitor: elastic offset should never go negative
+        let minOffset = Infinity;
+        let checks = 0;
+        function check() {
+          checks++;
+          minOffset = Math.min(minOffset, cam.elasticOffsetX);
+          if (Math.abs(cam.elasticOffsetX) < 0.01 || checks > 120) {
+            resolve({ minOffset, checks });
+            return;
+          }
+          requestAnimationFrame(check);
+        }
+        requestAnimationFrame(check);
+      });
+    });
+    expect(result.minOffset).toBeGreaterThanOrEqual(-0.01);
+  });
 });
 
 // ============================================================
