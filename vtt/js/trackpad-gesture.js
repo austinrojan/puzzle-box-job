@@ -101,22 +101,10 @@ export class TrackpadGestureDetector {
 // Stateful Wheel Device Classifier (Phase S1)
 // ============================================================
 //
-// Maintains a running belief about whether the active input device
-// is a mouse scroll wheel or a trackpad, updated incrementally as
-// WheelEvents arrive. Replaces the stateless classifyWheelDevice()
-// heuristic that made per-event decisions.
-//
-// Six discriminative signals scored over a sliding window of 6 events:
-//   1. Inter-event timing (trackpad <25ms, mouse >80ms)
-//   2. Fractional deltas (strong trackpad indicator)
-//   3. Simultaneous deltaX + deltaY (strong trackpad indicator)
-//   4. deltaMode LINE (strong mouse indicator, Firefox only)
-//   5. Very small deltas <4px (weak trackpad indicator)
-//   6. Large integer vertical-only delta (weak mouse indicator)
-//
-// Asymmetric thresholds (hysteresis): 4 mouse signals to enter
-// mouse classification, 2 trackpad signals to leave it.
-// "Default to pan when uncertain" — safer than triggering zoom.
+// Maintains a sliding window of recent WheelEvent summaries and scores
+// six discriminative signals to classify the active device as mouse or
+// trackpad. Asymmetric hysteresis (4 mouse to enter, 2 trackpad to
+// leave) prevents rapid flip-flopping. See _scoreWindow() for signals.
 
 export class WheelDeviceClassifier {
   constructor() {
@@ -176,6 +164,12 @@ export class WheelDeviceClassifier {
     return this._device;
   }
 
+  /**
+   * Score the sliding window of event summaries across six discriminative
+   * signals. Each signal independently increments mouse or trackpad counters.
+   * @returns {{ mouseSignals: number, trackpadSignals: number }}
+   * @private
+   */
   _scoreWindow() {
     let mouseSignals = 0;
     let trackpadSignals = 0;
@@ -219,19 +213,4 @@ export class WheelDeviceClassifier {
     this._events = [];
     this._lastEventTime = 0;
   }
-}
-
-/**
- * @deprecated Use WheelDeviceClassifier instead. This stateless per-event
- * heuristic is the root cause of bugs #3, #4, and #5. Retained for
- * backward compatibility; will be removed in Phase S5.
- */
-export function classifyWheelDevice(e) {
-  const absY = Math.abs(e.deltaY);
-  const absX = Math.abs(e.deltaX);
-  const maxDelta = Math.max(absY, absX);
-  if (maxDelta >= 50 && maxDelta % 1 === 0 && e.deltaX === 0) {
-    return 'mouse';
-  }
-  return 'trackpad';
 }

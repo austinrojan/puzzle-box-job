@@ -107,47 +107,6 @@ test.describe('TrackpadGestureDetector', () => {
 });
 
 // ============================================================
-// classifyWheelDevice
-// ============================================================
-test.describe('classifyWheelDevice', () => {
-  test.beforeEach(async ({ page }) => {
-    await page.goto('/vtt/', { waitUntil: 'load' });
-  });
-
-  test('large integer deltaY classified as mouse', async ({ page }) => {
-    const result = await page.evaluate(async () => {
-      const { classifyWheelDevice } = await import('/vtt/js/trackpad-gesture.js');
-      return {
-        a: classifyWheelDevice({ deltaY: 100, deltaX: 0 }),
-        b: classifyWheelDevice({ deltaY: -120, deltaX: 0 }),
-      };
-    });
-    expect(result.a).toBe('mouse');
-    expect(result.b).toBe('mouse');
-  });
-
-  test('small fractional deltaY classified as trackpad', async ({ page }) => {
-    const result = await page.evaluate(async () => {
-      const { classifyWheelDevice } = await import('/vtt/js/trackpad-gesture.js');
-      return {
-        a: classifyWheelDevice({ deltaY: 3.5, deltaX: 0 }),
-        b: classifyWheelDevice({ deltaY: 0.5, deltaX: 2.1 }),
-      };
-    });
-    expect(result.a).toBe('trackpad');
-    expect(result.b).toBe('trackpad');
-  });
-
-  test('horizontal delta forces trackpad classification', async ({ page }) => {
-    const result = await page.evaluate(async () => {
-      const { classifyWheelDevice } = await import('/vtt/js/trackpad-gesture.js');
-      return classifyWheelDevice({ deltaY: 100, deltaX: 50 });
-    });
-    expect(result).toBe('trackpad');
-  });
-});
-
-// ============================================================
 // Dual-position elastic model
 // ============================================================
 test.describe('Dual-position elastic model', () => {
