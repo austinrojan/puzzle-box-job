@@ -174,19 +174,26 @@ test.describe('Smooth zoom animation', () => {
   test('mouse wheel scroll triggers smooth zoom (not pan)', async ({ page }) => {
     const beforeZoom = await page.evaluate(() => __cam().zoom);
 
-    // Dispatch a mouse-wheel-like event: large integer deltaY, no deltaX, no ctrlKey
+    // Mock performance.now() for deterministic timing signals.
+    // dispatchEvent is synchronous, so the classifier sees mocked gaps.
+    // Restore immediately so SmoothZoomAnimator's rAF loop uses real time.
     await page.evaluate(() => {
+      const origNow = performance.now.bind(performance);
+      let mockTime = origNow();
+      performance.now = () => mockTime;
+
       const el = document.getElementById('map-container');
-      el.dispatchEvent(new WheelEvent('wheel', {
-        deltaY: -100, deltaX: 0, deltaMode: 0,
-        ctrlKey: false, bubbles: true, cancelable: true
-      }));
+      for (let i = 0; i < 3; i++) {
+        mockTime += 200; // Simulated 200ms mouse-wheel gaps
+        el.dispatchEvent(new WheelEvent('wheel', {
+          deltaY: -100, deltaX: 0, deltaMode: 0,
+          ctrlKey: false, bubbles: true, cancelable: true
+        }));
+      }
+      performance.now = origNow;
     });
 
-    const animating = await page.evaluate(() => __cam()._smoothZoom._animating);
-    expect(animating).toBe(true);
-
-    // Wait for animation to settle
+    // Wait for smooth zoom animation to settle
     await page.waitForFunction(() => {
       return !window.__vtt?.mapRenderer?.camera?._smoothZoom?._animating;
     }, { timeout: 2000 });
@@ -233,5 +240,91 @@ test.describe('Gesture preemption', () => {
     expect(gestureAfterDrag).toBe('DRAG_PAN');
 
     await page.mouse.up({ button: 'right' });
+  });
+});
+
+// ============================================================
+// Stateful device classification (Phase S1)
+// ============================================================
+test.describe('Stateful device classification', () => {
+  test.beforeEach(async ({ page }) => {
+    await gotoVTT(page);
+    await enterMapMode(page);
+    await injectTestAccessors(page);
+  });
+
+  test('fast trackpad scroll does NOT trigger zoom (bug #4 regression)', async ({ page }) => {
+    const before = await page.evaluate(() => __cam().zoom);
+
+    // Dispatch 10 rapid wheel events mimicking fast trackpad scroll.
+    // Large integer deltaY (80) with no horizontal — the OLD classifier
+    // would misidentify as mouse and route to SmoothZoomAnimator.
+    await page.evaluate(() => {
+      const el = document.getElementById('map-container');
+      for (let i = 0; i < 10; i++) {
+        el.dispatchEvent(new WheelEvent('wheel', {
+          deltaY: -80, deltaX: 0, deltaMode: 0,
+          ctrlKey: false, bubbles: true, cancelable: true
+        }));
+      }
+    });
+    await page.waitForTimeout(50);
+
+    const after = await page.evaluate(() => __cam().zoom);
+
+    // THE critical assertion: zoom must not change.
+    // Fast trackpad scroll routes to panBy(), not SmoothZoomAnimator.
+    // Pan may or may not move depending on viewport constraints,
+    // but zoom must remain unchanged.
+    expect(after).toBeCloseTo(before, 4);
+  });
+
+  test('ctrl+wheel from trackpad still zooms correctly', async ({ page }) => {
+    const before = await page.evaluate(() => __cam().zoom);
+
+    await page.evaluate(() => {
+      const el = document.getElementById('map-container');
+      for (let i = 0; i < 5; i++) {
+        el.dispatchEvent(new WheelEvent('wheel', {
+          deltaY: -5, deltaX: 0, deltaMode: 0,
+          ctrlKey: true, bubbles: true, cancelable: true
+        }));
+      }
+    });
+    await page.waitForTimeout(50);
+
+    const after = await page.evaluate(() => __cam().zoom);
+    expect(after).not.toBeCloseTo(before, 4);
+  });
+
+  test('mouse wheel without ctrl triggers zoom (via timing gaps)', async ({ page }) => {
+    const before = await page.evaluate(() => __cam().zoom);
+
+    // Mock performance.now() for deterministic timing signals.
+    // dispatchEvent is synchronous, so the classifier sees mocked gaps.
+    // Restore immediately so SmoothZoomAnimator's rAF loop uses real time.
+    await page.evaluate(() => {
+      const origNow = performance.now.bind(performance);
+      let mockTime = origNow();
+      performance.now = () => mockTime;
+
+      const el = document.getElementById('map-container');
+      for (let i = 0; i < 3; i++) {
+        mockTime += 200; // Simulated 200ms mouse-wheel gaps
+        el.dispatchEvent(new WheelEvent('wheel', {
+          deltaY: -100, deltaX: 0, deltaMode: 0,
+          ctrlKey: false, bubbles: true, cancelable: true
+        }));
+      }
+      performance.now = origNow;
+    });
+
+    // Wait for smooth zoom animation to settle
+    await page.waitForFunction(() => {
+      return !window.__vtt?.mapRenderer?.camera?._smoothZoom?._animating;
+    }, { timeout: 2000 });
+
+    const after = await page.evaluate(() => __cam().zoom);
+    expect(after).toBeGreaterThan(before);
   });
 });

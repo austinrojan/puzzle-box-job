@@ -7,7 +7,7 @@
 
 import { EventBus } from './state.js';
 import { normalizeWheel } from './normalize-wheel.js';
-import { TrackpadGestureDetector, classifyWheelDevice } from './trackpad-gesture.js';
+import { TrackpadGestureDetector, WheelDeviceClassifier } from './trackpad-gesture.js';
 
 // --- Constants ---
 const MIN_ZOOM = 0.1;              // absolute floor (safety valve)
@@ -990,6 +990,7 @@ export class Camera {
   }
 
   _attachWheelHandler(el) {
+    this._wheelClassifier = new WheelDeviceClassifier();
     this._trackpadDetector = new TrackpadGestureDetector({
       onGestureStart: () => {
         this._cancelInertialCoast();
@@ -1020,7 +1021,7 @@ export class Camera {
 
       if (dz !== 0) {
         // Ctrl/meta + wheel → zoom path (pinch synthesis on trackpads)
-        const device = classifyWheelDevice(e);
+        const device = this._wheelClassifier.classify(e);
         const screen = this.eventToScreen(e);
 
         if (device === 'mouse') {
@@ -1034,7 +1035,7 @@ export class Camera {
         }
       } else if (dx !== 0 || dy !== 0) {
         // Non-ctrl wheel: classify device to decide zoom vs pan
-        const device = classifyWheelDevice(e);
+        const device = this._wheelClassifier.classify(e);
 
         if (device === 'mouse') {
           // Mouse scroll wheel → smooth animated zoom (scroll up = zoom in)
