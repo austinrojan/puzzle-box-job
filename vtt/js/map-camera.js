@@ -819,15 +819,8 @@ export class Camera {
   }
 
   /**
-   * Trigger spring snap-back from current elastic offset to zero.
-   * Uses the elastic animator (stiffness=400, omega~20) for snappier feel.
-   *
-   * Phase S2 Bug #2 fix: velocity is clamped per-axis to prevent the
-   * critically damped spring from overshooting past zero. For displacement
-   * d and natural frequency omega, overshoot occurs when v < -omega*d
-   * (positive d). Clamping to the zero-overshoot threshold preserves
-   * maximum momentum feel without ever crossing the target.
-   *
+   * Spring snap-back from current elastic offset to zero.
+   * Clamps velocity per-axis via _clampSpringVelocity() to prevent overshoot.
    * @param {{ vx: number, vy: number }} velocity  World-space px/s.
    */
   _snapBackElastic(velocity = { vx: 0, vy: 0 }) {
