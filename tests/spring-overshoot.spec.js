@@ -396,37 +396,55 @@ test.describe('Coast velocity cap', () => {
   });
 
   test('moderate velocity passes through _startInertialCoast uncapped', async ({ page }) => {
-    // Verify 1500 px/s (below 3000 cap) produces larger first-frame delta
-    // than it would if capped. We compare two coast starts to be rAF-timing-
-    // independent: one at 6000 (capped to 3000) and one at 1500 (uncapped).
-    // The ratio of their first-frame deltas should be ~2:1 if the cap works.
+    // Run two coast starts with deterministic timing (mocked rAF + performance.now)
+    // and compare first-frame deltas. With identical dt, the ratio of deltas
+    // equals the ratio of (possibly capped) velocities.
     const result = await page.evaluate(() => {
-      return new Promise((resolve) => {
-        const cam = __cam();
-        cam.zoom = 2.0;
-        cam._applyConstraints();
+      const cam = __cam();
+      cam.zoom = 2.0;
+      cam._applyConstraints();
 
-        const originalPanBy = cam.panBy.bind(cam);
-        let moderateDx = null;
-        cam.panBy = (dx, dy) => {
-          if (moderateDx === null) {
-            moderateDx = dx;
-            cam.panBy = originalPanBy;
-          }
-          return originalPanBy(dx, dy);
-        };
+      const origRAF = window.requestAnimationFrame;
+      const origCAF = window.cancelAnimationFrame;
+      const origNow = performance.now.bind(performance);
+      let mockTime = origNow();
+      performance.now = () => mockTime;
 
+      try {
+        // Coast 1: extreme velocity (6000 → capped to 3000)
+        let tick1;
+        window.requestAnimationFrame = (cb) => { tick1 = cb; return 1; };
+        window.cancelAnimationFrame = () => {};
+        const cap1 = __capturePanBy(cam);
+        cam._startInertialCoast({ x: 6000, y: 0 });
+        mockTime += 16.67;
+        tick1(mockTime);  // deterministic dt = 16.67ms
+        cam._cancelInertialCoast();
+        cam._gestureActive = false;
+
+        // Coast 2: moderate velocity (1500 → should NOT be capped)
+        let tick2;
+        window.requestAnimationFrame = (cb) => { tick2 = cb; return 2; };
+        const cap2 = __capturePanBy(cam);
         cam._startInertialCoast({ x: 1500, y: 0 });
+        mockTime += 16.67;
+        tick2(mockTime);  // same deterministic dt = 16.67ms
+        cam._cancelInertialCoast();
+        cam._gestureActive = false;
 
-        requestAnimationFrame(() => {
-          cam._cancelInertialCoast();
-          cam._gestureActive = false;
-          // panBy was called, meaning coast ran with the velocity
-          resolve({ moderateDx, wasCalled: moderateDx !== null });
-        });
-      });
+        // If cap works: 3000/1500 = 2.0. If both capped: 1.0. If neither: 4.0.
+        const ratio = cap1.first && cap2.first
+          ? Math.abs(cap1.first.dx / cap2.first.dx)
+          : null;
+        return { ratio };
+      } finally {
+        performance.now = origNow;
+        window.requestAnimationFrame = origRAF;
+        window.cancelAnimationFrame = origCAF;
+      }
     });
-    expect(result.wasCalled).toBe(true);
+    // 6000 capped to 3000, 1500 uncapped → ratio = 2.0
+    expect(result.ratio).toBeCloseTo(2.0, 1);
   });
 
   test('coast velocity cap preserves direction (diagonal)', async ({ page }) => {
