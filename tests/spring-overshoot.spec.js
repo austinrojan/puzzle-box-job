@@ -381,27 +381,14 @@ test.describe('Coast velocity cap', () => {
         cam.zoom = 2.0;
         cam._applyConstraints();
 
-        // Instrument panBy to capture the first call's delta
-        const originalPanBy = cam.panBy.bind(cam);
-        let firstDx = null;
-        cam.panBy = (dx, dy) => {
-          if (firstDx === null) {
-            firstDx = dx;
-            cam.panBy = originalPanBy;
-          }
-          return originalPanBy(dx, dy);
-        };
-
-        // Start coast with extreme velocity (6000 px/s horizontal)
+        const cap = __capturePanBy(cam);
         cam._startInertialCoast({ x: 6000, y: 0 });
 
-        // Wait one frame to capture the first panBy call
         requestAnimationFrame(() => {
           cam._cancelInertialCoast();
           cam._gestureActive = false;
-          // At ~16ms dt, uncapped: |dx| ≈ 6000*0.016 = 96px
-          // Capped: |dx| ≈ 3000*0.016 = 48px
-          resolve({ firstDx, wasCapped: firstDx !== null && Math.abs(firstDx) < 80 });
+          // At ~16ms dt, uncapped 6000: |dx| ≈ 96px. Capped to 3000: |dx| ≈ 48px.
+          resolve({ wasCapped: cap.first !== null && Math.abs(cap.first.dx) < 80 });
         });
       });
     });
@@ -449,32 +436,20 @@ test.describe('Coast velocity cap', () => {
         cam.zoom = 2.0;
         cam._applyConstraints();
 
-        const originalPanBy = cam.panBy.bind(cam);
-        let capturedDx = null;
-        let capturedDy = null;
-        cam.panBy = (dx, dy) => {
-          if (capturedDx === null) {
-            capturedDx = dx;
-            capturedDy = dy;
-            cam.panBy = originalPanBy;
-          }
-          return originalPanBy(dx, dy);
-        };
-
+        const cap = __capturePanBy(cam);
         // Diagonal: {4000, 3000} → magnitude 5000, capped to 3000
         cam._startInertialCoast({ x: 4000, y: 3000 });
 
         requestAnimationFrame(() => {
           cam._cancelInertialCoast();
           cam._gestureActive = false;
-          const ratio = capturedDx !== null && capturedDy !== 0
-            ? Math.abs(capturedDx / capturedDy)
-            : null;
+          // panBy receives -vx*dt, -vy*dt — ratio of |dx/dy| = |vx/vy| = 4/3
+          const f = cap.first;
+          const ratio = f && f.dy !== 0 ? Math.abs(f.dx / f.dy) : null;
           resolve({ ratio });
         });
       });
     });
-    // panBy receives -vx*dt, -vy*dt, so ratio of |dx/dy| = |vx/vy| = 4/3
     expect(result.ratio).toBeCloseTo(4 / 3, 1);
   });
 });

@@ -115,6 +115,18 @@ export async function injectTestAccessors(page) {
     window.__interpolator = () => window.__vtt?.interpolator ?? null;
     window.__semanticZoom = () => window.__vtt?.semanticZoom ?? null;
     window.__presetManager = () => window.__vtt?.presetManager ?? null;
+
+    // Monkey-patch cam.panBy to capture the first call, then auto-restore.
+    // Returns { first: { dx, dy } | null, restore() }.
+    window.__capturePanBy = (cam) => {
+      const orig = cam.panBy.bind(cam);
+      let first = null;
+      cam.panBy = (dx, dy) => {
+        if (!first) { first = { dx, dy }; cam.panBy = orig; }
+        return orig(dx, dy);
+      };
+      return { get first() { return first; }, restore() { cam.panBy = orig; } };
+    };
   });
 }
 
