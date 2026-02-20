@@ -40,6 +40,12 @@ const DEFAULT_SPRING_STIFFNESS = 200;
 const SETTLE_THRESHOLD_PX = 0.5;
 const SETTLE_THRESHOLD_VEL = 0.5;
 
+// Phase S3: Speculative snap-back EWMA stall detection
+const EWMA_ALPHA = 0.3;              // smoothing factor: ~108ms detection latency at 60Hz
+const EWMA_INIT = 10;                // anti-FIR: 140ms warm-up from cold start
+const STALL_THRESHOLD = 0.5;         // screen px/frame — below perceptual threshold
+const MIN_ELASTIC_MAGNITUDE = 1.0;   // screen px — don't snap for sub-pixel offsets
+
 const VELOCITY_SAMPLE_COUNT = 4;
 
 class CameraAnimator {
@@ -547,6 +553,12 @@ export class Camera {
     this._cumulativeOverflowX = 0; // accumulated overflow for rubber-band calculation
     this._cumulativeOverflowY = 0;
     this._inertiaRafId = null;     // rAF ID for inertial coast animation
+
+    // Phase S3: Speculative snap-back
+    this._elasticEWMA = 0;               // EWMA of elastic offset growth rate
+    this._lastElasticScreenMag = 0;      // previous frame's elastic magnitude (screen px)
+    this._speculativeSnapId = null;      // rAF ID for monitoring loop (null sentinel, not 0)
+    this._isSnappingBack = false;        // Layer 2 defense flag
   }
 
   // --- Coordinate conversion ---
