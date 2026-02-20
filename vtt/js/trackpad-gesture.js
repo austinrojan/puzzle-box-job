@@ -3,11 +3,11 @@
 // Reconstructs IDLE → ACTIVE → MOMENTUM → IDLE gesture lifecycle
 // from raw WheelEvent streams. Uses delta decay detection + timeout.
 
-const DECAY_STREAK_THRESHOLD = 3;
-const MIN_EVENTS_FOR_MOMENTUM = 6;
+const DECAY_STREAK_THRESHOLD = 2;     // was 3 — speculative snap-back handles visual response
+const MIN_EVENTS_FOR_MOMENTUM = 4;    // was 6
 const DECAY_RATIO = 0.97;
-const TIMEOUT_ACTIVE_MS = 150;
-const TIMEOUT_MOMENTUM_MS = 100;
+const TIMEOUT_ACTIVE_MS = 80;         // was 150
+const TIMEOUT_MOMENTUM_MS = 60;       // was 100
 const MOMENTUM_CANCEL_SPIKE = 1.5;
 const MOMENTUM_CANCEL_GAP_MS = 120;
 

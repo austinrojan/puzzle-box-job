@@ -30,13 +30,12 @@ test.describe('TrackpadGestureDetector', () => {
       const detector = new TrackpadGestureDetector({
         onMomentumStart: () => { momentumStarted = true; }
       });
-      // 6 active events (no decay)
-      for (let i = 0; i < 6; i++) detector.handleWheel({ deltaY: 20, deltaX: 0 });
+      // 4 active events (no decay)
+      for (let i = 0; i < 4; i++) detector.handleWheel({ deltaY: 20, deltaX: 0 });
       const activeState = detector.state;
-      // 3 decaying events → momentum
+      // 2 decaying events → momentum
       detector.handleWheel({ deltaY: 18, deltaX: 0 });
       detector.handleWheel({ deltaY: 15, deltaX: 0 });
-      detector.handleWheel({ deltaY: 12, deltaX: 0 });
       return { activeState, finalState: detector.state, momentumStarted };
     });
     expect(result.activeState).toBe('ACTIVE');
@@ -51,10 +50,9 @@ test.describe('TrackpadGestureDetector', () => {
       const detector = new TrackpadGestureDetector({
         onGestureStart: () => { startCount++; }
       });
-      for (let i = 0; i < 6; i++) detector.handleWheel({ deltaY: 20, deltaX: 0 });
+      for (let i = 0; i < 4; i++) detector.handleWheel({ deltaY: 20, deltaX: 0 });
       detector.handleWheel({ deltaY: 18, deltaX: 0 });
       detector.handleWheel({ deltaY: 15, deltaX: 0 });
-      detector.handleWheel({ deltaY: 12, deltaX: 0 });
       // Spike: new gesture
       detector.handleWheel({ deltaY: 25, deltaX: 0 });
       return { state: detector.state, startCount };
