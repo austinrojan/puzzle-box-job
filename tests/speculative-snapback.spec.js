@@ -183,3 +183,42 @@ test.describe('_cancelSpeculativeSnapBack', () => {
     expect(result.offsetX).toBe(10);
   });
 });
+
+test.describe('Tightened momentum detection constants', () => {
+  test.beforeEach(async ({ page }) => {
+    await page.goto('/vtt/', { waitUntil: 'load' });
+  });
+
+  test('MOMENTUM detected with 4 events + 2 decays', async ({ page }) => {
+    const result = await page.evaluate(async () => {
+      const { TrackpadGestureDetector } = await import('/vtt/js/trackpad-gesture.js');
+      let momentumStarted = false;
+      const detector = new TrackpadGestureDetector({
+        onMomentumStart: () => { momentumStarted = true; }
+      });
+      for (let i = 0; i < 4; i++) detector.handleWheel({ deltaY: 20, deltaX: 0 });
+      const preDecay = detector.state;
+      detector.handleWheel({ deltaY: 18, deltaX: 0 });
+      detector.handleWheel({ deltaY: 15, deltaX: 0 });
+      return { preDecay, finalState: detector.state, momentumStarted };
+    });
+    expect(result.preDecay).toBe('ACTIVE');
+    expect(result.finalState).toBe('MOMENTUM');
+    expect(result.momentumStarted).toBe(true);
+  });
+
+  test('tightened active timeout fires onGestureEnd within 100ms', async ({ page }) => {
+    const elapsed = await page.evaluate(async () => {
+      const { TrackpadGestureDetector } = await import('/vtt/js/trackpad-gesture.js');
+      return new Promise((resolve) => {
+        const start = performance.now();
+        const detector = new TrackpadGestureDetector({
+          onGestureEnd: () => resolve(performance.now() - start)
+        });
+        detector.handleWheel({ deltaY: 10, deltaX: 0 });
+      });
+    });
+    expect(elapsed).toBeGreaterThan(60);
+    expect(elapsed).toBeLessThan(150);
+  });
+});
