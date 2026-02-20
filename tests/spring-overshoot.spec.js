@@ -107,6 +107,8 @@ test.describe('Spring no-overshoot guarantee', () => {
       }
       return min;
     });
+    // Sub-pixel float tolerance — spring math should produce >= 0 but
+    // float rounding may cause ~1e-15 undershoot at worst.
     expect(minPos).toBeGreaterThanOrEqual(-0.001);
   });
 
@@ -124,6 +126,7 @@ test.describe('Spring no-overshoot guarantee', () => {
       }
       return max;
     });
+    // Mirror of d>0 test — same sub-pixel float tolerance.
     expect(maxPos).toBeLessThanOrEqual(0.001);
   });
 
@@ -150,6 +153,8 @@ test.describe('Spring no-overshoot guarantee', () => {
       }
       return min;
     });
+    // Zero velocity: no overshoot risk, but float ops on large d (100px)
+    // may introduce marginally more rounding than d=50.
     expect(minPos).toBeGreaterThanOrEqual(-0.01);
   });
 
@@ -180,6 +185,9 @@ test.describe('Spring no-overshoot guarantee', () => {
       const v = cam._clampSpringVelocity(-3000, d, omega);
       return Math.abs(cam._elasticAnimator._solveSpring(d, v, 0.3).position);
     });
+    // At t=300ms with omega=20, position should be ~0.0025px (d·e^(-20·0.3)).
+    // 0.5px threshold matches SETTLE_THRESHOLD_PX, the spring's own
+    // convergence criterion.
     expect(pos).toBeLessThan(0.5);
   });
 
@@ -212,6 +220,9 @@ test.describe('Spring no-overshoot guarantee', () => {
         requestAnimationFrame(check);
       });
     });
+    // Position safety net test — the rAF-polled minimum should never go
+    // negative. -0.01 tolerance accounts for float precision in the
+    // spring solver, not actual overshoot.
     expect(result.minOffset).toBeGreaterThanOrEqual(-0.01);
   });
 });
