@@ -298,6 +298,7 @@ class GestureStateMachine {
         this._camera._cancelInertialCoast();
         break;
       case 'SNAP_BACK':
+        this._camera._cancelSpeculativeSnapBack();
         if (this._camera._elasticAnimator) this._camera._elasticAnimator.cancel();
         break;
       case 'ZOOM_ANIMATE':
@@ -1140,6 +1141,7 @@ export class Camera {
     this._trackpadDetector = new TrackpadGestureDetector({
       onGestureStart: () => {
         this._cancelInertialCoast();
+        this._cancelSpeculativeSnapBack();
         if (this._elasticAnimator) this._elasticAnimator.cancel();
         if (this._gestures) this._gestures.request('SCROLL_PAN');
         this._gestureActive = true;
