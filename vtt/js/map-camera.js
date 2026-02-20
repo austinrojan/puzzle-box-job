@@ -877,6 +877,61 @@ export class Camera {
   }
 
   /**
+   * Phase S3: EWMA stall detection and speculative snap-back launcher.
+   * Runs once per rAF when elastic offset is nonzero. Computes the EWMA
+   * of elastic offset change rate in screen-space pixels per frame.
+   * When EWMA drops below STALL_THRESHOLD, starts zero-velocity snap-back.
+   */
+  _checkSpeculativeSnapBack() {
+    const currentScreenMag = Math.sqrt(
+      (this.elasticOffsetX * this.zoom) ** 2 +
+      (this.elasticOffsetY * this.zoom) ** 2
+    );
+    const delta = Math.abs(currentScreenMag - this._lastElasticScreenMag);
+    this._lastElasticScreenMag = currentScreenMag;
+
+    this._elasticEWMA = EWMA_ALPHA * delta + (1 - EWMA_ALPHA) * this._elasticEWMA;
+
+    if (currentScreenMag > MIN_ELASTIC_MAGNITUDE &&
+        this._elasticEWMA < STALL_THRESHOLD &&
+        !this._isSnappingBack) {
+      // NOTE: Do NOT call this._gestures.request('SNAP_BACK') here.
+      // SNAP_BACK (priority 1) cannot preempt SCROLL_PAN (priority 4),
+      // so the request would silently fail. The formal onGestureEnd
+      // handles the gesture state machine transition as a backstop.
+      this._snapBackElastic();
+    }
+
+    // Continue monitoring while screen-space magnitude exceeds threshold.
+    // Uses MIN_ELASTIC_MAGNITUDE (screen-space) not SETTLE_THRESHOLD_PX
+    // (world-space) to avoid premature loop termination at low zoom.
+    if (currentScreenMag > MIN_ELASTIC_MAGNITUDE) {
+      this._speculativeSnapId = requestAnimationFrame(
+        () => this._checkSpeculativeSnapBack()
+      );
+    } else {
+      this._speculativeSnapId = null;
+    }
+  }
+
+  /**
+   * Phase S3: Cancel speculative snap-back monitoring and any running
+   * snap-back animation. Layer 3: value handoff — elastic offset retains
+   * whatever value the last animator _tick wrote.
+   */
+  _cancelSpeculativeSnapBack() {
+    if (this._speculativeSnapId != null) {
+      cancelAnimationFrame(this._speculativeSnapId);
+      this._speculativeSnapId = null;
+    }
+
+    if (this._isSnappingBack && this._elasticAnimator) {
+      this._elasticAnimator.cancel();
+      this._isSnappingBack = false;
+    }
+  }
+
+  /**
    * Start inertial coast after mouse drag release.
    * Uses panBy() so overflow naturally feeds elastic offset.
    * @param {{ x: number, y: number }} velocity Screen px/s
