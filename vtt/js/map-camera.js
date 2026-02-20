@@ -787,6 +787,11 @@ export class Camera {
   _feedElasticOverflow(overflowX, overflowY) {
     if (!this._gestureActive) return;
 
+    // Phase S3: Cancel any running speculative snap-back — user is still providing input.
+    if (this._isSnappingBack) {
+      this._cancelSpeculativeSnapBack();
+    }
+
     // Dampen rubber-band during trackpad momentum (c=0.3 vs 0.55)
     const c = this._momentumScrollActive ? 0.3 : 0.55;
 
@@ -804,6 +809,19 @@ export class Camera {
       this.elasticOffsetY = Math.sign(overflowY) * dampened / this.zoom;
     } else {
       this.elasticOffsetY = 0;
+    }
+
+    // Phase S3: Start monitoring loop if not already running.
+    if (this._speculativeSnapId == null &&
+        (this.elasticOffsetX !== 0 || this.elasticOffsetY !== 0)) {
+      this._lastElasticScreenMag = Math.sqrt(
+        (this.elasticOffsetX * this.zoom) ** 2 +
+        (this.elasticOffsetY * this.zoom) ** 2
+      );
+      this._elasticEWMA = EWMA_INIT;
+      this._speculativeSnapId = requestAnimationFrame(
+        () => this._checkSpeculativeSnapBack()
+      );
     }
   }
 
