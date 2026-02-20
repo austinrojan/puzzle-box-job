@@ -222,3 +222,114 @@ test.describe('Tightened momentum detection constants', () => {
     expect(elapsed).toBeLessThan(150);
   });
 });
+
+test.describe('Speculative snap-back integration', () => {
+  test.beforeEach(async ({ page }) => {
+    await gotoVTT(page);
+    await enterMapMode(page);
+    await injectTestAccessors(page);
+  });
+
+  test('elastic overscroll resolves within 500ms of last input', async ({ page }) => {
+    await page.evaluate(() => {
+      const cam = __cam();
+      cam.zoom = 2.0;
+      cam._applyConstraints();
+      for (let i = 0; i < 200; i++) cam.panBy(50, 0);
+    });
+
+    await page.evaluate(() => {
+      const el = document.getElementById('map-container');
+      const rect = el.getBoundingClientRect();
+      const cx = rect.left + rect.width / 2;
+      const cy = rect.top + rect.height / 2;
+      for (let i = 0; i < 10; i++) {
+        el.dispatchEvent(new WheelEvent('wheel', {
+          deltaY: 0, deltaX: -15, deltaMode: 0,
+          ctrlKey: false, bubbles: true, cancelable: true,
+          clientX: cx, clientY: cy,
+        }));
+      }
+    });
+
+    const hasOffset = await page.evaluate(() => Math.abs(__cam().elasticOffsetX) > 0);
+    expect(hasOffset).toBe(true);
+
+    await page.waitForFunction(() => {
+      const cam = window.__vtt?.mapRenderer?.camera;
+      return cam && Math.abs(cam.elasticOffsetX) < 1.0;
+    }, { timeout: 2000 });
+
+    const offset = await page.evaluate(() => Math.abs(__cam().elasticOffsetX));
+    expect(offset).toBeLessThan(1.0);
+  });
+
+  test('continuous scrolling at boundary is not interrupted by speculative snap-back', async ({ page }) => {
+    await page.evaluate(() => {
+      const cam = __cam();
+      cam.zoom = 2.0;
+      cam._applyConstraints();
+      for (let i = 0; i < 200; i++) cam.panBy(50, 0);
+    });
+
+    for (let i = 0; i < 30; i++) {
+      await page.evaluate(() => {
+        const el = document.getElementById('map-container');
+        const rect = el.getBoundingClientRect();
+        el.dispatchEvent(new WheelEvent('wheel', {
+          deltaY: 0, deltaX: -10, deltaMode: 0,
+          ctrlKey: false, bubbles: true, cancelable: true,
+          clientX: rect.left + rect.width / 2,
+          clientY: rect.top + rect.height / 2,
+        }));
+      });
+      await page.waitForTimeout(16);
+    }
+
+    const result = await page.evaluate(() => ({
+      offset: Math.abs(__cam().elasticOffsetX),
+      snapping: __cam()._isSnappingBack
+    }));
+    expect(result.offset).toBeGreaterThan(0);
+    expect(result.snapping).toBe(false);
+  });
+
+  test('mouse drag elastic overscroll works correctly after Phase S3', async ({ page }) => {
+    await page.evaluate(() => {
+      const cam = __cam();
+      cam.zoom = 2.0;
+      cam.x = cam.mapW;
+      cam._applyConstraints();
+    });
+
+    const canvas = page.locator('#map-container');
+    const box = await canvas.boundingBox();
+    const cx = box.x + box.width / 2;
+    const cy = box.y + box.height / 2;
+
+    await page.mouse.move(cx, cy);
+    await page.mouse.down({ button: 'right' });
+    await page.mouse.move(box.x + 50, cy, { steps: 10 });
+
+    const duringDrag = await page.evaluate(() => ({
+      elasticX: __cam().elasticOffsetX,
+      gestureActive: __cam()._gestureActive
+    }));
+    expect(duringDrag.gestureActive).toBe(true);
+    expect(Math.abs(duringDrag.elasticX)).toBeGreaterThan(0);
+
+    await page.mouse.up({ button: 'right' });
+
+    await page.waitForFunction(() => {
+      const cam = window.__vtt?.mapRenderer?.camera;
+      return cam && Math.abs(cam.elasticOffsetX) < 1.0 && !cam._gestureActive;
+    }, { timeout: 3000 });
+
+    const result = await page.evaluate(() => ({
+      offsetX: Math.abs(__cam().elasticOffsetX),
+      isSnapping: __cam()._isSnappingBack
+    }));
+    expect(result.offsetX).toBeLessThan(1.0);
+    expect(result.isSnapping).toBe(false);
+  });
+});
