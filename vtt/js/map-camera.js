@@ -839,9 +839,18 @@ export class Camera {
     this._cumulativeOverflowX = 0;
     this._cumulativeOverflowY = 0;
 
+    // Phase S3 Layer 1: Double-fire guard.
+    // If snap-back is already running and new call has zero velocity,
+    // let the running animation continue undisturbed.
+    const hasVelocity = velocity.vx !== 0 || velocity.vy !== 0;
+    if (this._isSnappingBack && !hasVelocity) {
+      return;
+    }
+
     if (Math.abs(this.elasticOffsetX) < SETTLE_THRESHOLD_PX && Math.abs(this.elasticOffsetY) < SETTLE_THRESHOLD_PX) {
       this.elasticOffsetX = 0;
       this.elasticOffsetY = 0;
+      this._isSnappingBack = false;
       EventBus.emit('camera:changed');
       return;
     }
@@ -856,6 +865,8 @@ export class Camera {
       const clampedVy = this._clampSpringVelocity(
         velocity.vy, this.elasticOffsetY, omega
       );
+
+      this._isSnappingBack = true;
 
       this._elasticAnimator.snapBack(
         { x: this.elasticOffsetX, y: this.elasticOffsetY },
@@ -1278,6 +1289,7 @@ export class Camera {
           cam.elasticOffsetY = 0;
           cam._cumulativeOverflowX = 0;
           cam._cumulativeOverflowY = 0;
+          cam._isSnappingBack = false;
           EventBus.emit('camera:changed');
           anim.cancel();
           if (cam._gestures) cam._gestures.release('SNAP_BACK');
