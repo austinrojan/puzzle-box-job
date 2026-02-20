@@ -1,0 +1,1350 @@
+Starting CodeRabbit review in plain text mode...
+
+Connecting to review service
+Setting up
+Analyzing
+Reviewing
+
+============================================================================
+File: docs/plans/2026-02-19-phase6-s1-coderabbit-review.md
+Line: 376 to 397
+Type: refactor_suggestion
+
+Comment:
+Add rollback guidance for failed fixes.
+
+Task 5 instructs applying fixes and running tests but doesn't specify what to do if a fix breaks tests. This could leave the codebase in a broken state without clear recovery steps.
+
+
+
+📋 Proposed enhancement
+
+Add a step before applying fixes:
+
+Step 0: Create a checkpoint before fixes:
+
+bash
+git add -A
+git commit -m "checkpoint: before CodeRabbit review fixes"
+
+
+And add to Step 3:
+
+markdown
+Step 3: Run the affected test files after each fix:
+
+npx playwright test tests/phase6-unit.spec.js tests/phase6-integration.spec.js tests/device-classifier.spec.js tests/camera-clamping.spec.js tests/input-handling.spec.js --project=desktop-1920 --reporter=line
+
+
+If tests fail after a fix, investigate and either revise the fix or revert with git checkout -- .
+```
+
+Prompt for AI Agent:
+Verify each finding against the current code and only fix it if needed.
+
+In @docs/plans/2026-02-19-phase6-s1-coderabbit-review.md around lines 376 - 397, Augment Task 5 by adding a Step 0 that creates a checkpoint commit before making fixes (e.g., run git add -A && git commit -m "checkpoint: before CodeRabbit review fixes"), and update Step 3 to include explicit rollback guidance: after running the listed Playwright tests, if a fix breaks tests either revise the fix or revert the change using git checkout --  (or restore the working tree to the checkpoint commit) and document the decision; reference the Task 5, Step 0, Step 3 labels and the checkpoint commit message so reviewers can locate and follow the new rollback procedure.
+
+
+
+============================================================================
+File: docs/plans/2026-02-19-phase6-s1-coderabbit-review.md
+Line: 79
+Type: potential_issue
+
+Comment:
+Inconsistency: Undocumented file in Batch 5 diff command.
+
+The Batch 5 diff command includes tests/phase5.5-unit.spec.js, but this file is not mentioned in the Scope section (lines 25-34) or the Critical Files section (lines 38-50). If this file has changes that need review, add it to the documentation. Otherwise, remove it from the diff command.
+
+
+
+📝 Proposed fix
+
+Either document the file in the scope section, or remove it from the command:
+
+-git diff 67b9036..HEAD -- tests/camera-clamping.spec.js tests/input-handling.spec.js tests/helpers.js vtt/css/map.css tests/phase5.5-unit.spec.js > /tmp/batch5-modified.diff
++git diff 67b9036..HEAD -- tests/camera-clamping.spec.js tests/input-handling.spec.js tests/helpers.js vtt/css/map.css > /tmp/batch5-modified.diff
+
+Prompt for AI Agent:
+Verify each finding against the current code and only fix it if needed.
+
+In @docs/plans/2026-02-19-phase6-s1-coderabbit-review.md at line 79, The diff command in the docs includes an undocumented file tests/phase5.5-unit.spec.js; either add that filename to the Scope (and, if relevant, to Critical Files) with a brief description of its changes, or remove tests/phase5.5-unit.spec.js from the git diff invocation (the line containing "git diff 67b9036..HEAD -- ... tests/phase5.5-unit.spec.js") so the batch diff matches the documented scope; update the Scope and Critical Files sections accordingly if you choose to document it.
+
+
+
+============================================================================
+File: docs/plans/2026-02-19-phase6-s1-coderabbit-review.md
+Line: 60
+Type: potential_issue
+
+Comment:
+Use explicit commit hash instead of HEAD for reproducibility.
+
+The diff commands use HEAD, but the documented scope specifies reviewing up to commit 1ab5754. If additional commits are made before running these commands, the review scope will unexpectedly expand beyond what's documented.
+
+
+
+🔒 Proposed fix for reproducibility
+
+-git diff 67b9036..HEAD -- ':(exclude)planning-docs/' > /tmp/phase6-s1-full.diff
++git diff 67b9036..1ab5754 -- ':(exclude)planning-docs/' > /tmp/phase6-s1-full.diff
+
+
+Apply the same change to all diff commands in lines 67, 70, 73, 76, and 79.
+
+Prompt for AI Agent:
+Verify each finding against the current code and only fix it if needed.
+
+In @docs/plans/2026-02-19-phase6-s1-coderabbit-review.md at line 60, The diff commands currently use HEAD which makes the review scope non-reproducible; update each git diff invocation that uses HEAD (e.g., the line beginning with "git diff 67b9036..HEAD -- ':(exclude)planning-docs/'" and the similar commands referenced for lines 67, 70, 73, 76, and 79) to use the explicit commit hash 1ab5754 instead of HEAD so the diffs remain stable and reproducible.
+
+
+
+============================================================================
+File: planning-docs/VTT-ViewPort-Plan/VTT-Camera-Stability-Improvement-Plan/Research Overview_Solving VTT camera input_a multi-disciplinary research synthesis.md
+Line: 79 to 85
+Type: potential_issue
+
+Comment:
+Review the velocity clamping function logic.
+
+The clampVelocityForSpring function has asymmetric logic:
+- For x0 > 0, it clamps when v0  -vCritical
+
+For positive displacement (x0 > 0), the target is at 0, so movement toward target requires negative velocity. The clamp prevents v0 from being "too negative" (returning vCritical, which is negative). For negative displacement (x0  -vCritical (negative value), which means it clamps velocities that are "too positive." But the return value is -vCritical, which would be negative. This seems incorrect.
+
+For x0  vCritical → return vCritical
+- The code has v0 > -vCritical → return -vCritical, which is backwards
+
+Prompt for AI Agent:
+Verify each finding against the current code and only fix it if needed.
+
+In @planning-docs/VTT-ViewPort-Plan/VTT-Camera-Stability-Improvement-Plan/Research Overview_Solving VTT camera input_a multi-disciplinary research synthesis.md around lines 79 - 85, The clampVelocityForSpring function's second branch is sign-flipped: when x0  -vCritical and return -vCritical, which is wrong; change the logic in clampVelocityForSpring so that for x0  vCritical and, if so, return vCritical (mirroring the x0 > 0 branch), keeping the x0 > 0 branch as-is and leaving return v0 for the default case.
+
+
+
+============================================================================
+File: planning-docs/VTT-ViewPort-Plan/VTT-Camera-Stability-Improvement-Plan/Research Overview_Solving VTT camera input_a multi-disciplinary research synthesis.md
+Line: 156 to 162
+Type: potential_issue
+
+Comment:
+Define the five bugs within this document.
+
+The document repeatedly references bugs #1 through #5 but never defines what they are within this document. For this research synthesis to stand alone, add a section early in the document that clearly defines each of the five bugs being addressed.
+
+Prompt for AI Agent:
+Verify each finding against the current code and only fix it if needed.
+
+In @planning-docs/VTT-ViewPort-Plan/VTT-Camera-Stability-Improvement-Plan/Research Overview_Solving VTT camera input_a multi-disciplinary research synthesis.md around lines 156 - 162, Add an early section titled "Definitions of Bugs" that enumerates Bug #1 through Bug #5 with one-sentence, standalone definitions matching the later fixes: Bug #1: freeze before snap-back (gesture-end timeout causing 1–2s visual latency), Bug #2: overshoot on fast release (unbounded coast/spring velocity causing overshoot), Bug #3: misclassification of fast trackpad scrolls as mouse wheel (wheel/trackpad device classifier failure), Bug #4: zoom-instead-of-pan (gesture routing causing unintended zoom), and Bug #5: erratic behavior during rapid gesture switching (lack of hierarchical state machine and bumpless transfers); place this section near the start of the document and add a short cross-reference note so each later bug-fix paragraph (the existing sections referencing Bug #1–#5) points back to these definitions.
+
+
+
+============================================================================
+File: planning-docs/VTT-ViewPort-Plan/VTT-Camera-Stability-Improvement-Plan/Research Overview_Solving VTT camera input_a multi-disciplinary research synthesis.md
+Line: 68
+Type: potential_issue
+
+Comment:
+Verify the 50ms perception threshold source.
+
+The document references a "50ms perception threshold" multiple times (lines 68, 138) as justification for speculative execution timing. This appears to relate to Jakob Nielsen's research mentioned on line 110 (100ms "feels instantaneous"), but there's an inconsistency: line 68 says 50ms, while line 110 says 100ms. Clarify which threshold applies and cite the specific source.
+
+Prompt for AI Agent:
+Verify each finding against the current code and only fix it if needed.
+
+In @planning-docs/VTT-ViewPort-Plan/VTT-Camera-Stability-Improvement-Plan/Research Overview_Solving VTT camera input_a multi-disciplinary research synthesis.md at line 68, The doc inconsistently claims a "50ms perception threshold" (used in the UNDECIDED buffering description for UNDECIDED / ACTIVE_GESTURE / PINCH_ZOOM) while elsewhere (near the Jakob Nielsen citation) it references 100ms; please verify the correct human-perception threshold from the primary source(s) (e.g., Jakob Nielsen's response-time limits or other HCI literature), replace the mismatched "50ms" or "100ms" everywhere so the document is consistent, and add an inline citation or URL to the exact source supporting the chosen value (update the sentences mentioning UNDECIDED buffering and the Nielsen citation to reference the same verified source).
+
+
+
+============================================================================
+File: planning-docs/VTT-ViewPort-Plan/VTT-Camera-Stability-Improvement-Plan/Overview-and-Roadmap_VTT-Camera-Stability-Improvement.md
+Line: 862 to 876
+Type: potential_issue
+
+Comment:
+Missing cancel() method on TrackpadGestureDetector.
+
+Line 874 calls this._camera._trackpadDetector.cancel(), but the document doesn't show this method being added to the TrackpadGestureDetector class. The detector is defined in Phase 1 context but only shows handleWheel() being called.
+
+Ensure the TrackpadGestureDetector class implements a cancel() method that cleans up any pending timeouts and resets internal state, or remove this call if cancellation isn't necessary for trackpad gestures.
+
+Prompt for AI Agent:
+Verify each finding against the current code and only fix it if needed.
+
+In @planning-docs/VTT-ViewPort-Plan/VTT-Camera-Stability-Improvement-Plan/Overview-and-Roadmap_VTT-Camera-Stability-Improvement.md around lines 862 - 876, The code calls this._camera._trackpadDetector.cancel() but TrackpadGestureDetector lacks a cancel() method; add a cancel() method to the TrackpadGestureDetector class (the same class that defines handleWheel()) that clears any pending timers/timeouts, aborts debounced or scheduled callbacks, and resets internal state flags (e.g., pendingWheelTimeout, isTracking, accumulatedDelta) so subsequent gestures start cleanly; alternatively, if cancellation is truly unnecessary, remove the call in the switch that references _trackpadDetector.cancel() and ensure no orphaned timers remain.
+
+
+
+============================================================================
+File: planning-docs/VTT-ViewPort-Plan/6-phase-implementation-planning-docs/Phase_2_Input_Handling.md
+Line: 388 to 398
+Type: refactor_suggestion
+
+Comment:
+Prefer EventBus pattern over direct private field access.
+
+Line 392 suggests calling camera._boundsCache.invalidate() directly from viewport-scaler.js, which breaks encapsulation by accessing a private field (denoted by the _ prefix). The EventBus approach shown at lines 395-397 is architecturally superior. Consider adding a public method to Camera:
+
+
+
+
+♻️ Proposed encapsulation-preserving approach
+
+Add a public method to the Camera class:
+
+// In Camera class
+invalidateBounds() {
+  this._boundsCache.invalidate();
+}
+
+
+Then use EventBus as suggested:
+
+// In viewport-scaler.js
+EventBus.emit('viewport:layout-changed');
+
+// In Camera.attachTo() or constructor
+EventBus.on('viewport:layout-changed', () => {
+  this.invalidateBounds();
+});
+
+
+This maintains the encapsulation boundary and follows the existing EventBus pattern used throughout the codebase.
+
+Prompt for AI Agent:
+Verify each finding against the current code and only fix it if needed.
+
+In @planning-docs/VTT-ViewPort-Plan/6-phase-implementation-planning-docs/Phase_2_Input_Handling.md around lines 388 - 398, Add a public Camera.invalidateBounds() method that calls the internal BoundsCache invalidation (instead of accessing camera._boundsCache externally), emit a 'viewport:layout-changed' EventBus event from viewport-scaler when the CSS transform/scale changes, and have Camera subscribe (e.g., in Camera.attachTo or its constructor) to EventBus 'viewport:layout-changed' to call this.invalidateBounds(); this preserves encapsulation and uses the existing EventBus pattern.
+
+
+
+============================================================================
+File: planning-docs/VTT-ViewPort-Plan/VTT-Camera-Stability-Improvement-Plan/5 Phase Implementation Plans/Phase_S5_Unified_Spring_Physics_Implementation_Plan.md
+Line: 1054 to 1063
+Type: refactor_suggestion
+
+Comment:
+Verify sign conventions and unit consistency for inertial coast velocity.
+
+The projected endpoint calculation and velocity sign need careful verification during implementation:
+
+const projectedX = this.x + velocity.x / (this.zoom * omega);
+// ...
+loop.panX.setTarget(projectedX, { velocity: -velocity.x / this.zoom });
+
+
+Ensure that:
+1. The velocity.x parameter is in the expected units (screen-space pixels per second based on the calculation)
+2. The sign negation on line 1062 is correct for your coordinate system and spring displacement convention
+3. The projection formula accounts for how the spring will decelerate from the current position
+
+The math appears correct if velocity is screen-space and the spring uses "displacement from target" semantics, but the sign negation is a common source of subtle bugs in coordinate transformations.
+
+Prompt for AI Agent:
+Verify each finding against the current code and only fix it if needed.
+
+In @planning-docs/VTT-ViewPort-Plan/VTT-Camera-Stability-Improvement-Plan/5 Phase Implementation Plans/Phase_S5_Unified_Spring_Physics_Implementation_Plan.md around lines 1054 - 1063, Check and normalize the inertial coast calculation: confirm that velocity.x/velocity.y are in screen-space pixels/sec (if they are world-space, convert by multiplying/dividing by zoom accordingly), keep the projection formula projectedX = this.x + velocity.x / (this.zoom * omega) and projectedY similarly only if velocity is already screen-space, and ensure the velocity value passed to loop.panX.setTarget and loop.panY.setTarget uses the same units and sign convention the spring expects (i.e., if the spring interprets velocity as target's world/screen velocity in the same coordinate direction as position, pass velocity.x/this.zoom and velocity.y/this.zoom without negation; if it expects velocity of the body relative to the target or opposite direction, negate them); verify the spring displacement convention (displacement = target - currentPosition vs currentPosition - target) for loop.panX/loop.panY and flip the sign on the velocity argument only if that convention requires it.
+
+
+
+============================================================================
+File: planning-docs/VTT-ViewPort-Plan/6-phase-implementation-planning-docs/Phase_2_Input_Handling.md
+Line: 477 to 486
+Type: potential_issue
+
+Comment:
+Comment/code mismatch in GestureEvent feature detection.
+
+The comment at lines 478-480 states "We also check that TouchEvent is absent, which distinguishes desktop Safari from iOS Safari," but the code at line 481 only checks for GestureEvent existence without checking TouchEvent absence. 
+
+Either:
+1. The comment is outdated and the TouchEvent check is unnecessary, or
+2. The check is missing and should be added.
+
+
+
+If the TouchEvent distinction is important, consider:
+
+
+🔍 Add the documented TouchEvent check
+
+   // Feature detection: GestureEvent exists only in Safari.
+   // We also check that TouchEvent is absent, which distinguishes
+   // desktop Safari from iOS Safari (where GestureEvent exists
+   // but serves a different purpose).
+-  if (typeof GestureEvent !== 'undefined') {
++  if (typeof GestureEvent !== 'undefined' && typeof TouchEvent === 'undefined') {
+     document.addEventListener('gesturestart', (e) => e.preventDefault(),
+       { passive: false });
+     document.addEventListener('gesturechange', (e) => e.preventDefault(),
+       { passive: false });
+   }
+
+
+However, if the distinction doesn't matter for this use case, update the comment to match the code.
+
+Prompt for AI Agent:
+Verify each finding against the current code and only fix it if needed.
+
+In @planning-docs/VTT-ViewPort-Plan/6-phase-implementation-planning-docs/Phase_2_Input_Handling.md around lines 477 - 486, The comment claims we check both GestureEvent existence and TouchEvent absence but the code only tests GestureEvent; either update the comment or add the missing TouchEvent check. To preserve the intended desktop-Safari detection, change the condition to if (typeof GestureEvent !== 'undefined' && typeof TouchEvent === 'undefined') and keep the existing document.addEventListener calls for 'gesturestart' and 'gesturechange' (passive: false); otherwise, remove the TouchEvent claim from the comment so it accurately reflects the current check for GestureEvent only.
+
+
+
+============================================================================
+File: planning-docs/VTT-ViewPort-Plan/6-phase-implementation-planning-docs/Phase_2_Input_Handling.md
+Line: 603 to 614
+Type: potential_issue
+
+Comment:
+Keyboard layout issue: Shift+0 and Shift+1 detection is US-specific.
+
+The code checks for e.key === ')' (Shift+0 on US keyboards) and e.key === '!' (Shift+1 on US keyboards). On non-US keyboard layouts, Shift+0 and Shift+1 produce different characters. For example:
+- French AZERTY: Shift+0 produces '0', not ')'
+- German QWERTZ: Shift+0 produces '=', Shift+1 produces '!'
+- UK layout: Shift+1 produces '!', but Shift+0 produces ')'
+
+
+
+
+🌍 Proposed fix using e.code for keyboard-layout independence
+
+       // Zoom presets
+-      if (e.shiftKey && e.key === ')') {
+-        // Shift+0 produces ')' on US keyboards
++      if (e.shiftKey && e.code === 'Digit0') {
++        // Shift+0 (works on all keyboard layouts)
+         e.preventDefault();
+         this._camera.fitCover();
+         return;
+       }
+-      if (e.shiftKey && e.key === '!') {
+-        // Shift+1 produces '!' on US keyboards
++      if (e.shiftKey && e.code === 'Digit1') {
++        // Shift+1 (works on all keyboard layouts)
+         e.preventDefault();
+         this._camera.fitContain();
+         return;
+       }
+
+
+Using e.code checks the physical key position independent of keyboard layout, which is the standard approach for shortcuts.
+
+Prompt for AI Agent:
+Verify each finding against the current code and only fix it if needed.
+
+In @planning-docs/VTT-ViewPort-Plan/6-phase-implementation-planning-docs/Phase_2_Input_Handling.md around lines 603 - 614, The keyboard handling is layout-dependent because it checks e.key for ')' and '!' which vary by layout; update the key detection in the relevant event handler to use e.code (e.g., 'Digit0' and 'Digit1') combined with e.shiftKey to detect the physical Shift+0/Shift+1 keystrokes and then call this._camera.fitCover() or this._camera.fitContain() (keep the existing e.preventDefault() and returns). Replace the e.key checks with e.code checks so the shortcuts are keyboard-layout independent.
+
+
+
+============================================================================
+File: planning-docs/VTT-ViewPort-Plan/VTT-Camera-Stability-Improvement-Plan/5 Phase Implementation Plans/Phase_S3_Speculative_Snap_Back_Implementation_Plan.md
+Line: 418 to 426
+Type: potential_issue
+
+Comment:
+Clarify screen-space vs. world-space threshold inconsistency in monitoring loop termination.
+
+The comment on line 418-419 states that the 0.5 threshold "matches SETTLE_THRESHOLD_PX", but there's an important distinction:
+
+- The monitoring loop checks currentScreenMag > 0.5 (screen pixels)
+- The elastic animator's SETTLE_THRESHOLD_PX = 0.5 is in world pixels
+
+At different zoom levels, this creates a mismatch:
+- At zoom 2.0: 0.5 screen px = 0.25 world px → monitoring stops before the animator settles
+- At zoom 0.5: 0.5 screen px = 1.0 world px → monitoring continues unnecessarily after the animator should settle
+
+While Section 11 addresses a similar inconsistency and concludes it's "harmless," that analysis focuses on the elastic animator's settle thresholds, not the monitoring loop's termination condition. Consider either:
+
+1. Converting the monitoring termination threshold to world-space for consistency with the animator
+2. Explicitly documenting why the screen-space termination is preferred and explaining the timing implications at various zoom levels
+
+
+
+
+💡 Proposed clarification
+
+     // Step 4: Continue monitoring or stop
+     // -------------------------------------------------------
+     // Keep the monitoring loop running while elastic offset is visible.
+     // When the magnitude drops to zero (snap-back completed or offset
+     // was manually zeroed), stop monitoring. This allows the browser
+     // to enter idle state between interactions, preserving battery.
+     //
+-    // The 0.5 threshold here matches SETTLE_THRESHOLD_PX: the same
+-    // threshold the spring solver uses to decide "close enough to zero."
++    // The 0.5 threshold is in SCREEN pixels, making it zoom-independent.
++    // Note: the elastic animator's SETTLE_THRESHOLD_PX (0.5 world px)
++    // may settle at different screen magnitudes depending on zoom level.
++    // At high zoom, monitoring may continue briefly after settlement.
++    // At low zoom, monitoring may stop before settlement completes.
++    // Both cases are harmless: the animator completes independently.
+     if (currentScreenMag > 0.5) {
+
+Prompt for AI Agent:
+Verify each finding against the current code and only fix it if needed.
+
+In @planning-docs/VTT-ViewPort-Plan/VTT-Camera-Stability-Improvement-Plan/5 Phase Implementation Plans/Phase_S3_Speculative_Snap_Back_Implementation_Plan.md around lines 418 - 426, The monitoring loop currently uses a hardcoded screen-space threshold (currentScreenMag > 0.5) that is claimed to match SETTLE_THRESHOLD_PX, but those are in different spaces; update the termination check in _checkSpeculativeSnapBack (and the assignment to _speculativeSnapId) to compare like-for-like: either convert SETTLE_THRESHOLD_PX (the animator constant) into screen pixels using the current zoom/camera scale and use that as the comparator, or convert currentScreenMag into world-space before comparing to SETTLE_THRESHOLD_PX; ensure you reference SETTLE_THRESHOLD_PX and currentScreenMag (or camera.getZoom()/scale) so the loop stops consistently with the animator across zoom levels, and add a short comment explaining the chosen conversion.
+
+
+
+============================================================================
+File: planning-docs/VTT-ViewPort-Plan/VTT-Camera-Stability-Improvement-Plan/5 Phase Implementation Plans/Phase_S3_Speculative_Snap_Back_Implementation_Plan.md
+Line: 1040 to 1057
+Type: potential_issue
+
+Comment:
+Clarify test timeout expectation for tightened constant.
+
+Test 8 expects onGestureEnd to fire between 60ms and 150ms (lines 1054-1055), with the comment "Not too late (old was 150ms)". However:
+
+- The new TIMEOUT_ACTIVE_MS is 80ms (line 281)
+- The upper bound of 150ms is the old timeout value
+
+For clarity, consider either:
+1. Adjusting the upper bound to reflect the new timeout (e.g., 120ms = 80ms + 40ms variance)
+2. Adding a comment explaining why 150ms is kept as a safety margin for flaky test prevention
+
+The current assertion might pass but doesn't effectively verify the constant was actually updated.
+
+
+
+
+✅ Proposed adjustment
+
+   // Should fire within 80ms + some scheduling variance
+   expect(elapsed).toBeGreaterThan(60);   // Not too early
+-  expect(elapsed).toBeLessThan(150);     // Not too late (old was 150ms)
++  expect(elapsed).toBeLessThan(120);     // Should be ~80ms + variance (old was 150ms)
+
+
+Alternatively, if 150ms is intentionally loose to prevent flakiness:
+
+-  expect(elapsed).toBeLessThan(150);     // Not too late (old was 150ms)
++  expect(elapsed).toBeLessThan(150);     // Loose upper bound to prevent flakiness; new timeout is 80ms
+
+Prompt for AI Agent:
+Verify each finding against the current code and only fix it if needed.
+
+In @planning-docs/VTT-ViewPort-Plan/VTT-Camera-Stability-Improvement-Plan/5 Phase Implementation Plans/Phase_S3_Speculative_Snap_Back_Implementation_Plan.md around lines 1040 - 1057, The test for TrackpadGestureDetector's onGestureEnd timeout still asserts an upper bound of 150ms which reflects the old timeout; update the assertion (or comment) so it verifies the tightened TIMEOUT_ACTIVE_MS (80ms) — either change expect(elapsed).toBeLessThan(150) to a tighter value like 120 (80ms + 40ms variance) or keep 150 but add a clarifying comment referencing TIMEOUT_ACTIVE_MS and the intentional safety margin; locate the test using the TrackpadGestureDetector symbol and the TIMEOUT_ACTIVE_MS constant to make the change.
+
+
+
+============================================================================
+File: planning-docs/VTT-ViewPort-Plan/6-phase-implementation-planning-docs/Phase_5.5_Cleanup_and_Momentum.md
+Line: 446 to 448
+Type: refactor_suggestion
+
+Comment:
+Calling private method _applyConstraints() creates tight coupling.
+
+Line 448 has CameraAnimator calling this._camera._applyConstraints(), which is a private method (underscore prefix). This creates tight coupling between the animator and camera internals. If _applyConstraints() changes its signature or behavior, the animator breaks.
+
+
+
+
+♻️ Proposed refactor to use public API
+
+Consider adding a public method to the Camera class that performs constraint application:
+
+// In Camera class:
+applyConstraints() {
+  this._applyConstraints();
+}
+
+
+Then update the momentum tick:
+
+   // Apply position delta
+   const dx = this._momentumVx * dt;
+   const dy = this._momentumVy * dt;
+
+   // Store pre-clamp position to detect boundary collision
+   const prevX = this._camera.x;
+   const prevY = this._camera.y;
+
+   this._camera.x += dx;
+   this._camera.y += dy;
+-  this._camera._applyConstraints();
++  this._camera.applyConstraints();
+
+
+Alternatively, if direct mutation of x and y followed by constraint application is a common pattern, consider adding a moveBy(dx, dy) method to Camera that encapsulates both operations.
+
+Prompt for AI Agent:
+Verify each finding against the current code and only fix it if needed.
+
+In @planning-docs/VTT-ViewPort-Plan/6-phase-implementation-planning-docs/Phase_5.5_Cleanup_and_Momentum.md around lines 446 - 448, CameraAnimator is calling the private Camera method _applyConstraints(), creating tight coupling; add a public Camera API (either applyConstraints() that calls this._applyConstraints() or a moveBy(dx, dy) that updates x/y and applies constraints) and update CameraAnimator to call the new public method (e.g., this._camera.applyConstraints() or this._camera.moveBy(dx, dy)) instead of accessing _applyConstraints() (and if you add moveBy, replace the direct mutations this._camera.x += dx; this._camera.y += dy; with the single call to moveBy).
+
+
+
+============================================================================
+File: planning-docs/VTT-ViewPort-Plan/VTT-Camera-Stability-Improvement-Plan/5 Phase Implementation Plans/Phase_S4_Hierarchical_Gesture_Coordination_Implementation_Plan.md
+Line: 794 to 824
+Type: potential_issue
+
+Comment:
+Incorrect explanation of why cooldown doesn't block drag starts.
+
+Lines 798-799 state that _startPan() enters Rule 2 (user preempts animation), but this is only true if an animation is still active. If SNAP_BACK has already completed and the system is in IDLE, Rule 4 applies instead, and the cooldown could block DRAG_PAN.
+
+The document correctly identifies this issue and proposes the tier-aware refinement later (lines 802-821, 827-851), but the initial explanation creates confusion.
+
+
+
+
+✏️ Suggested clarification
+
+Revise lines 798-799:
+
+-This does not happen in practice because _startPan() calls this._gestures.request('DRAG_PAN'), 
+-which enters Rule 2 (user preempts animation: the SNAP_BACK from _cancelPan is an animation gesture). 
+-Rule 2 bypasses dwell and cooldown entirely. If the SNAP_BACK has already completed and the system 
+-is in IDLE, the cooldown check in Rule 4 compares gesture !== this._lastEndedGesture.
++This could potentially happen if the SNAP_BACK has already completed and the system is in IDLE.
++In this case, Rule 4 applies, not Rule 2. Rule 4's cooldown check compares 
++gesture !== this._lastEndedGesture.
+
+Prompt for AI Agent:
+Verify each finding against the current code and only fix it if needed.
+
+In @planning-docs/VTT-ViewPort-Plan/VTT-Camera-Stability-Improvement-Plan/5 Phase Implementation Plans/Phase_S4_Hierarchical_Gesture_Coordination_Implementation_Plan.md around lines 794 - 824, Update the explanatory text to correct the inaccurate claim that _startPan() always enters Rule 2: clarify that _startPan() preempts animations only if an animation gesture (e.g., SNAP_BACK) is still active, otherwise the system is in IDLE and Rule 4 applies so cooldown checks using _lastEndedGesture can block DRAG_PAN; reference the relevant methods/variables (_cancelPan, _startPan, _lastEndedGesture, USER_GESTURES) and point readers to the later tier-aware refinement that fixes the IDLE/cooldown case.
+
+
+
+============================================================================
+File: planning-docs/VTT-ViewPort-Plan/VTT-Camera-Stability-Improvement-Plan/5 Phase Implementation Plans/Phase_S4_Hierarchical_Gesture_Coordination_Implementation_Plan.md
+Line: 1069 to 1088
+Type: potential_issue
+
+Comment:
+Test expectation conflicts with conservative implementation approach.
+
+The test expects granted=true (line 1086), which assumes the tier-aware refinement is implemented. However, Section 5's main implementation uses the conservative approach, which would return granted=false.
+
+The comment (lines 1080-1085) acknowledges both possibilities but defaults to the tier-aware expectation. This creates inconsistency with the main implementation.
+
+
+
+Consider either:
+1. Changing the expectation to match the conservative implementation shown in Section 5, or
+2. Updating Section 5's implementation to include the tier-aware refinement, or
+3. Making this test conditional based on which approach is deployed
+
+
+🧪 Conditional test approach
+
+     // With the tier-aware refinement, this should be granted.
+     // Without the refinement (conservative approach), this would
+     // be denied. Adjust expectation based on which version is deployed.
+-    // For the initial conservative deployment:
+-    // expect(result.granted).toBe(false);
+-    // For the tier-aware refinement:
+-    expect(result.granted).toBe(true);
++    // Check which version is deployed:
++    const isTierAware = await page.evaluate(() => {
++      // Test by checking if animation cooldown blocks user gesture
++      const gsm = __cam()._gestures;
++      gsm.request('SNAP_BACK');
++      gsm.release('SNAP_BACK');
++      return gsm.request('SCROLL_PAN'); // true = tier-aware, false = conservative
++    });
++    expect(result.granted).toBe(isTierAware);
+
+Prompt for AI Agent:
+Verify each finding against the current code and only fix it if needed.
+
+In @planning-docs/VTT-ViewPort-Plan/VTT-Camera-Stability-Improvement-Plan/5 Phase Implementation Plans/Phase_S4_Hierarchical_Gesture_Coordination_Implementation_Plan.md around lines 1069 - 1088, The test "animation ending does not block user gesture via cooldown" currently asserts granted=true for gsm.request('SCROLL_PAN') which conflicts with the conservative implementation in Section 5; choose one fix: (A) if keeping conservative behavior, change the expectation to expect(result.granted).toBe(false) and expect(result.current).toBe(/ appropriate state, e.g., null or previous /) in the test; (B) if adopting the tier-aware refinement, implement the tier-aware logic inside the gestures manager (the __cam()._gestures object: update gsm.request and its handling of 'SNAP_BACK' release to allow immediate 'SCROLL_PAN' grant) and keep the existing expectations; or (C) make the test conditional by reading a feature flag or config (e.g., isTierAwareEnabled()) inside the page.evaluate block and assert accordingly so the test passes under both deployments. Ensure references to gsm, request('SNAP_BACK'), release('SNAP_BACK'), and request('SCROLL_PAN') are used to locate the relevant code and test assertions.
+
+
+
+============================================================================
+File: planning-docs/VTT-ViewPort-Plan/additional-research-docs/Phase-6_Research_Elastic-overscroll-and advanced-input-handling-for-a-browser-VTT-camera.md
+Line: 212 to 216
+Type: potential_issue
+
+Comment:
+Coordinate system inconsistency between Camera and SmoothZoomAnimator.
+
+The SmoothZoomAnimator expects camera.offsetX and camera.offsetY properties (lines 215-216, 227-228), but the Camera class defined in lines 125-155 uses x and y instead. This mismatch will cause runtime errors.
+
+Align the property names or clarify that these are different camera implementations.
+
+
+
+
+📝 Suggested alignment options
+
+Option 1: Update SmoothZoomAnimator to use x/y:
+-    this.anchor.wx = (screenX - this.camera.offsetX) / this.camera.zoom;
+-    this.anchor.wy = (screenY - this.camera.offsetY) / this.camera.zoom;
++    this.anchor.wx = (screenX - this.camera.x) / this.camera.zoom;
++    this.anchor.wy = (screenY - this.camera.y) / this.camera.zoom;
+
+
+Option 2: Update Camera class to use offsetX/offsetY consistently throughout the document.
+
+Prompt for AI Agent:
+Verify each finding against the current code and only fix it if needed.
+
+In @planning-docs/VTT-ViewPort-Plan/additional-research-docs/Phase-6_Research_Elastic-overscroll-and advanced-input-handling-for-a-browser-VTT-camera.md around lines 212 - 216, The SmoothZoomAnimator is reading camera.offsetX/offsetY while the Camera implementation uses x/y, causing a runtime mismatch; pick one convention and make both implementations consistent — either update SmoothZoomAnimator to read camera.x and camera.y (references: SmoothZoomAnimator, camera.offsetX/offsetY -> change to camera.x/camera.y, anchor.wx/anchor.wy calculation) or update the Camera class to expose offsetX/offsetY (references: Camera class, its x/y properties -> add or rename to offsetX/offsetY and ensure all uses of x/y are updated accordingly).
+
+
+
+============================================================================
+File: planning-docs/VTT-ViewPort-Plan/additional-research-docs/Phase-6_Research_Elastic-overscroll-and advanced-input-handling-for-a-browser-VTT-camera.md
+Line: 298 to 310
+Type: potential_issue
+
+Comment:
+Timestamp accumulation issue in mock requestAnimationFrame.
+
+Line 304 uses performance.now() + ms for each frame, but rapid successive calls to _stepFrame will not produce monotonically increasing timestamps with proper intervals. 
+
+Consider tracking a base timestamp:
+
+
+
+
+⏱️ Proposed fix for deterministic timestamps
+
+  await page.evaluate(() => {
+    const cbs = [];
++   let mockTime = 0;
+    window._realRAF = window.requestAnimationFrame;
+    window.requestAnimationFrame = cb => cbs.push(cb) && cbs.length;
+    window._stepFrame = (ms) => {
++     mockTime += ms;
+      const batch = [...cbs]; cbs.length = 0;
+-     batch.forEach(cb => cb(performance.now() + ms));
++     batch.forEach(cb => cb(mockTime));
+    };
+  });
+
+Prompt for AI Agent:
+Verify each finding against the current code and only fix it if needed.
+
+In @planning-docs/VTT-ViewPort-Plan/additional-research-docs/Phase-6_Research_Elastic-overscroll-and advanced-input-handling-for-a-browser-VTT-camera.md around lines 298 - 310, The mocked RAF currently calls each callback with performance.now() + ms which doesn't advance across successive _stepFrame calls; change the mock to maintain a persistent timestamp (e.g., window._rafNow initialized to performance.now()) and in window._stepFrame increment window._rafNow by the provided ms (or by ms per step) and pass that updated value into each cb so timestamps are deterministic and monotonically increasing; update the requestAnimationFrame replacement and any uses of window._stepFrame/window._realRAF/window._rafNow to use this single advancing time source.
+
+
+
+============================================================================
+File: planning-docs/VTT-ViewPort-Plan/additional-research-docs/Phase-6_Research_Elastic-overscroll-and advanced-input-handling-for-a-browser-VTT-camera.md
+Line: 38 to 46
+Type: potential_issue
+
+Comment:
+Edge case: Zero-delta events may corrupt momentum interruption detection.
+
+If a wheel event with deltaX = 0 and deltaY = 0 occurs during MOMENTUM state (line 38), absDelta becomes 0 (line 29), which then sets this.lastAbsDelta = 0 (line 63). On the next event, line 40's condition absDelta > this.lastAbsDelta * 1.5 becomes absDelta > 0, causing any non-zero delta to incorrectly trigger a restart to ACTIVE state.
+
+Consider filtering out zero-delta events or preserving the last non-zero delta for interruption detection.
+
+
+
+
+🛡️ Proposed fix to handle zero-delta events
+
+   handleWheel(e) {
+     const now = performance.now();
+     const absDelta = Math.abs(e.deltaY) + Math.abs(e.deltaX);
++    if (absDelta === 0) return; // Ignore zero-delta events
+     const timeSinceLast = now - this.lastEventTime;
+
+Prompt for AI Agent:
+Verify each finding against the current code and only fix it if needed.
+
+In @planning-docs/VTT-ViewPort-Plan/additional-research-docs/Phase-6_Research_Elastic-overscroll-and advanced-input-handling-for-a-browser-VTT-camera.md around lines 38 - 46, During MOMENTUM handling, zero-delta wheel events corrupt interruption detection because absDelta can become 0 and reset this.lastAbsDelta; change the logic in the MOMENTUM branch (the block that checks absDelta > this.lastAbsDelta * 1.5 and timeSinceLast > 120) to ignore events with absDelta === 0 for interruption checks and when updating this.lastAbsDelta—i.e., only update this.lastAbsDelta (or maintain a separate this.lastNonZeroAbsDelta) when absDelta > 0 so that a zero-delta event does not cause future non-zero deltas to falsely trigger this.state = 'ACTIVE' and callbacks.onStart?.(e).
+
+
+
+============================================================================
+File: planning-docs/VTT-ViewPort-Plan/6-phase-implementation-planning-docs/Phase_5_Advanced_Features.md
+Line: 2037 to 2050
+Type: refactor_suggestion
+
+Comment:
+Add role check to orphan mode logic.
+
+The #updateOrphanMode() method should only execute on Display windows. If this code runs on a Controller window, getPeersByRole('controller') would exclude the current window, incorrectly triggering orphan mode on the Controller itself.
+
+
+
+
+🔒 Recommended role guard
+
+ #updateOrphanMode() {
++  // Only Display windows should show orphan overlay
++  if (this.#role !== 'display') return;
++
+   const controllers = this.#registry.getPeersByRole('controller');
+   const isOrphan = controllers.length === 0;
+
+Prompt for AI Agent:
+Verify each finding against the current code and only fix it if needed.
+
+In @planning-docs/VTT-ViewPort-Plan/6-phase-implementation-planning-docs/Phase_5_Advanced_Features.md around lines 2037 - 2050, The orphan-mode check in CameraSyncEngine's #updateOrphanMode() runs on all windows and can misfire on Controller windows; add a role guard at the top of #updateOrphanMode() so it only runs for Display windows (e.g., return early unless this.#role === 'display' or this.role === 'display'), then proceed to use this.#registry.getPeersByRole('controller') as before; this prevents Controllers from being treated as orphans while preserving the existing overlay logic.
+
+
+
+============================================================================
+File: planning-docs/VTT-ViewPort-Plan/6-phase-implementation-planning-docs/Phase_6_Trackpad_Elastic_Overscroll_and_Advanced_Input.md
+Line: 1456 to 1463
+Type: potential_issue
+
+Comment:
+Missing elastic offset reset on remote camera updates.
+
+Lines 1459-1462 correctly state that elastic offset is local-only and never broadcast. However, the document doesn't specify what happens to existing elastic offset when a BroadcastChannel update arrives from another window.
+
+If the VTT Display has a nonzero elastic offset from a local gesture, and the Controller sends a new camera position, the Display will deserialize and apply the new position through _applyConstraints(), but the elastic offset will persist until the next snap-back fires. This creates a visual glitch where the camera appears displaced from the received position.
+
+
+
+
+🔧 Recommended fix
+
+When deserializing remote camera state in the BroadcastChannel receiver, reset elastic offset:
+
+// In the BroadcastChannel message handler (camera-sync.js or equivalent):
+deserialize(sharedState) {
+  // ... existing deserialization logic ...
+  
+  // Reset local-only elastic state when receiving remote camera updates
+  this.elasticOffsetX = 0;
+  this.elasticOffsetY = 0;
+  this._cumulativeOverflowX = 0;
+  this._cumulativeOverflowY = 0;
+  this._gestureActive = false;
+  
+  this._applyConstraints();
+}
+
+
+This ensures remote camera updates take full control without interference from local elastic artifacts.
+
+Prompt for AI Agent:
+Verify each finding against the current code and only fix it if needed.
+
+In @planning-docs/VTT-ViewPort-Plan/6-phase-implementation-planning-docs/Phase_6_Trackpad_Elastic_Overscroll_and_Advanced_Input.md around lines 1456 - 1463, The BroadcastChannel receiver must clear local-only elastic state when applying remote camera updates because deserialize() currently applies shared state via _applyConstraints() but leaves elasticOffsetX/elasticOffsetY and cumulative/gesture flags set, causing visual displacement; update the deserialize(...) handler to reset this.elasticOffsetX, this.elasticOffsetY, this._cumulativeOverflowX, this._cumulativeOverflowY and this._gestureActive (or equivalent local elastic fields) to neutral values before calling _applyConstraints() so the incoming logical camera position is rendered exactly as received.
+
+
+
+============================================================================
+File: planning-docs/VTT-ViewPort-Plan/additional-research-docs/Phase-6_Research_Elastic-overscroll-and advanced-input-handling-for-a-browser-VTT-camera.md
+Line: 146 to 152
+Type: potential_issue
+
+Comment:
+Rubber-band accumulation mixes linear and non-linear spaces.
+
+Lines 150-151 add raw linear overflow to an already-rubber-banded elastic offset, then apply rubber-band to the sum. Since rubber-band is non-linear, rubberBand(elasticX + overflowX) ≠ rubberBand(elasticX) + rubberBand(overflowX), which may produce unexpected resistance curves.
+
+Consider tracking raw cumulative overflow separately and applying rubber-band to the total:
+
+
+
+
+🔧 Proposed fix to separate linear and non-linear spaces
+
+  constructor() {
+    this.x = 0;
+    this.y = 0;
+    this.zoom = 1;
++   this.rawOverflowX = 0;    // Track raw overflow in linear space
++   this.rawOverflowY = 0;
+    this.elasticX = 0;         // visual offset beyond bounds
+    this.elasticY = 0;
+  }
+
+  panBy(dx, dy, bounds, allowElastic = false) {
+    const rawX = this.x + dx;
+    const rawY = this.y + dy;
+    const clampedX = clamp(rawX, bounds.minX, bounds.maxX);
+    const clampedY = clamp(rawY, bounds.minY, bounds.maxY);
+    this.x = clampedX;
+    this.y = clampedY;
+
+    if (allowElastic) {
+      const overflowX = rawX - clampedX;
+      const overflowY = rawY - clampedY;
+-     // Accumulate and rubber-band the overflow
+-     this.elasticX = rubberBand(this.elasticX + overflowX, bounds.width);
+-     this.elasticY = rubberBand(this.elasticY + overflowY, bounds.height);
++     // Accumulate in linear space, then apply rubber-band
++     this.rawOverflowX += overflowX;
++     this.rawOverflowY += overflowY;
++     this.elasticX = rubberBand(this.rawOverflowX, bounds.width);
++     this.elasticY = rubberBand(this.rawOverflowY, bounds.height);
+    }
+  }
+
+Prompt for AI Agent:
+Verify each finding against the current code and only fix it if needed.
+
+In @planning-docs/VTT-ViewPort-Plan/additional-research-docs/Phase-6_Research_Elastic-overscroll-and advanced-input-handling-for-a-browser-VTT-camera.md around lines 146 - 152, The current accumulation mixes linear and non-linear spaces by adding raw overflow (rawX - clampedX) to the already-rubber-banded this.elasticX and then re-applying rubberBand; instead, keep a separate linear accumulator (e.g., rawElasticX/rawElasticY) to sum raw overflow when allowElastic is true, compute the visible offset by calling rubberBand(rawElasticX, bounds.width) into this.elasticX (and similarly for Y), and reset the linear accumulator to zero or sync it to bounds when the pointer returns inside bounds so the nonlinear rubber-band state and the raw linear total remain consistent; update places where this.elasticX/Y are read/written to use the new raw accumulator and derived rubber-banded values.
+
+
+
+============================================================================
+File: planning-docs/VTT-ViewPort-Plan/6-phase-implementation-planning-docs/Phase_6_Trackpad_Elastic_Overscroll_and_Advanced_Input.md
+Line: 277 to 324
+Type: potential_issue
+
+Comment:
+Frame-rate dependent decay in cumulative overflow tracking.
+
+The decay logic at lines 305-306 and 316-317 multiplies _cumulativeOverflowX/Y by 0.8 when there's no overflow on that axis. This decay is frame-rate dependent—if panBy() is called more frequently (e.g., high-frequency trackpad events), the cumulative overflow will decay faster than if called less frequently (e.g., slower event streams). This creates inconsistent feel across different input patterns.
+
+Additionally, the threshold 
+🔧 Suggested approach
+
+Consider one of these approaches:
+
+1. Time-based decay: Track the timestamp of the last overflow and decay based on elapsed time rather than per-call.
+
+2. Screen-space threshold: Convert the threshold to screen-space pixels (e.g.,
+
+Prompt for AI Agent:
+Verify each finding against the current code and only fix it if needed.
+
+In @planning-docs/VTT-ViewPort-Plan/6-phase-implementation-planning-docs/Phase_6_Trackpad_Elastic_Overscroll_and_Advanced_Input.md around lines 277 - 324, The current per-frame multiplicative decay in panBy causes frame-rate- and zoom-dependent behavior; instead, change panBy (method panBy) to immediately reset cumulative overflow when an axis has no overflow: when overflowX === 0 set this._cumulativeOverflowX = 0 (remove the *= 0.8 and the world-space < 0.1 threshold), and do the same for this._cumulativeOverflowY when overflowY === 0; keep the existing accumulation logic and the call to this._feedElasticOverflow(this._cumulativeOverflowX, this._cumulativeOverflowY) so elastic feedback and EventBus.emit('camera:changed') remain unchanged.
+
+
+
+============================================================================
+File: planning-docs/VTT-ViewPort-Plan/6-phase-implementation-planning-docs/Phase_6_Trackpad_Elastic_Overscroll_and_Advanced_Input.md
+Line: 221 to 237
+Type: potential_issue
+
+Comment:
+Inconsistent rubberBand() function calls.
+
+Lines 227 and 233 call rubberBand(Math.abs(screenOverflow), this.viewportW) with two parameters, but Section 5 (lines 772 and 778) calls the same function with three parameters including a coefficient: rubberBand(Math.abs(screenOverflow), this.viewportW, c).
+
+The Phase 5 foundation (line 67) mentions rubberBand(distance, dimension, c) with Apple's c=0.55, suggesting the coefficient parameter exists. Lines 227 and 233 are missing the coefficient parameter.
+
+
+
+
+🔧 Add missing coefficient parameter
+
+   if (overflowX !== 0) {
+     // Convert to screen pixels, rubber-band, convert back
+     const screenOverflow = overflowX * this.zoom;
+-    const dampened = rubberBand(Math.abs(screenOverflow), this.viewportW);
++    const dampened = rubberBand(Math.abs(screenOverflow), this.viewportW, 0.55);
+     this.elasticOffsetX = Math.sign(overflowX) * dampened / this.zoom;
+   }
+
+   if (overflowY !== 0) {
+     const screenOverflow = overflowY * this.zoom;
+-    const dampened = rubberBand(Math.abs(screenOverflow), this.viewportH);
++    const dampened = rubberBand(Math.abs(screenOverflow), this.viewportH, 0.55);
+     this.elasticOffsetY = Math.sign(overflowY) * dampened / this.zoom;
+   }
+
+
+Alternatively, if rubberBand() should default to c=0.55, update it to accept an optional third parameter with that default.
+
+Prompt for AI Agent:
+Verify each finding against the current code and only fix it if needed.
+
+In @planning-docs/VTT-ViewPort-Plan/6-phase-implementation-planning-docs/Phase_6_Trackpad_Elastic_Overscroll_and_Advanced_Input.md around lines 221 - 237, The _feedElasticOverflow method is calling rubberBand with two args while the project uses rubberBand(distance, dimension, c); update the calls inside _feedElasticOverflow (the two rubberBand(...) invocations) to pass the coefficient third argument (use the same coefficient variable used elsewhere, e.g., c or 0.55), or alternatively modify the rubberBand function to accept an optional third parameter defaulting to 0.55 so existing two-arg calls still behave correctly; ensure elasticOffsetX and elasticOffsetY assignments remain unchanged except for the corrected rubberBand invocation.
+
+
+
+============================================================================
+File: planning-docs/VTT-ViewPort-Plan/6-phase-implementation-planning-docs/Phase_6_Trackpad_Elastic_Overscroll_and_Advanced_Input.md
+Line: 1376 to 1412
+Type: potential_issue
+
+Comment:
+State machine may incorrectly cancel retargetable animations.
+
+Line 1380 uses if (newPriority >= currentPriority) which means same-priority gestures will cancel the current one. However, the comment at line 1354 states "Same-priority gestures retarget rather than conflict."
+
+For ZOOM_ANIMATE, the SmoothZoomAnimator is designed to accumulate target changes via onWheelZoom() (lines 1089-1110), allowing rapid scroll to smoothly accumulate zoom. But when the state machine receives a second ZOOM_ANIMATE request while one is active, it calls cancel() first (line 1403), which resets _targetZoom to the current camera zoom (line 1168), losing the accumulated target.
+
+
+
+
+🔧 Suggested fix
+
+Modify the request() method to distinguish between gestures that should cancel vs. retarget on same-priority:
+
+ request(gesture) {
+   const newPriority = GESTURE_PRIORITY[gesture];
+   const currentPriority = GESTURE_PRIORITY[this._activeGesture];
+
+-  if (newPriority >= currentPriority) {
++  if (newPriority > currentPriority) {
+     // Higher or equal priority: cancel current and accept new
+     this._cancelCurrent();
+     this._activeGesture = gesture;
+     return true;
++  } else if (newPriority === currentPriority) {
++    // Same priority: allow retargeting without cancellation
++    // The caller (e.g., SmoothZoomAnimator.onWheelZoom) handles accumulation
++    return true;
+   }
+   return false;
+ }
+
+
+This allows ZOOM_ANIMATE to accumulate targets and SCROLL_PAN to continue without interruption when the same gesture type occurs repeatedly.
+
+Prompt for AI Agent:
+Verify each finding against the current code and only fix it if needed.
+
+In @planning-docs/VTT-ViewPort-Plan/6-phase-implementation-planning-docs/Phase_6_Trackpad_Elastic_Overscroll_and_Advanced_Input.md around lines 1376 - 1412, The request() method currently cancels active gestures when newPriority >= currentPriority, which breaks retargetable animations like ZOOM_ANIMATE by calling _cancelCurrent() (which calls _camera._smoothZoom.cancel()) instead of letting SmoothZoomAnimator.accumulate via onWheelZoom(); update request() to treat equal-priority requests differently: only cancel when newPriority > currentPriority, but when newPriority === currentPriority handle retargetable gestures specially—if gesture === this._activeGesture and gesture is in a new RETARGETABLE_GESTURES set (e.g., 'ZOOM_ANIMATE', possibly 'SCROLL_PAN' as appropriate), call the corresponding retarget method (SmoothZoomAnimator.onWheelZoom() or TrackpadDetector retarget API) on _camera instead of invoking _cancelCurrent(), set/keep _activeGesture, and return true; for other equal-priority cases preserve the cancel-and-accept behavior.
+
+
+
+============================================================================
+File: planning-docs/VTT-ViewPort-Plan/6-phase-implementation-planning-docs/Phase_4_BroadcastChannel-Camera-Sync.md
+Line: 422 to 425
+Type: potential_issue
+
+Comment:
+Missing null check in setChannel method.
+
+The setChannel method doesn't validate that the new channel is non-null. If called with null, subsequent calls to sendJumpTo() or the rAF loop's _sendState() will throw when attempting this._channel.postMessage().
+
+
+
+
+🛡️ Proposed fix to add validation
+
+ / Replace the BroadcastChannel (used after bfcache restore). */
+ setChannel(channel) {
++  if (!channel) {
++    console.warn('CameraBroadcaster.setChannel called with null/undefined channel');
++    return;
++  }
+   this._channel = channel;
+ }
+
+Prompt for AI Agent:
+Verify each finding against the current code and only fix it if needed.
+
+In @planning-docs/VTT-ViewPort-Plan/6-phase-implementation-planning-docs/Phase_4_BroadcastChannel-Camera-Sync.md around lines 422 - 425, The setChannel method needs to validate its input to prevent null being assigned and later causing errors in sendJumpTo() or the rAF loop's _sendState() when calling this._channel.postMessage(); update setChannel(channel) to check that channel is non-null (and of expected type if possible) and either ignore/null-check callers or throw a clear error/log and avoid assigning this._channel when invalid; ensure callers relying on setChannel handle the validation behavior and that sendJumpTo and _sendState guard against this._channel being null before calling postMessage.
+
+
+
+============================================================================
+File: planning-docs/VTT-ViewPort-Plan/6-phase-implementation-planning-docs/Phase_4_BroadcastChannel-Camera-Sync.md
+Line: 1450 to 1460
+Type: potential_issue
+
+Comment:
+WELCOME state application lacks validation of camera object structure.
+
+The _applyWelcome method accesses camera.centerX, camera.centerY, and camera.zoom without validating that these properties exist or are valid numbers. If a malformed WELCOME message arrives (corrupted data, version mismatch, or malicious message), accessing undefined properties will cause:
+
+- sharedToLocal receiving undefined values
+- camera.deserialize receiving NaN coordinates
+- Potential camera state corruption
+
+
+
+
+🛡️ Proposed fix to add validation
+
+   _applyWelcome() {
+     if (!this._bestWelcome) return;
+ 
+     const { camera } = this._bestWelcome;
+-    if (camera && this._receiver) {
++    if (
++      camera &&
++      typeof camera.centerX === 'number' &&
++      typeof camera.centerY === 'number' &&
++      typeof camera.zoom === 'number' &&
++      !isNaN(camera.centerX) &&
++      !isNaN(camera.centerY) &&
++      !isNaN(camera.zoom) &&
++      camera.zoom > 0 &&
++      this._receiver
++    ) {
+       this._receiver.applyWelcomeState(camera.centerX, camera.centerY, camera.zoom);
++    } else if (camera) {
++      console.warn('CameraSyncEngine: Invalid camera state in WELCOME', camera);
+     }
+ 
+     this._bestWelcome = null;
+     this._welcomeTimer = null;
+   }
+
+Prompt for AI Agent:
+Verify each finding against the current code and only fix it if needed.
+
+In @planning-docs/VTT-ViewPort-Plan/6-phase-implementation-planning-docs/Phase_4_BroadcastChannel-Camera-Sync.md around lines 1450 - 1460, The _applyWelcome method currently trusts this._bestWelcome.camera blindly; add validation to ensure the camera object exists and its centerX, centerY, and zoom are finite numbers before calling this._receiver.applyWelcomeState. In the _applyWelcome function, check this._bestWelcome and then validate camera with e.g. camera && typeof camera.centerX === 'number' && isFinite(camera.centerX) (same for centerY and zoom); if validation fails, skip calling this._receiver.applyWelcomeState, optionally log the malformed message, and still clear this._bestWelcome and this._welcomeTimer to avoid repeated bad state application. Ensure references to this._bestWelcome, camera, and this._receiver.applyWelcomeState are used so the fix is applied in the correct location.
+
+
+
+============================================================================
+File: planning-docs/VTT-ViewPort-Plan/6-phase-implementation-planning-docs/Phase_4_BroadcastChannel-Camera-Sync.md
+Line: 585 to 606
+Type: potential_issue
+
+Comment:
+Missing try-finally protection for suppressBroadcast flag.
+
+If camera.deserialize() throws an exception (e.g., due to invalid state or constraint violations), the suppressBroadcast flag will remain true, permanently disabling all broadcasts from this window. This would break camera sync until the page is reloaded.
+
+
+
+
+🔒 Proposed fix using try-finally
+
+   _applySharedState(centerX, centerY, zoom) {
+     const cam = this._camera;
+     const vp = { width: cam.viewportW, height: cam.viewportH };
+     if (vp.width
+
+Prompt for AI Agent:
+Verify each finding against the current code and only fix it if needed.
+
+In @planning-docs/VTT-ViewPort-Plan/6-phase-implementation-planning-docs/Phase_4_BroadcastChannel-Camera-Sync.md around lines 585 - 606, The suppressBroadcast flag is set to true before calling cam.deserialize in _applySharedState and isn't reset if deserialize throws, which can permanently disable broadcasting; wrap the deserialize call in a try...finally so that when this._broadcaster exists you set this._broadcaster.suppressBroadcast = true, call cam.deserialize(...) inside the try, and in the finally always set this._broadcaster.suppressBroadcast = false to ensure the flag is restored even on exceptions.
+
+
+
+============================================================================
+File: planning-docs/VTT-ViewPort-Plan/6-phase-implementation-planning-docs/Phase_4_BroadcastChannel-Camera-Sync.md
+Line: 1396 to 1416
+Type: potential_issue
+
+Comment:
+Missing message validation creates potential for crashes.
+
+The _handleMessage method routes incoming messages by type but doesn't validate their structure using the validateMessage() function from protocol.js (which is imported at line 349). If a malformed message arrives from a buggy peer, browser extension, or during development, the handler methods will access undefined properties, causing:
+
+- TypeError when accessing msg.centerX, msg.senderId, etc.
+- Potential crashes in camera.deserialize()
+- Difficult debugging (silent failures)
+
+
+
+
+✅ Proposed fix to add validation
+
+   _handleMessage(msg) {
+-    if (!msg || !msg.type) return;
++    // Validate message structure
++    const validation = validateMessage(msg);
++    if (!validation.valid) {
++      console.warn('CameraSyncEngine: Invalid message received', validation.error, msg);
++      return;
++    }
+ 
+     switch (msg.type) {
+       case MSG.CAMERA_SYNC:
+       case MSG.CAMERA_JUMP_TO:
+
+Prompt for AI Agent:
+Verify each finding against the current code and only fix it if needed.
+
+In @planning-docs/VTT-ViewPort-Plan/6-phase-implementation-planning-docs/Phase_4_BroadcastChannel-Camera-Sync.md around lines 1396 - 1416, The _handleMessage method routes messages without validating them, so call the imported validateMessage(msg) at the top of _handleMessage and reject/log and return early for invalid messages to avoid downstream TypeErrors; after the existing null/type guard, add a validation step that uses validateMessage and if it fails, log the offending msg (or discard silently) and do not call this._receiver.handleMessage, this._registry.handleMessage, or this._onAnnounce; ensure any code paths that deserialize (e.g., camera.deserialize within receiver handlers) only run when validateMessage passed.
+
+
+
+============================================================================
+File: planning-docs/VTT-ViewPort-Plan/6-phase-implementation-planning-docs/Phase_4_BroadcastChannel-Camera-Sync.md
+Line: 750 to 771
+Type: potential_issue
+
+Comment:
+Potential peer reaping issue after bfcache restore.
+
+After a bfcache restore (pageshow event), the WindowRegistry re-announces (line 1474) but doesn't clear the existing _peers map. The lastSeen timestamps in the map were captured using performance.now() before the page was hidden. Depending on browser implementation, performance.now() behavior across bfcache cycles can vary:
+
+- Some browsers continue the timer
+- Others reset it to a low value
+- The duration of the hidden state could be hours
+
+If performance.now() resets or has a discontinuity, the _reapDeadPeers() logic at line 886 (now - peer.lastSeen > HEARTBEAT_TIMEOUT) may incorrectly reap valid peers or fail to reap stale ones.
+
+
+
+
+🔄 Proposed fix to clear peers on reconnect
+
+In CameraSyncEngine._reconnect() (around line 1462), add:
+
+   _reconnect() {
+     const channel = this._channelManager.channel;
+     if (!channel) return;
+ 
++    // Clear stale peer data (lastSeen timestamps are invalid after restore)
++    if (this._registry) {
++      this._registry._peers.clear();
++    }
++
+     // Update references (channel was recreated by CameraChannelManager)
+
+
+Or better, add a public method to WindowRegistry:
+
++  / Clear all peer data (called after bfcache restore). */
++  clearPeers() {
++    this._peers.clear();
++  }
+
+
+Then call it from _reconnect().
+
+Prompt for AI Agent:
+Verify each finding against the current code and only fix it if needed.
+
+In @planning-docs/VTT-ViewPort-Plan/6-phase-implementation-planning-docs/Phase_4_BroadcastChannel-Camera-Sync.md around lines 750 - 771, WindowRegistry's _peers map contains stale performance.now() timestamps across bfcache restores causing _reapDeadPeers (method _reapDeadPeers) to wrongly reap peers; add a public WindowRegistry.clearPeers() method that empties or resets the internal _peers Map (or alternatively iterates peers and sets peer.lastSeen = performance.now()), then call registry.clearPeers() from CameraSyncEngine._reconnect() before re-announcing so heartbeats and reaping use fresh timestamps and avoid incorrect peer reaping.
+
+
+
+============================================================================
+File: planning-docs/VTT-ViewPort-Plan/6-phase-implementation-planning-docs/Phase_4_BroadcastChannel-Camera-Sync.md
+Line: 1042 to 1050
+Type: potential_issue
+
+Comment:
+Missing feature detection for BroadcastChannel API.
+
+The _openChannel method creates a BroadcastChannel without checking if the API is supported. In older browsers or certain contexts (e.g., Service Workers in some configurations), this will throw a ReferenceError. The application would fail to initialize.
+
+
+
+
+🌐 Proposed fix to add feature detection
+
+   _openChannel() {
+     if (this._channel) return;
++    
++    if (typeof BroadcastChannel === 'undefined') {
++      console.error('BroadcastChannel API not supported in this browser');
++      // Could emit an event or set a flag to notify the application
++      EventBus.emit('camera-sync:unsupported');
++      return;
++    }
++    
+     this._channel = new BroadcastChannel(CAMERA_CHANNEL_NAME);
+     this._channel.onmessage = (event) => {
+       if (this._onMessage) {
+         this._onMessage(event.data);
+       }
+     };
+   }
+
+
+Consider also adding a polyfill or graceful degradation path for unsupported browsers.
+
+Prompt for AI Agent:
+Verify each finding against the current code and only fix it if needed.
+
+In @planning-docs/VTT-ViewPort-Plan/6-phase-implementation-planning-docs/Phase_4_BroadcastChannel-Camera-Sync.md around lines 1042 - 1050, The _openChannel method currently constructs new BroadcastChannel(CAMERA_CHANNEL_NAME) unguarded; add feature detection and a safe fallback: check that BroadcastChannel exists (e.g., typeof BroadcastChannel !== 'undefined' or 'self.BroadcastChannel') before creating this._channel, and if missing set this._channel = null and optionally log or call a fallback path; also wrap construction in a try/catch to guard against runtime ReferenceError and ensure this._onMessage is only assigned when this._channel is successfully created. Use the existing symbols _openChannel, this._channel, CAMERA_CHANNEL_NAME, and this._onMessage to locate and update the code.
+
+
+
+============================================================================
+File: planning-docs/VTT-ViewPort-Plan/6-phase-implementation-planning-docs/Phase_4_BroadcastChannel-Camera-Sync.md
+Line: 1660
+Type: potential_issue
+
+Comment:
+Inconsistent module system in unit tests.
+
+The unit test examples use CommonJS require() (lines 1660, 1682, 1706, 1726), but the main module code uses ES6 import statements (line 338-350). Modern test runners like Vitest support ES6 modules natively. The tests should use consistent import syntax.
+
+
+
+
+📦 Proposed fix to use ES6 imports
+
++import { describe, it, expect, vi } from 'vitest';
++import { CameraBroadcaster } from '../vtt/js/camera-sync.js';
++
+ describe('CameraBroadcaster epsilon detection', () => {
+   it('does not send when state is unchanged', () => {
+     // Mock camera with static state
+     const camera = {
+       x: 100, y: 50, zoom: 1.5,
+       viewportW: 1920, viewportH: 1080,
+     };
+ 
+     const sentMessages = [];
+     const mockChannel = {
+       postMessage: (msg) => sentMessages.push(structuredClone(msg)),
+     };
+ 
+     // Manually invoke _sendState twice
+     // First send should go through, second should be suppressed
+-    const { CameraBroadcaster } = require('../vtt/js/camera-sync.js');
+     const broadcaster = new CameraBroadcaster(camera, mockChannel, 'test-id');
+
+
+Apply similar changes to other test blocks.
+
+Prompt for AI Agent:
+Verify each finding against the current code and only fix it if needed.
+
+In @planning-docs/VTT-ViewPort-Plan/6-phase-implementation-planning-docs/Phase_4_BroadcastChannel-Camera-Sync.md at line 1660, Tests are mixing CommonJS require() with ES module code; replace the require calls with ES6 import syntax (e.g., import { CameraBroadcaster } from '.../camera-sync.js') for CameraBroadcaster and the other tested symbols so tests use the same module system as the implementation and are compatible with modern runners like Vitest; update all instances where const { CameraBroadcaster } = require(...) (and similar require(...) usages at the other test blocks) to ES6 imports and ensure any default vs named export usage matches the exported identifiers in the module.
+
+
+
+============================================================================
+File: planning-docs/VTT-ViewPort-Plan/6-phase-implementation-planning-docs/Phase_4_BroadcastChannel-Camera-Sync.md
+Line: 1436 to 1446
+Type: potential_issue
+
+Comment:
+WELCOME epoch comparison doesn't account for per-sender independence.
+
+The debounce logic collects multiple WELCOME messages and selects the one with the highest epoch value (line 1438). However, each sender maintains its own independent epoch counter (line 726), so comparing epochs from different senders is not meaningful—sender A's epoch=5 might be older than sender B's epoch=3.
+
+This works acceptably in Phase 4's simple scenario (typically one sender), but could select stale state in multi-sender scenarios. Phase 5 may need per-sender epoch tracking or timestamps.
+
+
+
+
+💡 Optional improvement for Phase 4
+
+If you want more robust WELCOME selection in Phase 4, consider:
+
+   _handleWelcomeState(data) {
+-    // Track the WELCOME with the highest epoch
+-    if (!this._bestWelcome || data.epoch > this._bestWelcome.epoch) {
++    // Track the WELCOME with the highest epoch from each sender
++    // For Phase 4, prefer Controller's state if available
++    const isController = data.fromRole === 'controller';
++    const isBetterThanCurrent = 
++      !this._bestWelcome || 
++      (isController && this._bestWelcome.fromRole !== 'controller') ||
++      (data.fromRole === this._bestWelcome.fromRole && data.epoch > this._bestWelcome.epoch);
++    
++    if (isBetterThanCurrent) {
+       this._bestWelcome = data;
+     }
+
+
+Or defer this complexity to Phase 5 as the document suggests.
+
+Prompt for AI Agent:
+Verify each finding against the current code and only fix it if needed.
+
+In @planning-docs/VTT-ViewPort-Plan/6-phase-implementation-planning-docs/Phase_4_BroadcastChannel-Camera-Sync.md around lines 1436 - 1446, _handleWelcomeState currently selects the "best" WELCOME by comparing data.epoch across messages (setting this._bestWelcome) which is invalid when epochs are per-sender; change the logic to track epochs per sender instead of a single this._bestWelcome: use the sender identifier on incoming WELCOMEs (e.g., data.senderId) to maintain a map of best welcomes keyed by sender and compare epochs only within the same sender, then on the debounce (_welcomeTimer) choose the most recent sender-specific welcome (or combine/merge them) before calling _applyWelcome; alternatively, if messages include a global timestamp, use that for cross-sender ordering rather than epoch.
+
+
+
+============================================================================
+File: planning-docs/VTT-ViewPort-Plan/6-phase-implementation-planning-docs/Phase_4_BroadcastChannel-Camera-Sync.md
+Line: 1381 to 1389
+Type: potential_issue
+
+Comment:
+Potential memory leak: EventBus listeners not cleaned up.
+
+The start() method registers two EventBus listeners (camera-sync:welcome and camera-sync:reconnect) but the stop() and destroy() methods don't remove them. If the CameraSyncEngine is stopped and restarted, or if multiple instances are created, these listeners will accumulate, causing:
+
+1. Memory leaks (old engine instances held in closure)
+2. Duplicate event handling (handlers called multiple times)
+
+
+
+
+🧹 Proposed fix to add cleanup
+
+   constructor({ camera, role }) {
+     this._camera = camera;
+     this._role = role;
+     this._started = false;
+ 
+     // Components (created on start)
+     this._channelManager = null;
+     this._registry = null;
+     this._broadcaster = null;
+     this._receiver = null;
+ 
+     // Pending WELCOME state (for collecting multiple WELCOMEs)
+     this._bestWelcome = null;
+     this._welcomeTimer = null;
++
++    // Store bound handlers for cleanup
++    this._handleWelcome = null;
++    this._handleReconnect = null;
+   }
+ 
+   start() {
+     // ... existing code ...
+ 
+     // Listen for WELCOME events to hydrate initial state
+-    EventBus.on('camera-sync:welcome', (data) => {
++    this._handleWelcome = (data) => {
+       this._handleWelcomeState(data);
+-    });
++    };
++    EventBus.on('camera-sync:welcome', this._handleWelcome);
+ 
+     // Listen for reconnect events (bfcache restore)
+-    EventBus.on('camera-sync:reconnect', () => {
++    this._handleReconnect = () => {
+       this._reconnect();
+-    });
++    };
++    EventBus.on('camera-sync:reconnect', this._handleReconnect);
+ 
+     // Start registry (sends ANNOUNCE, begins heartbeats)
+     this._registry.start();
+   }
+ 
+   / Clean up all resources. */
+   destroy() {
+     this.stop();
++    
++    // Remove EventBus listeners
++    if (this._handleWelcome) {
++      EventBus.off('camera-sync:welcome', this._handleWelcome);
++      this._handleWelcome = null;
++    }
++    if (this._handleReconnect) {
++      EventBus.off('camera-sync:reconnect', this._handleReconnect);
++      this._handleReconnect = null;
++    }
++
+     if (this._broadcaster) this._broadcaster.destroy();
+     if (this._receiver) this._receiver.destroy();
+     if (this._registry) this._registry.destroy();
+     if (this._channelManager) this._channelManager.destroy();
+   }
+
+Prompt for AI Agent:
+Verify each finding against the current code and only fix it if needed.
+
+In @planning-docs/VTT-ViewPort-Plan/6-phase-implementation-planning-docs/Phase_4_BroadcastChannel-Camera-Sync.md around lines 1381 - 1389, The start() method adds two EventBus listeners ('camera-sync:welcome' and 'camera-sync:reconnect') but stop() and destroy() never remove them; fix by saving the bound handler functions as class properties (e.g., this._onWelcome and this._onReconnect) when registering in start() and then call EventBus.off (or the EventBus API's remove method) with those same handlers from both stop() and destroy() to unregister them; ensure the removal is idempotent (guard if handlers are undefined) and clear the stored handler refs after removing to avoid retaining closures.
+
+
+
+============================================================================
+File: planning-docs/VTT-ViewPort-Plan/6-phase-implementation-planning-docs/Phase_3_Boundary_Clamping_and_Polish.md
+Line: 1043 to 1047
+Type: refactor_suggestion
+
+Comment:
+Clarify documentation about velocity-induced overshoot in spring animation.
+
+The current text states that "the position always remains on the same side of the target," which is true (the spring doesn't cross the clamped position). However, with non-zero initial velocity (Phase 5), the position can temporarily move further from the target before converging. 
+
+For example: displacement=100 (100px out of bounds), velocity=200 (moving further out at 200px/s). The critically damped spring will briefly continue moving out of bounds before decelerating, reversing, and pulling back.
+
+Since the animator bypasses _applyConstraints() (line 1002-1005), this transient overshoot will be visible—the camera will show more background color than was visible at drag release, before springing back.
+
+This might be intentional for natural deceleration UX, but should be documented more explicitly. Consider adding a note:
+
+Note: With non-zero release velocity (Phase 5), the spring may briefly move
+further out of bounds before reversing direction. This creates natural
+deceleration UX but means more background color may briefly appear than was
+visible at drag release.
+
+Prompt for AI Agent:
+Verify each finding against the current code and only fix it if needed.
+
+In @planning-docs/VTT-ViewPort-Plan/6-phase-implementation-planning-docs/Phase_3_Boundary_Clamping_and_Polish.md around lines 1043 - 1047, Clarify the docs to explicitly state that although the animator bypasses _applyConstraints() because _triggerSnapBack() sets the clamped target, a non-zero release velocity (Phase 5) can cause the critically-damped spring used by the animator to temporarily increase displacement (move further out-of-bounds) before reversing and converging; update the section around the discussion of _applyConstraints() / _triggerSnapBack() to add a short note explaining this transient overshoot behavior and its UX implication (more background may briefly appear) and reference Phase 5, _triggerSnapBack(), and _applyConstraints() so readers can locate the related code paths.
+
+
