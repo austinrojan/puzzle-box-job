@@ -558,8 +558,8 @@ export class Camera {
     // Phase S3: Speculative snap-back
     this._elasticEWMA = 0;               // EWMA of elastic offset growth rate
     this._lastElasticScreenMag = 0;      // previous frame's elastic magnitude (screen px)
-    this._speculativeSnapId = null;      // rAF ID for monitoring loop (null sentinel, not 0)
-    this._isSnappingBack = false;        // Layer 2 defense flag
+    this._speculativeSnapId = null;      // rAF ID for monitoring loop (null = not running)
+    this._isSnappingBack = false;        // double-fire defense flag
   }
 
   // --- Coordinate conversion ---
@@ -567,6 +567,14 @@ export class Camera {
   /** Visual camera position including elastic overscroll offset. */
   get visualX() { return this.x + this.elasticOffsetX; }
   get visualY() { return this.y + this.elasticOffsetY; }
+
+  /** Screen-space magnitude of elastic offset (px). */
+  get _elasticScreenMag() {
+    return Math.sqrt(
+      (this.elasticOffsetX * this.zoom) ** 2 +
+      (this.elasticOffsetY * this.zoom) ** 2
+    );
+  }
 
   /**
    * Convert screen coordinates (CSS pixels relative to canvas top-left)
@@ -815,10 +823,7 @@ export class Camera {
     // Phase S3: Start monitoring loop if not already running.
     if (this._speculativeSnapId == null &&
         (this.elasticOffsetX !== 0 || this.elasticOffsetY !== 0)) {
-      this._lastElasticScreenMag = Math.sqrt(
-        (this.elasticOffsetX * this.zoom) ** 2 +
-        (this.elasticOffsetY * this.zoom) ** 2
-      );
+      this._lastElasticScreenMag = this._elasticScreenMag;
       this._elasticEWMA = EWMA_INIT;
       this._speculativeSnapId = requestAnimationFrame(
         () => this._checkSpeculativeSnapBack()
@@ -858,7 +863,7 @@ export class Camera {
     this._cumulativeOverflowX = 0;
     this._cumulativeOverflowY = 0;
 
-    // Phase S3 Layer 1: Double-fire guard.
+    // Double-fire guard:
     // If snap-back is already running and new call has zero velocity,
     // let the running animation continue undisturbed.
     const hasVelocity = velocity.vx !== 0 || velocity.vy !== 0;
@@ -877,7 +882,7 @@ export class Camera {
     if (this._elasticAnimator) {
       const omega = this._elasticAnimator._omega;
 
-      // Layer 1: Velocity clamping (primary overshoot defense).
+      // Velocity clamping (primary overshoot defense).
       const clampedVx = this._clampSpringVelocity(
         velocity.vx, this.elasticOffsetX, omega
       );
@@ -902,10 +907,7 @@ export class Camera {
    * When EWMA drops below STALL_THRESHOLD, starts zero-velocity snap-back.
    */
   _checkSpeculativeSnapBack() {
-    const currentScreenMag = Math.sqrt(
-      (this.elasticOffsetX * this.zoom) ** 2 +
-      (this.elasticOffsetY * this.zoom) ** 2
-    );
+    const currentScreenMag = this._elasticScreenMag;
     const delta = Math.abs(currentScreenMag - this._lastElasticScreenMag);
     this._lastElasticScreenMag = currentScreenMag;
 
@@ -914,10 +916,8 @@ export class Camera {
     if (currentScreenMag > MIN_ELASTIC_MAGNITUDE &&
         this._elasticEWMA < STALL_THRESHOLD &&
         !this._isSnappingBack) {
-      // NOTE: Do NOT call this._gestures.request('SNAP_BACK') here.
-      // SNAP_BACK (priority 1) cannot preempt SCROLL_PAN (priority 4),
-      // so the request would silently fail. The formal onGestureEnd
-      // handles the gesture state machine transition as a backstop.
+      // Skip _gestures.request('SNAP_BACK') — priority 1 cannot preempt
+      // SCROLL_PAN (priority 4). Formal onGestureEnd handles transition.
       this._snapBackElastic();
     }
 
@@ -934,9 +934,8 @@ export class Camera {
   }
 
   /**
-   * Phase S3: Cancel speculative snap-back monitoring and any running
-   * snap-back animation. Layer 3: value handoff — elastic offset retains
-   * whatever value the last animator _tick wrote.
+   * Cancel speculative snap-back monitoring and any running snap-back
+   * animation. Elastic offset retains its current value (no jump).
    */
   _cancelSpeculativeSnapBack() {
     if (this._speculativeSnapId != null) {
@@ -956,7 +955,7 @@ export class Camera {
    * @param {{ x: number, y: number }} velocity Screen px/s
    */
   _startInertialCoast(velocity) {
-    // Layer 3: Coast velocity cap (upstream overshoot defense).
+    // Coast velocity cap (overshoot defense).
     const speed = Math.sqrt(velocity.x ** 2 + velocity.y ** 2);
     if (speed > MAX_COAST_SPEED) {
       const scale = MAX_COAST_SPEED / speed;
@@ -1348,7 +1347,7 @@ export class Camera {
         const rx = anim._resolveAxis(anim._springX, elapsed);
         const ry = anim._resolveAxis(anim._springY, elapsed);
 
-        // Layer 2: Position safety net (secondary overshoot defense).
+        // Position safety net (secondary overshoot defense).
         // Elastic offset must not change sign during snap-back.
         // Catches floating-point edge cases where velocity clamp produces
         // a B coefficient that is very slightly negative due to rounding.

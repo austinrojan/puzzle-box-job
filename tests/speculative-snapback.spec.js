@@ -50,7 +50,7 @@ test.describe('_snapBackElastic double-fire guard', () => {
       cam.elasticOffsetX = 0.1;
       cam.elasticOffsetY = 0;
       cam._isSnappingBack = true;
-      // Nonzero velocity bypasses the Layer 1 double-fire guard,
+      // Nonzero velocity bypasses the double-fire guard,
       // letting us test the negligible-offset early return path.
       cam._snapBackElastic({ vx: 1, vy: 0 });
       return {
