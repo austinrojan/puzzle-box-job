@@ -27,6 +27,14 @@ function rubberBand(distance, dimension, c = 0.55) {
   return (distance * dimension * c) / (dimension + c * distance);
 }
 
+// Prevent elastic offset from crossing zero during snap-back.
+// Returns 0 if val has the opposite sign of displacement.
+function clampSign(val, displacement) {
+  if (displacement > 0 && val < 0) return 0;
+  if (displacement < 0 && val > 0) return 0;
+  return val;
+}
+
 // --- Spring animation ---
 const DEFAULT_SPRING_STIFFNESS = 200;
 const SETTLE_THRESHOLD_PX = 0.5;
@@ -1255,14 +1263,8 @@ export class Camera {
         // a B coefficient that is very slightly negative due to rounding.
         let valX = rx.value;
         let valY = ry.value;
-        if (anim._springX) {
-          if (anim._springX.displacement > 0 && valX < 0) valX = 0;
-          else if (anim._springX.displacement < 0 && valX > 0) valX = 0;
-        }
-        if (anim._springY) {
-          if (anim._springY.displacement > 0 && valY < 0) valY = 0;
-          else if (anim._springY.displacement < 0 && valY > 0) valY = 0;
-        }
+        if (anim._springX) valX = clampSign(valX, anim._springX.displacement);
+        if (anim._springY) valY = clampSign(valY, anim._springY.displacement);
         cam.elasticOffsetX = valX;
         cam.elasticOffsetY = valY;
         EventBus.emit('camera:changed');
