@@ -17,6 +17,7 @@ const ZOOM_STEP_KEY = 0.4;        // per-press keyboard/button step in log2 spac
 const DRAG_THRESHOLD = 3;          // px before click becomes drag
 // Prevents false positives when comparing floating-point zoom to cover zoom
 const COVER_ZOOM_EPSILON = 0.001;
+const MAX_COAST_SPEED = 3000;     // px/s — Leaflet inertiaMaxSpeed reference
 
 // Apple iOS-style rubber-band: asymptotic resistance that grows weaker
 // the further you overshoot, preventing the viewport from ever reaching
@@ -825,7 +826,7 @@ export class Camera {
     this._cumulativeOverflowX = 0;
     this._cumulativeOverflowY = 0;
 
-    if (Math.abs(this.elasticOffsetX) < 0.5 && Math.abs(this.elasticOffsetY) < 0.5) {
+    if (Math.abs(this.elasticOffsetX) < SETTLE_THRESHOLD_PX && Math.abs(this.elasticOffsetY) < SETTLE_THRESHOLD_PX) {
       this.elasticOffsetX = 0;
       this.elasticOffsetY = 0;
       EventBus.emit('camera:changed');
@@ -858,9 +859,6 @@ export class Camera {
    */
   _startInertialCoast(velocity) {
     // Layer 3: Coast velocity cap (upstream overshoot defense).
-    // Limits extreme flick velocities before they reach the spring.
-    // 3000 px/s matches Leaflet's inertiaMaxSpeed recommendation.
-    const MAX_COAST_SPEED = 3000;
     const speed = Math.sqrt(velocity.x ** 2 + velocity.y ** 2);
     if (speed > MAX_COAST_SPEED) {
       const scale = MAX_COAST_SPEED / speed;
