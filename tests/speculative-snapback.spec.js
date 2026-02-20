@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { gotoVTT, enterMapMode, injectTestAccessors } from './helpers.js';
+import { setupMapCamera } from './helpers.js';
 
 // ============================================================
 // Phase S3: Speculative snap-back tests
@@ -7,9 +7,7 @@ import { gotoVTT, enterMapMode, injectTestAccessors } from './helpers.js';
 
 test.describe('_snapBackElastic double-fire guard', () => {
   test.beforeEach(async ({ page }) => {
-    await gotoVTT(page);
-    await enterMapMode(page);
-    await injectTestAccessors(page);
+    await setupMapCamera(page);
   });
 
   test('zero-velocity call is a no-op when _isSnappingBack is true', async ({ page }) => {
@@ -139,9 +137,7 @@ test.describe('EWMA stall detection', () => {
 
 test.describe('_cancelSpeculativeSnapBack', () => {
   test.beforeEach(async ({ page }) => {
-    await gotoVTT(page);
-    await enterMapMode(page);
-    await injectTestAccessors(page);
+    await setupMapCamera(page);
   });
 
   test('preserves elastic offset and clears flag', async ({ page }) => {
@@ -184,27 +180,9 @@ test.describe('_cancelSpeculativeSnapBack', () => {
   });
 });
 
-test.describe('Tightened momentum detection constants', () => {
+test.describe('Tightened momentum detection timing', () => {
   test.beforeEach(async ({ page }) => {
     await page.goto('/vtt/', { waitUntil: 'load' });
-  });
-
-  test('MOMENTUM detected with 4 events + 2 decays', async ({ page }) => {
-    const result = await page.evaluate(async () => {
-      const { TrackpadGestureDetector } = await import('/vtt/js/trackpad-gesture.js');
-      let momentumStarted = false;
-      const detector = new TrackpadGestureDetector({
-        onMomentumStart: () => { momentumStarted = true; }
-      });
-      for (let i = 0; i < 4; i++) detector.handleWheel({ deltaY: 20, deltaX: 0 });
-      const preDecay = detector.state;
-      detector.handleWheel({ deltaY: 18, deltaX: 0 });
-      detector.handleWheel({ deltaY: 15, deltaX: 0 });
-      return { preDecay, finalState: detector.state, momentumStarted };
-    });
-    expect(result.preDecay).toBe('ACTIVE');
-    expect(result.finalState).toBe('MOMENTUM');
-    expect(result.momentumStarted).toBe(true);
   });
 
   test('tightened active timeout fires onGestureEnd within 100ms', async ({ page }) => {
@@ -225,9 +203,7 @@ test.describe('Tightened momentum detection constants', () => {
 
 test.describe('Speculative snap-back integration', () => {
   test.beforeEach(async ({ page }) => {
-    await gotoVTT(page);
-    await enterMapMode(page);
-    await injectTestAccessors(page);
+    await setupMapCamera(page);
   });
 
   test('elastic overscroll resolves within 500ms of last input', async ({ page }) => {

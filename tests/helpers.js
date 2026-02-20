@@ -276,6 +276,15 @@ export async function waitForDisplayPhase5(display, timeoutMs = 5000) {
  * Mocks time only during synchronous dispatch, then restores immediately
  * so rAF-based animations (SmoothZoomAnimator) use real time.
  */
+/**
+ * Full map-mode camera setup: navigate to VTT, enter map mode, inject test accessors.
+ */
+export async function setupMapCamera(page) {
+  await gotoVTT(page);
+  await enterMapMode(page);
+  await injectTestAccessors(page);
+}
+
 export async function dispatchMouseWheelSequence(page, opts = {}) {
   await page.evaluate((o) => {
     const origNow = performance.now.bind(performance);
