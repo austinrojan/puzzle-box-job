@@ -167,16 +167,24 @@ test.describe('_cancelSpeculativeSnapBack', () => {
       cam.elasticOffsetX = 10;
       cam._isSnappingBack = false;
       cam._speculativeSnapId = null;
+      // Spy on side-effect methods to prove they were NOT called
+      let animatorCancelCalled = false;
+      if (cam._elasticAnimator) {
+        const orig = cam._elasticAnimator.cancel.bind(cam._elasticAnimator);
+        cam._elasticAnimator.cancel = () => { animatorCancelCalled = true; orig(); };
+      }
       cam._cancelSpeculativeSnapBack();
       return {
         isSnapping: cam._isSnappingBack,
         snapId: cam._speculativeSnapId,
-        offsetX: cam.elasticOffsetX
+        offsetX: cam.elasticOffsetX,
+        animatorCancelCalled
       };
     });
     expect(result.isSnapping).toBe(false);
     expect(result.snapId).toBeNull();
     expect(result.offsetX).toBe(10);
+    expect(result.animatorCancelCalled).toBe(false);
   });
 });
 

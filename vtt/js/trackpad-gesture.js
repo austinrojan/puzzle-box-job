@@ -11,6 +11,8 @@ const DECAY_RATIO = 0.97;
 const TIMEOUT_ACTIVE_MS = 80;
 const TIMEOUT_MOMENTUM_MS = 60;
 const MOMENTUM_CANCEL_SPIKE = 1.5;
+// Note: With TIMEOUT_MOMENTUM_MS=60, gaps >=60ms cause gesture end before
+// this detector fires. Kept as defensive fallback for future timeout changes.
 const MOMENTUM_CANCEL_GAP_MS = 120;
 
 // --- Stateful Device Classifier (Phase S1) ---

@@ -1413,6 +1413,7 @@ export class Camera {
 
   _startPan(e, button) {
     this._cancelInertialCoast();
+    this._cancelSpeculativeSnapBack();
     if (this._elasticAnimator) this._elasticAnimator.cancel();
     if (this._trackpadDetector) this._trackpadDetector.cancel();
     if (this._gestures) this._gestures.request('DRAG_PAN');
@@ -1456,6 +1457,7 @@ export class Camera {
     this.elasticOffsetY = 0;
     if (this._animator) this._animator.cancel();
     if (this._elasticAnimator) this._elasticAnimator.cancel();
+    this._cancelSpeculativeSnapBack();
     this._setPanCursor(true);
   }
 
