@@ -1,6 +1,12 @@
 # Phase S3: Speculative Snap-Back and Momentum Detection
 ## A comprehensive implementation plan for eliminating the elastic overscroll freeze through EWMA-based stall detection, speculative animation launch, and defense-in-depth race condition prevention
 
+> **Status:** IMPLEMENTED — EWMA stall detection, speculative snap-back, double-fire guard, and tightened momentum constants all deployed and tested.
+> **Commits:** `579826a`..`746ac6d` (implementation), `593f4da` (CodeRabbit review fixes)
+> **Tests added:** 13 new in `speculative-snapback.spec.js` + 2 modified in `phase6-unit.spec.js` + `setupMapCamera` helper
+> **Full suite:** 1383 passed across 4 viewports
+> **Review:** `docs/plans/2026-02-20-phase-s3-coderabbit-results.md` — 0 blocking, 4 AH (all fixed)
+
 **Fixes:** Bug #1 (elastic offset freezes for 1–2 seconds before snap-back begins)
 **Impact:** High. Eliminates the most common and most visible complaint about the camera system.
 **Risk:** Medium. Timing-sensitive code with multiple concurrent animation loops requires careful coordination and thorough testing.

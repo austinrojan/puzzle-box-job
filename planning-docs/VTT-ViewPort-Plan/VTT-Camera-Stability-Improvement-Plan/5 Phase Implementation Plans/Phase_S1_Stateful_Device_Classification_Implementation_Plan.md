@@ -1,6 +1,10 @@
 # Phase S1: Stateful Device Classification
 ## A comprehensive implementation plan for replacing per-event wheel classification with a windowed, Bayesian, hysteresis-protected classifier
 
+> **Status:** IMPLEMENTED — Windowed Bayesian classifier with hysteresis deployed and tested.
+> **Tests added:** 15 (12 unit in `device-classifier.spec.js`, 3 integration in `phase6-integration.spec.js`)
+> **Review:** `docs/plans/2026-02-19-phase6-s1-coderabbit-results.md`
+
 **Fixes:** Bugs #3 (zoom after pinch), #4 (fast scroll triggers zoom), most of #5 (erratic behavior)
 **Impact:** Highest. Eliminates the primary source of input misrouting.
 **Risk:** Low. Replaces a single function and the routing logic that depends on it.
