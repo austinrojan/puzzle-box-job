@@ -421,3 +421,55 @@ test.describe('GSM _cancelCurrent S3 integration', () => {
     expect(r).toBe(true);
   });
 });
+
+test.describe('Wheel handler request gating', () => {
+  test.beforeEach(async ({ page }) => { await setupMapCamera(page); });
+
+  test('mouse wheel zoom denied during SCROLL_PAN does not change zoom', async ({ page }) => {
+    const r = await page.evaluate(() => {
+      const cam = __cam();
+      cam.zoom = 2.0; cam._applyConstraints();
+      const before = cam.zoom;
+      cam._gestures.request('SCROLL_PAN');
+
+      const orig = cam._wheelClassifier.classify.bind(cam._wheelClassifier);
+      cam._wheelClassifier.classify = () => 'mouse';
+      const el = document.getElementById('map-container');
+      const rect = el.getBoundingClientRect();
+      el.dispatchEvent(new WheelEvent('wheel', {
+        deltaY: -100, deltaX: 0, deltaMode: 0, ctrlKey: false,
+        bubbles: true, cancelable: true,
+        clientX: rect.left + rect.width / 2, clientY: rect.top + rect.height / 2,
+      }));
+      cam._wheelClassifier.classify = orig;
+
+      return { changed: cam.zoom !== before, animating: cam._smoothZoom._animating };
+    });
+    expect(r.changed).toBe(false);
+    expect(r.animating).toBe(false);
+  });
+
+  test('trackpad pinch during SCROLL_PAN is accepted (higher priority)', async ({ page }) => {
+    const r = await page.evaluate(() => {
+      const cam = __cam();
+      cam.zoom = 2.0; cam._applyConstraints();
+      const before = cam.zoom;
+      cam._gestures.request('SCROLL_PAN');
+
+      const orig = cam._wheelClassifier.classify.bind(cam._wheelClassifier);
+      cam._wheelClassifier.classify = () => 'trackpad';
+      const el = document.getElementById('map-container');
+      const rect = el.getBoundingClientRect();
+      el.dispatchEvent(new WheelEvent('wheel', {
+        deltaY: -5, deltaX: 0, deltaMode: 0, ctrlKey: true,
+        bubbles: true, cancelable: true,
+        clientX: rect.left + rect.width / 2, clientY: rect.top + rect.height / 2,
+      }));
+      cam._wheelClassifier.classify = orig;
+
+      return { changed: Math.abs(cam.zoom - before) > 0.001, gesture: cam._gestures.current };
+    });
+    expect(r.changed).toBe(true);
+    expect(r.gesture).toBe('PINCH_ZOOM');
+  });
+});

@@ -1240,23 +1240,20 @@ export class Camera {
         const screen = this.eventToScreen(e);
 
         if (device === 'mouse') {
-          // Smooth animated zoom for ctrl+mouse-wheel
-          if (this._gestures) this._gestures.request('ZOOM_ANIMATE');
-          this._smoothZoom.onWheelZoom(dz, screen.x, screen.y);
+          const granted = !this._gestures || this._gestures.request('ZOOM_ANIMATE');
+          if (granted) this._smoothZoom.onWheelZoom(dz, screen.x, screen.y);
         } else {
-          // Trackpad pinch: direct 1:1 zoom (existing behavior)
-          if (this._gestures) this._gestures.request('PINCH_ZOOM');
-          this.zoomAt(screen.x, screen.y, dz * -ZOOM_SENSITIVITY);
+          const granted = !this._gestures || this._gestures.request('PINCH_ZOOM');
+          if (granted) this.zoomAt(screen.x, screen.y, dz * -ZOOM_SENSITIVITY);
         }
       } else if (dx !== 0 || dy !== 0) {
         // Non-ctrl wheel: classify device to decide zoom vs pan
         const device = this._wheelClassifier.classify(e);
 
         if (device === 'mouse') {
-          // Mouse scroll wheel → smooth animated zoom (scroll up = zoom in)
           const screen = this.eventToScreen(e);
-          if (this._gestures) this._gestures.request('ZOOM_ANIMATE');
-          this._smoothZoom.onWheelZoom(dy / 100, screen.x, screen.y);
+          const granted = !this._gestures || this._gestures.request('ZOOM_ANIMATE');
+          if (granted) this._smoothZoom.onWheelZoom(dy / 100, screen.x, screen.y);
         } else {
           // Trackpad two-finger scroll → pan with gesture detection
           this._trackpadDetector.handleWheel(e);
