@@ -252,44 +252,96 @@ class SmoothZoomAnimator {
 }
 
 // ============================================================
-// Gesture State Machine (Phase 6)
+// Gesture State Machine (Phase S4: Hierarchical Coordination)
 // ============================================================
 //
-// Coordinates concurrent input gestures to prevent conflicts.
-// Higher-priority gestures cancel lower-priority ones.
-// Same-priority gestures retarget rather than conflict.
+// Five ordered decision rules with dwell time, cooldown, and
+// tier separation to prevent oscillation during gesture transitions.
 
 const GESTURE_PRIORITY = {
-  IDLE: 0,
-  SNAP_BACK: 1,
-  INERTIA: 2,
-  ZOOM_ANIMATE: 3,
-  SCROLL_PAN: 4,
-  PINCH_ZOOM: 5,
-  DRAG_PAN: 6
+  IDLE: 0, SNAP_BACK: 1, INERTIA: 2, ZOOM_ANIMATE: 3,
+  SCROLL_PAN: 4, PINCH_ZOOM: 5, DRAG_PAN: 6
 };
+
+const USER_GESTURES = new Set(['SCROLL_PAN', 'PINCH_ZOOM', 'DRAG_PAN']);
+const ANIMATION_GESTURES = new Set(['SNAP_BACK', 'INERTIA', 'ZOOM_ANIMATE']);
+const DWELL_TIME_MS = 80;
+const COOLDOWN_MS = 50;
 
 class GestureStateMachine {
   constructor(camera) {
     this._camera = camera;
     this._activeGesture = 'IDLE';
+    this._gestureStartTime = 0;
+    this._lastGestureEndTime = 0;
+    this._lastEndedGesture = 'IDLE';
   }
 
   request(gesture) {
-    const newPriority = GESTURE_PRIORITY[gesture];
-    const currentPriority = GESTURE_PRIORITY[this._activeGesture];
-    if (newPriority >= currentPriority) {
+    const now = performance.now();
+    const newPri = GESTURE_PRIORITY[gesture];
+    const curPri = GESTURE_PRIORITY[this._activeGesture];
+
+    // Rule 1: same gesture retarget — always accept
+    if (gesture === this._activeGesture) return true;
+
+    // Rule 2: user preempts animation — always instant
+    if (USER_GESTURES.has(gesture) && ANIMATION_GESTURES.has(this._activeGesture)) {
       this._cancelCurrent();
-      this._activeGesture = gesture;
+      this._activate(gesture, now);
       return true;
     }
+
+    // Rule 3: user replaces user — higher priority instant, else dwell + priority
+    if (USER_GESTURES.has(gesture) && USER_GESTURES.has(this._activeGesture)) {
+      if (newPri > curPri) {
+        this._cancelCurrent();
+        this._activate(gesture, now);
+        return true;
+      }
+      if (now - this._gestureStartTime < DWELL_TIME_MS) return false;
+      if (newPri >= curPri) {
+        this._cancelCurrent();
+        this._activate(gesture, now);
+        return true;
+      }
+      return false;
+    }
+
+    // Rule 4: from IDLE — check cooldown (tier-aware)
+    if (this._activeGesture === 'IDLE') {
+      if (now - this._lastGestureEndTime < COOLDOWN_MS
+          && gesture !== this._lastEndedGesture
+          && this._lastEndedGesture !== 'IDLE') {
+        // Cooldown only blocks same-tier different-type transitions
+        const lastWasUser = USER_GESTURES.has(this._lastEndedGesture);
+        const newIsUser = USER_GESTURES.has(gesture);
+        if (lastWasUser === newIsUser) return false;
+      }
+      this._activate(gesture, now);
+      return true;
+    }
+
+    // Rule 5: animation replaces animation — priority decides
+    if (newPri >= curPri) {
+      this._cancelCurrent();
+      this._activate(gesture, now);
+      return true;
+    }
+
     return false;
   }
 
   release(gesture) {
-    if (this._activeGesture === gesture) {
-      this._activeGesture = 'IDLE';
-    }
+    if (this._activeGesture !== gesture) return;
+    this._lastEndedGesture = gesture;
+    this._lastGestureEndTime = performance.now();
+    this._activeGesture = 'IDLE';
+  }
+
+  _activate(gesture, now) {
+    this._activeGesture = gesture;
+    this._gestureStartTime = now;
   }
 
   _cancelCurrent() {
@@ -298,8 +350,12 @@ class GestureStateMachine {
         this._camera._cancelInertialCoast();
         break;
       case 'SNAP_BACK':
-        this._camera._cancelSpeculativeSnapBack();
-        if (this._camera._elasticAnimator) this._camera._elasticAnimator.cancel();
+        if (this._camera._cancelSpeculativeSnapBack) {
+          this._camera._cancelSpeculativeSnapBack();
+        }
+        if (this._camera._elasticAnimator) {
+          this._camera._elasticAnimator.cancel();
+        }
         break;
       case 'ZOOM_ANIMATE':
         if (this._camera._smoothZoom) this._camera._smoothZoom.cancel();
