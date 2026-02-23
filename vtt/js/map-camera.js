@@ -255,8 +255,8 @@ class SmoothZoomAnimator {
 // Gesture State Machine (Phase S4: Hierarchical Coordination)
 // ============================================================
 //
-// Five ordered decision rules with dwell time, cooldown, and
-// tier separation to prevent oscillation during gesture transitions.
+// Five ordered decision rules with cooldown and tier separation
+// to prevent oscillation during gesture transitions.
 
 const GESTURE_PRIORITY = {
   IDLE: 0, SNAP_BACK: 1, INERTIA: 2, ZOOM_ANIMATE: 3,
@@ -265,7 +265,6 @@ const GESTURE_PRIORITY = {
 
 const USER_GESTURES = new Set(['SCROLL_PAN', 'PINCH_ZOOM', 'DRAG_PAN']);
 const ANIMATION_GESTURES = new Set(['SNAP_BACK', 'INERTIA', 'ZOOM_ANIMATE']);
-const DWELL_TIME_MS = 80;
 const COOLDOWN_MS = 50;
 
 class GestureStateMachine {
@@ -292,15 +291,10 @@ class GestureStateMachine {
       return true;
     }
 
-    // Rule 3: user replaces user — higher priority instant, else dwell + priority
+    // Rule 3: user replaces user — higher priority wins instantly, lower denied.
+    // (All user gesture priorities are unique, so equal-priority is unreachable.)
     if (USER_GESTURES.has(gesture) && USER_GESTURES.has(this._activeGesture)) {
       if (newPri > curPri) {
-        this._cancelCurrent();
-        this._activate(gesture, now);
-        return true;
-      }
-      if (now - this._gestureStartTime < DWELL_TIME_MS) return false;
-      if (newPri >= curPri) {
         this._cancelCurrent();
         this._activate(gesture, now);
         return true;
@@ -350,18 +344,14 @@ class GestureStateMachine {
         this._camera._cancelInertialCoast();
         break;
       case 'SNAP_BACK':
-        if (this._camera._cancelSpeculativeSnapBack) {
-          this._camera._cancelSpeculativeSnapBack();
-        }
-        if (this._camera._elasticAnimator) {
-          this._camera._elasticAnimator.cancel();
-        }
+        this._camera._cancelSpeculativeSnapBack();
+        this._camera._elasticAnimator.cancel();
         break;
       case 'ZOOM_ANIMATE':
-        if (this._camera._smoothZoom) this._camera._smoothZoom.cancel();
+        this._camera._smoothZoom.cancel();
         break;
       case 'SCROLL_PAN':
-        if (this._camera._trackpadDetector) this._camera._trackpadDetector.cancel();
+        this._camera._trackpadDetector.cancel();
         break;
     }
   }
@@ -1240,10 +1230,10 @@ export class Camera {
         const screen = this.eventToScreen(e);
 
         if (device === 'mouse') {
-          const granted = !this._gestures || this._gestures.request('ZOOM_ANIMATE');
+          const granted = this._gestures.request('ZOOM_ANIMATE');
           if (granted) this._smoothZoom.onWheelZoom(dz, screen.x, screen.y);
         } else {
-          const granted = !this._gestures || this._gestures.request('PINCH_ZOOM');
+          const granted = this._gestures.request('PINCH_ZOOM');
           if (granted) this.zoomAt(screen.x, screen.y, dz * -ZOOM_SENSITIVITY);
         }
       } else if (dx !== 0 || dy !== 0) {
@@ -1252,7 +1242,7 @@ export class Camera {
 
         if (device === 'mouse') {
           const screen = this.eventToScreen(e);
-          const granted = !this._gestures || this._gestures.request('ZOOM_ANIMATE');
+          const granted = this._gestures.request('ZOOM_ANIMATE');
           if (granted) this._smoothZoom.onWheelZoom(dy / 100, screen.x, screen.y);
         } else {
           // Trackpad two-finger scroll → pan with gesture detection
