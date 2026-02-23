@@ -115,6 +115,7 @@ export async function injectTestAccessors(page) {
     window.__interpolator = () => window.__vtt?.interpolator ?? null;
     window.__semanticZoom = () => window.__vtt?.semanticZoom ?? null;
     window.__presetManager = () => window.__vtt?.presetManager ?? null;
+    window.__springLoop = () => window.__vtt?.mapRenderer?.camera?._springLoop ?? null;
 
     // Monkey-patch cam.panBy to capture the first call, then auto-restore.
     // Returns { first: { dx, dy } | null, restore() }.

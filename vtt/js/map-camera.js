@@ -8,6 +8,7 @@
 import { EventBus } from './state.js';
 import { normalizeWheel } from './normalize-wheel.js';
 import { TrackpadGestureDetector, WheelDeviceClassifier } from './trackpad-gesture.js';
+import { CameraSpringLoop, SPRING_STIFFNESS } from './camera-spring-loop.js';
 
 // --- Constants ---
 const MIN_ZOOM = 0.1;              // absolute floor (safety valve)
@@ -1468,6 +1469,8 @@ export class Camera {
 
     this._smoothZoom = new SmoothZoomAnimator(this);
     this._gestures = new GestureStateMachine(this);
+    this._springLoop = new CameraSpringLoop(this);
+    this._springLoop.syncFromCamera();
 
     this._attachWheelHandler(el);
     this._attachMouseHandlers(el);
