@@ -27,6 +27,10 @@ function rubberBand(distance, dimension, c = 0.55) {
   return (distance * dimension * c) / (dimension + c * distance);
 }
 
+// Maximum elastic offset in screen-space pixels.
+// ~10% of a 1440px viewport. Prevents extreme displacement that looks like a bug.
+const MAX_ELASTIC_SCREEN_PX = 150;
+
 // Prevent elastic offset from crossing zero during snap-back.
 // Returns 0 if val has the opposite sign of displacement.
 function clampSign(val, displacement) {
@@ -847,6 +851,36 @@ export class Camera {
   // --- Phase 6: Elastic offset methods ---
 
   /**
+   * Update cumulative overflow with input-proportional drain.
+   * Replaces the frame-rate-dependent 0.8 decay: reverse-direction
+   * input reduces overflow at the rate of input (1:1 gesture feel).
+   *
+   * @param {number} overflow   This frame's overflow (world-space, signed)
+   * @param {number} inputDelta The user's input delta (world-space, signed)
+   * @param {number} cumulative Current cumulative overflow
+   * @returns {number} Updated cumulative overflow
+   */
+  _updateCumulativeOverflow(overflow, inputDelta, cumulative) {
+    if (overflow !== 0) {
+      if (Math.sign(overflow) !== Math.sign(cumulative) && cumulative !== 0) {
+        // Direction reversed: hard-reset to the new overflow value
+        return overflow;
+      }
+      return cumulative + overflow;
+    }
+
+    // No overflow this frame — the camera is within bounds
+    if (Math.abs(cumulative) < 0.01) return 0;
+
+    // Drain proportionally to reverse-direction input
+    const inputOpposesOverflow = Math.sign(inputDelta) !== Math.sign(cumulative);
+    if (!inputOpposesOverflow) return cumulative;
+
+    const drain = Math.min(Math.abs(inputDelta), Math.abs(cumulative));
+    return cumulative - Math.sign(cumulative) * drain;
+  }
+
+  /**
    * Feed overflow (distance past hard bounds) into the elastic offset.
    * The rubber-band formula operates in screen-space pixels for consistent
    * resistance feel, then converts back to world-space for the offset.
@@ -865,7 +899,8 @@ export class Camera {
     if (overflowX !== 0) {
       const screenOverflow = overflowX * this.zoom;
       const dampened = rubberBand(Math.abs(screenOverflow), this.viewportW, c);
-      this.elasticOffsetX = Math.sign(overflowX) * dampened / this.zoom;
+      const capped = Math.min(dampened, MAX_ELASTIC_SCREEN_PX);
+      this.elasticOffsetX = Math.sign(overflowX) * capped / this.zoom;
     } else {
       this.elasticOffsetX = 0;
     }
@@ -873,7 +908,8 @@ export class Camera {
     if (overflowY !== 0) {
       const screenOverflow = overflowY * this.zoom;
       const dampened = rubberBand(Math.abs(screenOverflow), this.viewportH, c);
-      this.elasticOffsetY = Math.sign(overflowY) * dampened / this.zoom;
+      const capped = Math.min(dampened, MAX_ELASTIC_SCREEN_PX);
+      this.elasticOffsetY = Math.sign(overflowY) * capped / this.zoom;
     } else {
       this.elasticOffsetY = 0;
     }
@@ -1130,27 +1166,16 @@ export class Camera {
     const overflowY = rawY - this.y;
 
     if (this._gestureActive) {
-      if (overflowX !== 0) {
-        if (Math.sign(overflowX) === Math.sign(this._cumulativeOverflowX) || this._cumulativeOverflowX === 0) {
-          this._cumulativeOverflowX += overflowX;
-        } else {
-          this._cumulativeOverflowX = overflowX;
-        }
-      } else {
-        this._cumulativeOverflowX *= 0.8;
-        if (Math.abs(this._cumulativeOverflowX) < 0.1) this._cumulativeOverflowX = 0;
-      }
+      // Input delta in world-space (matches overflow sign convention)
+      const inputDeltaX = -dx / this.zoom;
+      const inputDeltaY = -dy / this.zoom;
 
-      if (overflowY !== 0) {
-        if (Math.sign(overflowY) === Math.sign(this._cumulativeOverflowY) || this._cumulativeOverflowY === 0) {
-          this._cumulativeOverflowY += overflowY;
-        } else {
-          this._cumulativeOverflowY = overflowY;
-        }
-      } else {
-        this._cumulativeOverflowY *= 0.8;
-        if (Math.abs(this._cumulativeOverflowY) < 0.1) this._cumulativeOverflowY = 0;
-      }
+      this._cumulativeOverflowX = this._updateCumulativeOverflow(
+        overflowX, inputDeltaX, this._cumulativeOverflowX
+      );
+      this._cumulativeOverflowY = this._updateCumulativeOverflow(
+        overflowY, inputDeltaY, this._cumulativeOverflowY
+      );
 
       this._feedElasticOverflow(this._cumulativeOverflowX, this._cumulativeOverflowY);
       EventBus.emit('camera:changed');
