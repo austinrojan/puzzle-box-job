@@ -43,3 +43,43 @@ test.describe('logicalScreenToWorld', () => {
     expect(result.y).toBeCloseTo(200, 5);  // 300/2 + 50
   });
 });
+
+test.describe('zoomAt coordinate decontamination', () => {
+  test.beforeEach(async ({ page }) => { await setupMapCamera(page); });
+
+  test('zoomAt does not shift camera by elastic offset amount', async ({ page }) => {
+    const result = await page.evaluate(() => {
+      const cam = __cam();
+      cam.zoom = 2.0; cam.mapW = 3840; cam.mapH = 2160;
+      cam._updateCoverZoom();
+      cam.x = (cam.mapW - cam.viewportW / cam.zoom) / 2;
+      cam.y = (cam.mapH - cam.viewportH / cam.zoom) / 2;
+      cam.elasticOffsetX = 50; cam.elasticOffsetY = 30;
+      const xBefore = cam.x;
+      cam.zoomAt(cam.viewportW / 2, cam.viewportH / 2, 0.1);
+      return Math.abs(cam.x - xBefore);
+    });
+    expect(result).toBeLessThan(40);
+  });
+});
+
+test.describe('SmoothZoomAnimator anchor decontamination', () => {
+  test.beforeEach(async ({ page }) => { await setupMapCamera(page); });
+
+  test('onWheelZoom anchor uses logical position, not visual', async ({ page }) => {
+    const result = await page.evaluate(() => {
+      const cam = __cam();
+      cam.zoom = 2.0; cam.x = 500; cam.y = 300;
+      cam.elasticOffsetX = 40; cam.elasticOffsetY = 25;
+      cam._smoothZoom.onWheelZoom(-1.0, 960, 540);
+      return {
+        wx: cam._smoothZoom._anchor.wx,
+        expectedWx: 960 / cam.zoom + cam.x,
+        wy: cam._smoothZoom._anchor.wy,
+        expectedWy: 540 / cam.zoom + cam.y,
+      };
+    });
+    expect(result.wx).toBeCloseTo(result.expectedWx, 3);
+    expect(result.wy).toBeCloseTo(result.expectedWy, 3);
+  });
+});

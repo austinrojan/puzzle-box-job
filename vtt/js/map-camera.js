@@ -198,7 +198,7 @@ class SmoothZoomAnimator {
 
     this._anchor.sx = screenX;
     this._anchor.sy = screenY;
-    const worldPt = this._camera.screenToWorld(screenX, screenY);
+    const worldPt = this._camera.logicalScreenToWorld(screenX, screenY);
     this._anchor.wx = worldPt.x;
     this._anchor.wy = worldPt.y;
 
@@ -1036,11 +1036,11 @@ export class Camera {
    * @param {number} delta Zoom delta in log2 space. Positive = zoom in.
    */
   zoomAt(sx, sy, delta) {
-    const worldBefore = this.screenToWorld(sx, sy);
+    const worldBefore = this.logicalScreenToWorld(sx, sy);
     const effectiveMinZoom = this._getMinZoom();
     this.zoom = Math.max(effectiveMinZoom, Math.min(MAX_ZOOM,
       this.zoom * Math.pow(2, delta)));
-    const worldAfter = this.screenToWorld(sx, sy);
+    const worldAfter = this.logicalScreenToWorld(sx, sy);
     this.x += worldBefore.x - worldAfter.x;
     this.y += worldBefore.y - worldAfter.y;
     this._applyConstraints();
