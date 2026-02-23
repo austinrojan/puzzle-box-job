@@ -290,10 +290,21 @@ export async function dispatchMouseWheelSequence(page, opts = {}) {
     const origNow = performance.now.bind(performance);
     let mockTime = origNow();
     performance.now = () => mockTime;
+    const cam = window.__vtt?.mapRenderer?.camera;
     const el = document.getElementById('map-container');
     const rect = el.getBoundingClientRect();
     const cx = rect.left + rect.width / 2;
     const cy = rect.top + rect.height / 2;
+
+    // Pre-seed classifier to 'mouse' so the first event doesn't
+    // misroute to trackpad/pan path (Phase S4: GSM now gates on
+    // request() return, so misclassified events are actually blocked).
+    // Must also set _lastEventTime to prevent silence reset in classify().
+    if (cam?._wheelClassifier) {
+      cam._wheelClassifier._device = 'mouse';
+      cam._wheelClassifier._lastEventTime = mockTime;
+    }
+
     try {
       for (let i = 0; i < o.count; i++) {
         mockTime += o.gapMs;
