@@ -1,10 +1,12 @@
 # Phase S4: Hierarchical Gesture Coordination with Hysteresis
 ## A comprehensive implementation plan for restructuring the GestureStateMachine with dwell time, cooldown, hierarchical preemption, coordinate contamination fixes, and bumpless animation handoff
 
+**Status:** IMPLEMENTED (2026-02-23)
 **Fixes:** Remaining aspects of bug #5 (erratic behavior during gesture transitions)
 **Impact:** Medium. Addresses edge cases and transitions that Phases S1-S3 could not.
 **Risk:** Medium. The state machine interacts with every input path and every animation system.
 **Estimated LOC:** ~250 (restructured GestureStateMachine + logicalScreenToWorld + SmoothZoomAnimator fix + updated _cancelCurrent + tests)
+**Actual LOC:** ~145 impl + ~480 test (37 unit + 3 integration)
 **Depends on:** Phase S1 (stateful device classification), Phase S2 (velocity-clamped spring snap-back), and Phase S3 (speculative snap-back). S1 provides stable device classification that feeds the correct gesture type into the state machine. S2 provides overshoot protection that makes gesture-transition-triggered snap-backs safe. S3 provides `_cancelSpeculativeSnapBack()`, which the restructured `_cancelCurrent()` must call.
 
 ---
