@@ -322,3 +322,90 @@ test.describe('Stateful device classification', () => {
     expect(after).toBeGreaterThan(before);
   });
 });
+
+// ============================================================
+// Gesture coordination (Phase S4)
+// ============================================================
+test.describe('Gesture coordination (Phase S4)', () => {
+  test.beforeEach(async ({ page }) => {
+    await gotoVTT(page);
+    await enterMapMode(page);
+    await injectTestAccessors(page);
+  });
+
+  test('rapid alternating scroll/pinch events do not oscillate', async ({ page }) => {
+    const transitions = await page.evaluate(async () => {
+      const cam = __cam();
+      cam.zoom = 2.0; cam._applyConstraints();
+      const el = document.getElementById('map-container');
+      const rect = el.getBoundingClientRect();
+      const cx = rect.left + rect.width / 2, cy = rect.top + rect.height / 2;
+      const modes = [];
+      for (let i = 0; i < 20; i++) {
+        const isCtrl = i % 2 === 0;
+        el.dispatchEvent(new WheelEvent('wheel', {
+          deltaY: isCtrl ? -2 : 10, deltaX: isCtrl ? 0 : 3.5,
+          deltaMode: 0, ctrlKey: isCtrl, bubbles: true, cancelable: true,
+          clientX: cx, clientY: cy,
+        }));
+        modes.push(cam._gestures?.current || 'UNKNOWN');
+        await new Promise(r => setTimeout(r, 8));
+      }
+      let count = 0;
+      for (let i = 1; i < modes.length; i++) if (modes[i] !== modes[i - 1]) count++;
+      return count;
+    });
+    expect(transitions).toBeLessThan(8);
+  });
+
+  test('mouse drag preempts scroll without dwell delay', async ({ page }) => {
+    await page.evaluate(() => {
+      const cam = __cam();
+      cam.zoom = 2.0; cam._applyConstraints();
+      const el = document.getElementById('map-container');
+      const rect = el.getBoundingClientRect();
+      el.dispatchEvent(new WheelEvent('wheel', {
+        deltaY: 5.5, deltaX: 2.1, deltaMode: 0, ctrlKey: false,
+        bubbles: true, cancelable: true,
+        clientX: rect.left + rect.width / 2, clientY: rect.top + rect.height / 2,
+      }));
+    });
+
+    const before = await page.evaluate(() => __cam()._gestures?.current);
+    expect(before).toBe('SCROLL_PAN');
+
+    const canvas = page.locator('#map-container');
+    const box = await canvas.boundingBox();
+    await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+    await page.mouse.down({ button: 'right' });
+
+    const after = await page.evaluate(() => __cam()._gestures?.current);
+    expect(after).toBe('DRAG_PAN');
+    await page.mouse.up({ button: 'right' });
+  });
+
+  test('zoom during elastic overscroll uses correct anchor', async ({ page }) => {
+    await page.evaluate(() => {
+      const cam = __cam();
+      cam.zoom = 2.0; cam._applyConstraints();
+      for (let i = 0; i < 200; i++) cam.panBy(50, 0);
+    });
+
+    await page.evaluate(() => {
+      const cam = __cam();
+      cam._gestureActive = true; cam._cumulativeOverflowX = 0;
+      for (let i = 0; i < 5; i++) cam.panBy(100, 0);
+    });
+
+    const before = await page.evaluate(() => ({
+      x: __cam().x, elasticX: __cam().elasticOffsetX, zoom: __cam().zoom,
+    }));
+    expect(Math.abs(before.elasticX)).toBeGreaterThan(0);
+
+    await page.evaluate(() => __cam().zoomAt(960, 540, 0.1));
+
+    const after = await page.evaluate(() => ({ x: __cam().x, zoom: __cam().zoom }));
+    expect(after.zoom).toBeGreaterThan(before.zoom);
+    expect(Math.abs(after.x - before.x)).toBeLessThan(80);
+  });
+});
