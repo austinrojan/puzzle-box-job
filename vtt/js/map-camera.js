@@ -610,6 +610,13 @@ export class Camera {
     this._lastElasticScreenMag = 0;      // previous frame's elastic magnitude (screen px)
     this._speculativeSnapId = null;      // rAF ID for monitoring loop (null = not running)
     this._isSnappingBack = false;        // double-fire defense flag
+
+    // Phase S5: Scroll-wheel behavior preference
+    this._scrollWheelBehavior = 'auto';  // 'auto' | 'pan' | 'zoom'
+    const saved = typeof localStorage !== 'undefined' && localStorage.getItem('vtt_scroll_behavior');
+    if (saved && ['auto', 'pan', 'zoom'].includes(saved)) {
+      this._scrollWheelBehavior = saved;
+    }
   }
 
   // --- Coordinate conversion ---
@@ -1262,15 +1269,21 @@ export class Camera {
           if (granted) this.zoomAt(screen.x, screen.y, dz * -ZOOM_SENSITIVITY);
         }
       } else if (dx !== 0 || dy !== 0) {
-        // Non-ctrl wheel: classify device to decide zoom vs pan
-        const device = this._wheelClassifier.classify(e);
+        // Non-ctrl wheel: preference > classifier > default
+        let behavior;
+        if (this._scrollWheelBehavior === 'auto') {
+          const device = this._wheelClassifier.classify(e);
+          behavior = device === 'mouse' ? 'zoom' : 'pan';
+        } else {
+          behavior = this._scrollWheelBehavior;
+        }
 
-        if (device === 'mouse') {
+        if (behavior === 'zoom') {
           const screen = this.eventToScreen(e);
           const granted = this._gestures.request('ZOOM_ANIMATE');
           if (granted) this._smoothZoom.onWheelZoom(dy / 100, screen.x, screen.y);
         } else {
-          // Trackpad two-finger scroll → pan with gesture detection
+          // Pan with gesture detection
           this._trackpadDetector.handleWheel(e);
           this.panBy(-dx, -dy);
         }
@@ -1475,6 +1488,12 @@ export class Camera {
     });
     EventBus.on('camera:momentum-toggle', (enabled) => {
       this._momentumEnabled = enabled;
+    });
+    EventBus.on('camera:scroll-behavior', (behavior) => {
+      if (['auto', 'pan', 'zoom'].includes(behavior)) {
+        this._scrollWheelBehavior = behavior;
+        localStorage.setItem('vtt_scroll_behavior', behavior);
+      }
     });
 
     this._attachSafetyGuards(el);
