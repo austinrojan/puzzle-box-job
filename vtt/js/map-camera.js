@@ -587,6 +587,18 @@ export class Camera {
     };
   }
 
+  /**
+   * Convert screen coordinates to world coordinates using the LOGICAL
+   * camera position (ignoring elastic offset). Use for zoom anchors
+   * and state persistence where elastic offset must not influence results.
+   */
+  logicalScreenToWorld(sx, sy) {
+    return {
+      x: sx / this.zoom + this.x,
+      y: sy / this.zoom + this.y
+    };
+  }
+
   worldToScreen(wx, wy) {
     return {
       x: (wx - this.visualX) * this.zoom,
