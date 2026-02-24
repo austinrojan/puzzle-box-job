@@ -16,6 +16,7 @@ const MIN_DT = 0.001;    // Floor dt to 1ms (handles performance.now quirks)
 
 const COAST_FRICTION = 0.96;
 const COAST_STOP_THRESHOLD = 10;   // screen px/s
+const COAST_BOUNDARY_STOP = 60;    // screen px/s — stop coast sooner when at elastic boundary
 const COAST_BASE_FRAME_MS = 16.67; // 60fps reference for framerate-independent friction
 
 export const SPRING_STIFFNESS = {
@@ -256,7 +257,8 @@ export class CameraSpringLoop {
     cam._coastVy *= frictionFactor;
 
     const speed = Math.sqrt(cam._coastVx ** 2 + cam._coastVy ** 2);
-    if (speed < COAST_STOP_THRESHOLD) {
+    const atBoundary = cam.elasticOffsetX !== 0 || cam.elasticOffsetY !== 0;
+    if (speed < (atBoundary ? COAST_BOUNDARY_STOP : COAST_STOP_THRESHOLD)) {
       const residualVx = cam._coastVx / cam.zoom;
       const residualVy = cam._coastVy / cam.zoom;
       cam._isCoasting = false;

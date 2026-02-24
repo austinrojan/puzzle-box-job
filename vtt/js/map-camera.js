@@ -20,6 +20,7 @@ const DRAG_THRESHOLD = 3;          // px before click becomes drag
 const COVER_ZOOM_EPSILON = 0.001;
 const MAX_COAST_SPEED = 3000;     // px/s — Leaflet inertiaMaxSpeed reference
 const SETTLE_THRESHOLD_PX = 0.5;  // world-space px — elastic snap-back skip threshold
+const MOMENTUM_CUTOFF_PX = 1.5;    // screen px — cancel momentum gesture below this delta
 
 // Apple iOS-style rubber-band: asymptotic resistance that grows weaker
 // the further you overshoot, preventing the viewport from ever reaching
@@ -1176,6 +1177,15 @@ export class Camera {
           // Pan with gesture detection
           this._trackpadDetector.handleWheel(e);
           this.panBy(-dx, -dy);
+
+          // Early momentum termination: if momentum deltas are imperceptibly
+          // small at a boundary, end the gesture now rather than waiting for
+          // macOS to stop sending events (which can take 1-2 seconds).
+          if (this._momentumScrollActive &&
+              (this.elasticOffsetX !== 0 || this.elasticOffsetY !== 0) &&
+              Math.abs(dx) + Math.abs(dy) < MOMENTUM_CUTOFF_PX) {
+            this._trackpadDetector.cancel();
+          }
         }
       }
     }, { passive: false });

@@ -312,6 +312,106 @@ test.describe('Speculative snap-back integration', () => {
     expect(result.snapping).toBe(false);
   });
 
+  test('momentum with tiny deltas at boundary triggers early snap-back', async ({ page }) => {
+    // Push camera to boundary and establish elastic offset
+    await page.evaluate(() => {
+      const cam = __cam();
+      cam.zoom = 2.0;
+      cam._applyConstraints();
+      for (let i = 0; i < 200; i++) cam.panBy(50, 0);
+    });
+
+    // Simulate active scrolling to establish momentum phase
+    const el = page.locator('#map-container');
+    const box = await el.boundingBox();
+    const cx = box.x + box.width / 2;
+    const cy = box.y + box.height / 2;
+
+    // Active phase: larger deltas
+    for (let i = 0; i < 8; i++) {
+      await page.evaluate(({ cx, cy }) => {
+        const el = document.getElementById('map-container');
+        el.dispatchEvent(new WheelEvent('wheel', {
+          deltaY: 0, deltaX: -(10 - i), deltaMode: 0,
+          ctrlKey: false, bubbles: true, cancelable: true,
+          clientX: cx, clientY: cy,
+        }));
+      }, { cx, cy });
+      await page.waitForTimeout(16);
+    }
+
+    // Wait for momentum detection
+    await page.waitForTimeout(20);
+
+    // Momentum phase: tiny delta that should trigger early termination
+    await page.evaluate(({ cx, cy }) => {
+      const el = document.getElementById('map-container');
+      el.dispatchEvent(new WheelEvent('wheel', {
+        deltaY: 0, deltaX: -0.5, deltaMode: 0,
+        ctrlKey: false, bubbles: true, cancelable: true,
+        clientX: cx, clientY: cy,
+      }));
+    }, { cx, cy });
+
+    // Snap-back should start almost immediately (not wait 60-80ms timeout)
+    const result = await page.evaluate(() => ({
+      detectorState: __cam()._trackpadDetector.state,
+      isSnapping: __cam()._isSnappingBack,
+    }));
+
+    // Detector should be IDLE (cancel was called) and snap-back should have started
+    expect(result.detectorState).toBe('IDLE');
+    expect(result.isSnapping).toBe(true);
+  });
+
+  test('small momentum deltas away from boundary do NOT cancel gesture', async ({ page }) => {
+    // Ensure camera is NOT at boundary (no elastic offset)
+    await page.evaluate(() => {
+      const cam = __cam();
+      cam.zoom = 2.0;
+      cam._applyConstraints();
+      // Position in the middle of the map
+      cam.x = cam.mapW / 4;
+      cam.y = cam.mapH / 4;
+    });
+
+    const box = await page.locator('#map-container').boundingBox();
+    const cx = box.x + box.width / 2;
+    const cy = box.y + box.height / 2;
+
+    // Start a gesture with active scrolling
+    for (let i = 0; i < 6; i++) {
+      await page.evaluate(({ cx, cy }) => {
+        const el = document.getElementById('map-container');
+        el.dispatchEvent(new WheelEvent('wheel', {
+          deltaY: 0, deltaX: -(5 - i * 0.5), deltaMode: 0,
+          ctrlKey: false, bubbles: true, cancelable: true,
+          clientX: cx, clientY: cy,
+        }));
+      }, { cx, cy });
+      await page.waitForTimeout(16);
+    }
+
+    // Small delta (would trigger cutoff if at boundary)
+    await page.evaluate(({ cx, cy }) => {
+      const el = document.getElementById('map-container');
+      el.dispatchEvent(new WheelEvent('wheel', {
+        deltaY: 0, deltaX: -0.5, deltaMode: 0,
+        ctrlKey: false, bubbles: true, cancelable: true,
+        clientX: cx, clientY: cy,
+      }));
+    }, { cx, cy });
+
+    const result = await page.evaluate(() => ({
+      detectorState: __cam()._trackpadDetector.state,
+      elasticX: __cam().elasticOffsetX,
+    }));
+
+    // Detector should NOT be cancelled (no elastic offset = not at boundary)
+    expect(result.detectorState).not.toBe('IDLE');
+    expect(result.elasticX).toBe(0);
+  });
+
   test('mouse drag elastic overscroll works correctly after Phase S3', async ({ page }) => {
     await page.evaluate(() => {
       const cam = __cam();
