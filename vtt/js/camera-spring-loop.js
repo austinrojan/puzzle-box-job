@@ -109,6 +109,23 @@ export class CameraSpringLoop {
     cam.elasticOffsetY = this.elasticY.position;
     cam.zoom = Math.exp(this.logZoom.position);
 
+    // C4: Sign guard — prevent elastic offset from crossing zero during snap-back.
+    // Simpler than tracking full displacement; AxisSpring recomputes from current state.
+    if (cam._isSnappingBack) {
+      if (cam._elasticSnapSignX !== 0
+          && Math.sign(cam.elasticOffsetX) !== cam._elasticSnapSignX) {
+        cam.elasticOffsetX = 0;
+        this.elasticX.position = 0;
+        this.elasticX.velocity = 0;
+      }
+      if (cam._elasticSnapSignY !== 0
+          && Math.sign(cam.elasticOffsetY) !== cam._elasticSnapSignY) {
+        cam.elasticOffsetY = 0;
+        this.elasticY.position = 0;
+        this.elasticY.velocity = 0;
+      }
+    }
+
     // C1: Call _applyConstraints() which emits camera:changed.
     // Do NOT call cam._emitChanged() — it doesn't exist.
     cam._applyConstraints();
@@ -118,6 +135,18 @@ export class CameraSpringLoop {
     this.panX.position = cam.x;
     this.panY.position = cam.y;
     this.logZoom.position = Math.log(cam.zoom);
+
+    // C4: Settlement detection for elastic snap-back
+    if (elasticXSettled && elasticYSettled && cam._isSnappingBack) {
+      cam.elasticOffsetX = 0;
+      cam.elasticOffsetY = 0;
+      cam._cumulativeOverflowX = 0;
+      cam._cumulativeOverflowY = 0;
+      cam._isSnappingBack = false;
+      cam._elasticSnapSignX = 0;
+      cam._elasticSnapSignY = 0;
+      if (cam._gestures) cam._gestures.release('SNAP_BACK');
+    }
 
     // Auto-stop when all springs are settled
     const allSettled = panXSettled && panYSettled

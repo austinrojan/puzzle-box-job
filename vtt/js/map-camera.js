@@ -350,7 +350,6 @@ class GestureStateMachine {
         break;
       case 'SNAP_BACK':
         this._camera._cancelSpeculativeSnapBack();
-        this._camera._elasticAnimator.cancel();
         break;
       case 'ZOOM_ANIMATE':
         this._camera._smoothZoom.cancel();
@@ -611,6 +610,8 @@ export class Camera {
     this._lastElasticScreenMag = 0;      // previous frame's elastic magnitude (screen px)
     this._speculativeSnapId = null;      // rAF ID for monitoring loop (null = not running)
     this._isSnappingBack = false;        // double-fire defense flag
+    this._elasticSnapSignX = 0;          // Phase S5: sign guard for spring-based snap-back
+    this._elasticSnapSignY = 0;
 
     // Phase S5: Scroll-wheel behavior preference
     this._scrollWheelBehavior = 'auto';  // 'auto' | 'pan' | 'zoom'
@@ -981,25 +982,37 @@ export class Camera {
       return;
     }
 
-    if (this._elasticAnimator) {
-      const omega = this._elasticAnimator._omega;
+    const loop = this._springLoop;
+    loop.elasticX.position = this.elasticOffsetX;
+    loop.elasticY.position = this.elasticOffsetY;
+    loop.elasticX.setStiffness(SPRING_STIFFNESS.SNAP_BACK);
+    loop.elasticY.setStiffness(SPRING_STIFFNESS.SNAP_BACK);
 
-      // Velocity clamping (primary overshoot defense).
-      const clampedVx = this._clampSpringVelocity(
-        velocity.vx, this.elasticOffsetX, omega
-      );
-      const clampedVy = this._clampSpringVelocity(
-        velocity.vy, this.elasticOffsetY, omega
-      );
+    // Velocity clamp (C3: velocity FIRST, displacement SECOND)
+    const omega = loop.elasticX._omega;
+    const clampedVx = this._clampSpringVelocity(velocity.vx, this.elasticOffsetX, omega);
+    const clampedVy = this._clampSpringVelocity(velocity.vy, this.elasticOffsetY, omega);
 
-      this._isSnappingBack = true;
+    // Store sign for clampSign guard in spring loop tick (C4)
+    this._elasticSnapSignX = Math.sign(this.elasticOffsetX);
+    this._elasticSnapSignY = Math.sign(this.elasticOffsetY);
+    this._isSnappingBack = true;
+    loop.elasticX.setTarget(0, { velocity: clampedVx });
+    loop.elasticY.setTarget(0, { velocity: clampedVy });
 
-      this._elasticAnimator.snapBack(
-        { x: this.elasticOffsetX, y: this.elasticOffsetY },
-        { x: 0, y: 0 },
-        { vx: clampedVx, vy: clampedVy }
-      );
-    }
+    // Sync pan/zoom springs to current camera state so the loop doesn't
+    // overwrite cam.x/y/zoom with stale values from attachTo() time.
+    loop.panX.position = this.x;
+    loop.panX.target = this.x;
+    loop.panX.velocity = 0;
+    loop.panY.position = this.y;
+    loop.panY.target = this.y;
+    loop.panY.velocity = 0;
+    loop.logZoom.position = Math.log(this.zoom);
+    loop.logZoom.target = Math.log(this.zoom);
+    loop.logZoom.velocity = 0;
+
+    loop.ensureRunning();
   }
 
   /**
@@ -1045,9 +1058,15 @@ export class Camera {
       this._speculativeSnapId = null;
     }
 
-    if (this._isSnappingBack && this._elasticAnimator) {
-      this._elasticAnimator.cancel();
+    if (this._isSnappingBack && this._springLoop) {
+      // Freeze elastic springs at current position (no jump)
+      this._springLoop.elasticX.setTarget(this._springLoop.elasticX.position);
+      this._springLoop.elasticX.velocity = 0;
+      this._springLoop.elasticY.setTarget(this._springLoop.elasticY.position);
+      this._springLoop.elasticY.velocity = 0;
       this._isSnappingBack = false;
+      this._elasticSnapSignX = 0;
+      this._elasticSnapSignY = 0;
     }
   }
 
@@ -1232,7 +1251,6 @@ export class Camera {
       onGestureStart: () => {
         this._cancelInertialCoast();
         this._cancelSpeculativeSnapBack();
-        if (this._elasticAnimator) this._elasticAnimator.cancel();
         if (this._gestures) this._gestures.request('SCROLL_PAN');
         this._gestureActive = true;
         this._momentumScrollActive = false;
@@ -1516,7 +1534,6 @@ export class Camera {
   _startPan(e, button) {
     this._cancelInertialCoast();
     this._cancelSpeculativeSnapBack();
-    if (this._elasticAnimator) this._elasticAnimator.cancel();
     if (this._trackpadDetector) this._trackpadDetector.cancel();
     if (this._gestures) this._gestures.request('DRAG_PAN');
 
@@ -1558,7 +1575,6 @@ export class Camera {
     this.elasticOffsetX = 0;
     this.elasticOffsetY = 0;
     if (this._animator) this._animator.cancel();
-    if (this._elasticAnimator) this._elasticAnimator.cancel();
     this._cancelSpeculativeSnapBack();
     this._setPanCursor(true);
   }

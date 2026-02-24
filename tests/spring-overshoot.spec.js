@@ -96,46 +96,61 @@ test.describe('Spring no-overshoot guarantee', () => {
   test('clamped velocity never produces negative position (d > 0)', async ({ page }) => {
     const minPos = await page.evaluate(() => {
       const cam = __cam();
-      const omega = cam._elasticAnimator._omega;
+      const omega = cam._springLoop.elasticX._omega;
       const d = 50;
       const v = cam._clampSpringVelocity(-3000, d, omega);
-      const a = cam._elasticAnimator;
+      // Use AxisSpring closed-form: x(t) = (A + B·t)·e^(-ω·t)
+      function solveSpring(disp, vel, t) {
+        const A = disp;
+        const B = vel + omega * disp;
+        const exp = Math.exp(-omega * t);
+        return (A + B * t) * exp;
+      }
       let min = Infinity;
       for (let ms = 0; ms <= 1000; ms++) {
-        const { position } = a._solveSpring(d, v, ms / 1000);
+        const position = solveSpring(d, v, ms / 1000);
         min = Math.min(min, position);
       }
       return min;
     });
-    // Sub-pixel float tolerance — spring math should produce >= 0 but
-    // float rounding may cause ~1e-15 undershoot at worst.
     expect(minPos).toBeGreaterThanOrEqual(-0.001);
   });
 
   test('clamped velocity never produces positive position (d < 0)', async ({ page }) => {
     const maxPos = await page.evaluate(() => {
       const cam = __cam();
-      const omega = cam._elasticAnimator._omega;
+      const omega = cam._springLoop.elasticX._omega;
       const d = -50;
       const v = cam._clampSpringVelocity(3000, d, omega);
-      const a = cam._elasticAnimator;
+      function solveSpring(disp, vel, t) {
+        const A = disp;
+        const B = vel + omega * disp;
+        const exp = Math.exp(-omega * t);
+        return (A + B * t) * exp;
+      }
       let max = -Infinity;
       for (let ms = 0; ms <= 1000; ms++) {
-        const { position } = a._solveSpring(d, v, ms / 1000);
+        const position = solveSpring(d, v, ms / 1000);
         max = Math.max(max, position);
       }
       return max;
     });
-    // Mirror of d>0 test — same sub-pixel float tolerance.
     expect(maxPos).toBeLessThanOrEqual(0.001);
   });
 
   test('unclamped velocity DOES produce overshoot (documents Bug #2)', async ({ page }) => {
     const minPos = await page.evaluate(() => {
-      const a = __cam()._elasticAnimator;
+      const cam = __cam();
+      const omega = cam._springLoop.elasticX._omega;
+      function solveSpring(disp, vel, t) {
+        const A = disp;
+        const B = vel + omega * disp;
+        const exp = Math.exp(-omega * t);
+        return (A + B * t) * exp;
+      }
       let min = Infinity;
       for (let ms = 0; ms <= 1000; ms++) {
-        const { position } = a._solveSpring(50, -3000, ms / 1000);
+        const position = solveSpring(50, -3000, ms / 1000);
         min = Math.min(min, position);
       }
       return min;
@@ -145,28 +160,39 @@ test.describe('Spring no-overshoot guarantee', () => {
 
   test('spring with zero velocity never overshoots (baseline)', async ({ page }) => {
     const minPos = await page.evaluate(() => {
-      const a = __cam()._elasticAnimator;
+      const cam = __cam();
+      const omega = cam._springLoop.elasticX._omega;
+      function solveSpring(disp, vel, t) {
+        const A = disp;
+        const B = vel + omega * disp;
+        const exp = Math.exp(-omega * t);
+        return (A + B * t) * exp;
+      }
       let min = Infinity;
       for (let ms = 0; ms <= 1000; ms++) {
-        const { position } = a._solveSpring(100, 0, ms / 1000);
+        const position = solveSpring(100, 0, ms / 1000);
         min = Math.min(min, position);
       }
       return min;
     });
-    // Zero velocity: no overshoot risk, but float ops on large d (100px)
-    // may introduce marginally more rounding than d=50.
     expect(minPos).toBeGreaterThanOrEqual(-0.01);
   });
 
   test('exact critical velocity produces pure exponential decay', async ({ page }) => {
     const values = await page.evaluate(() => {
-      const a = __cam()._elasticAnimator;
+      const cam = __cam();
+      const omega = cam._springLoop.elasticX._omega;
       const d = 50;
-      const omega = a._omega;
       const v = -omega * d; // -1000 for omega=20
+      function solveSpring(disp, vel, t) {
+        const A = disp;
+        const B = vel + omega * disp;
+        const exp = Math.exp(-omega * t);
+        return (A + B * t) * exp;
+      }
       const results = [];
       for (const t of [0, 0.05, 0.1, 0.2, 0.5]) {
-        const { position } = a._solveSpring(d, v, t);
+        const position = solveSpring(d, v, t);
         const expected = d * Math.exp(-omega * t);
         results.push({ t, diff: Math.abs(position - expected) });
       }
@@ -180,14 +206,17 @@ test.describe('Spring no-overshoot guarantee', () => {
   test('clamped spring settles within 300ms for typical displacement', async ({ page }) => {
     const pos = await page.evaluate(() => {
       const cam = __cam();
-      const omega = cam._elasticAnimator._omega;
+      const omega = cam._springLoop.elasticX._omega;
       const d = 50;
       const v = cam._clampSpringVelocity(-3000, d, omega);
-      return Math.abs(cam._elasticAnimator._solveSpring(d, v, 0.3).position);
+      function solveSpring(disp, vel, t) {
+        const A = disp;
+        const B = vel + omega * disp;
+        const exp = Math.exp(-omega * t);
+        return (A + B * t) * exp;
+      }
+      return Math.abs(solveSpring(d, v, 0.3));
     });
-    // At t=300ms with omega=20, position should be ~0.0025px (d·e^(-20·0.3)).
-    // 0.5px threshold matches SETTLE_THRESHOLD_PX, the spring's own
-    // convergence criterion.
     expect(pos).toBeLessThan(0.5);
   });
 
@@ -202,7 +231,7 @@ test.describe('Spring no-overshoot guarantee', () => {
         // Trigger snap-back with exactly critical velocity.
         // At critical velocity, B should be exactly 0, but float rounding
         // might produce a tiny negative B → sub-pixel overshoot.
-        const omega = cam._elasticAnimator._omega;
+        const omega = cam._springLoop.elasticX._omega;
         cam._snapBackElastic({ vx: -omega * 0.7, vy: 0 });
 
         // Monitor: elastic offset should never go negative
@@ -359,7 +388,7 @@ test.describe('Spring overshoot prevention (Bug #2)', () => {
       if (!cam) return false;
       return !cam._inertiaRafId
         && Math.abs(cam.elasticOffsetX) < 1.0
-        && !cam._elasticAnimator?._rafId;
+        && !cam._isSnappingBack;
     }, { timeout: 5000 });
 
     const postSettle = await page.evaluate(() => {

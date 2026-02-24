@@ -35,7 +35,7 @@ test.describe('_snapBackElastic double-fire guard', () => {
       cam._snapBackElastic({ vx: -500, vy: 0 });
       return {
         isSnapping: cam._isSnappingBack,
-        animatorActive: cam._elasticAnimator?._rafId != null
+        animatorActive: !cam._springLoop.elasticX.settled
       };
     });
     expect(result.isSnapping).toBe(true);
@@ -167,24 +167,24 @@ test.describe('_cancelSpeculativeSnapBack', () => {
       cam.elasticOffsetX = 10;
       cam._isSnappingBack = false;
       cam._speculativeSnapId = null;
-      // Spy on side-effect methods to prove they were NOT called
-      let animatorCancelCalled = false;
-      if (cam._elasticAnimator) {
-        const orig = cam._elasticAnimator.cancel.bind(cam._elasticAnimator);
-        cam._elasticAnimator.cancel = () => { animatorCancelCalled = true; orig(); };
+      // Spy on spring target-setting to prove it was NOT called
+      let springTargetCalled = false;
+      if (cam._springLoop) {
+        const orig = cam._springLoop.elasticX.setTarget.bind(cam._springLoop.elasticX);
+        cam._springLoop.elasticX.setTarget = (...args) => { springTargetCalled = true; return orig(...args); };
       }
       cam._cancelSpeculativeSnapBack();
       return {
         isSnapping: cam._isSnappingBack,
         snapId: cam._speculativeSnapId,
         offsetX: cam.elasticOffsetX,
-        animatorCancelCalled
+        springTargetCalled
       };
     });
     expect(result.isSnapping).toBe(false);
     expect(result.snapId).toBeNull();
     expect(result.offsetX).toBe(10);
-    expect(result.animatorCancelCalled).toBe(false);
+    expect(result.springTargetCalled).toBe(false);
   });
 });
 
