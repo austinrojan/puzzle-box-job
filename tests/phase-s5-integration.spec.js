@@ -1,6 +1,6 @@
 // @ts-check
 import { test, expect } from '@playwright/test';
-import { setupMapCamera, dispatchMouseWheelSequence } from './helpers.js';
+import { setupMapCamera } from './helpers.js';
 
 // ============================================================
 // Phase S5 Integration Tests — Unified Spring Physics

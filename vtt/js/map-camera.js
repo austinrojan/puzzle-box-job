@@ -453,10 +453,12 @@ export class Camera {
 
     // Phase S5: Scroll-wheel behavior preference
     this._scrollWheelBehavior = 'auto';  // 'auto' | 'pan' | 'zoom'
-    const saved = typeof localStorage !== 'undefined' && localStorage.getItem('vtt_scroll_behavior');
-    if (saved && ['auto', 'pan', 'zoom'].includes(saved)) {
-      this._scrollWheelBehavior = saved;
-    }
+    try {
+      const saved = localStorage.getItem('vtt_scroll_behavior');
+      if (saved && ['auto', 'pan', 'zoom'].includes(saved)) {
+        this._scrollWheelBehavior = saved;
+      }
+    } catch { /* storage unavailable (sandboxed iframe, quota exceeded) */ }
 
     // Phase S5: Cooperative gesture handling (iframe embeds)
     this._cooperativeGestures = false;
@@ -1303,7 +1305,7 @@ export class Camera {
     if (!this._cooperativeOverlay) {
       const overlay = document.createElement('div');
       overlay.className = 'cooperative-gesture-overlay';
-      const isMac = /Mac|iPhone|iPad/.test(navigator.platform);
+      const isMac = /mac/i.test(navigator.userAgentData?.platform ?? navigator.platform ?? '');
       const key = isMac ? '\u2318' : 'Ctrl';
       overlay.textContent = `Use ${key} + scroll to zoom the map`;
       overlay.style.cssText = `
@@ -1315,7 +1317,9 @@ export class Camera {
         transition: opacity 0.2s ease;
         z-index: 9999;
       `;
-      this._el.style.position = this._el.style.position || 'relative';
+      if (!this._el.style.position && getComputedStyle(this._el).position === 'static') {
+        this._el.style.position = 'relative';
+      }
       this._el.appendChild(overlay);
       this._cooperativeOverlay = overlay;
     }
@@ -1371,7 +1375,7 @@ export class Camera {
     EventBus.on('camera:scroll-behavior', (behavior) => {
       if (['auto', 'pan', 'zoom'].includes(behavior)) {
         this._scrollWheelBehavior = behavior;
-        localStorage.setItem('vtt_scroll_behavior', behavior);
+        try { localStorage.setItem('vtt_scroll_behavior', behavior); } catch { /* storage unavailable */ }
       }
     });
 
