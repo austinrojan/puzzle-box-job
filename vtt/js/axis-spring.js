@@ -70,6 +70,15 @@ export class AxisSpring {
   }
 
   /**
+   * Whether the spring is within settlement thresholds.
+   * Shared by advance() (early exit + post-advance) and the settled getter.
+   */
+  _isSettled() {
+    return Math.abs(this.position - this.target) < this.positionThreshold
+        && Math.abs(this.velocity) < this.velocityThreshold;
+  }
+
+  /**
    * Advance by one timestep using closed-form critically damped solution.
    * Returns true if the spring has settled.
    * @param {number} dt  Timestep in seconds
@@ -80,8 +89,7 @@ export class AxisSpring {
     const velocity = this.velocity;
 
     // Early exit: already settled
-    if (Math.abs(displacement) < this.positionThreshold
-        && Math.abs(velocity) < this.velocityThreshold) {
+    if (this._isSettled()) {
       this.position = this.target;
       this.velocity = 0;
       return true;
@@ -99,8 +107,7 @@ export class AxisSpring {
     this.velocity = (B - omega * (A + B * dt)) * exp;
 
     // Post-advance settlement check
-    if (Math.abs(this.position - this.target) < this.positionThreshold
-        && Math.abs(this.velocity) < this.velocityThreshold) {
+    if (this._isSettled()) {
       this.position = this.target;
       this.velocity = 0;
       return true;
@@ -112,8 +119,5 @@ export class AxisSpring {
   /**
    * Whether the spring is at rest (at target with no velocity).
    */
-  get settled() {
-    return Math.abs(this.position - this.target) < this.positionThreshold
-        && Math.abs(this.velocity) < this.velocityThreshold;
-  }
+  get settled() { return this._isSettled(); }
 }

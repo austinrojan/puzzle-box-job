@@ -391,10 +391,7 @@ class KeyboardController {
         e.preventDefault();
         this._camera.zoomToCenter(ZOOM_STEP_KEY);
         if (this._camera._springLoop) {
-          const loop = this._camera._springLoop;
-          loop.logZoom.position = Math.log(this._camera.zoom);
-          loop.logZoom.setTarget(Math.log(this._camera.zoom));
-          loop.logZoom.velocity = 0;
+          this._camera._springLoop.syncZoomFromCamera();
         }
         return;
       }
@@ -402,10 +399,7 @@ class KeyboardController {
         e.preventDefault();
         this._camera.zoomToCenter(-ZOOM_STEP_KEY);
         if (this._camera._springLoop) {
-          const loop = this._camera._springLoop;
-          loop.logZoom.position = Math.log(this._camera.zoom);
-          loop.logZoom.setTarget(Math.log(this._camera.zoom));
-          loop.logZoom.velocity = 0;
+          this._camera._springLoop.syncZoomFromCamera();
         }
         return;
       }
@@ -950,15 +944,7 @@ export class Camera {
 
     // Sync pan/zoom springs to current camera state so the loop doesn't
     // overwrite cam.x/y/zoom with stale values from attachTo() time.
-    loop.panX.position = this.x;
-    loop.panX.target = this.x;
-    loop.panX.velocity = 0;
-    loop.panY.position = this.y;
-    loop.panY.target = this.y;
-    loop.panY.velocity = 0;
-    loop.logZoom.position = Math.log(this.zoom);
-    loop.logZoom.target = Math.log(this.zoom);
-    loop.logZoom.velocity = 0;
+    loop.syncPanZoomFromCamera();
 
     loop.ensureRunning();
   }
@@ -1042,23 +1028,10 @@ export class Camera {
     // Without this, stale spring targets (from initial syncFromCamera or
     // a prior animation) would fight the camera during coast.
     const loop = this._springLoop;
-    loop.panX.position = this.x;
-    loop.panX.target = this.x;
-    loop.panX.velocity = 0;
-    loop.panY.position = this.y;
-    loop.panY.target = this.y;
-    loop.panY.velocity = 0;
-    loop.logZoom.position = Math.log(this.zoom);
-    loop.logZoom.target = Math.log(this.zoom);
-    loop.logZoom.velocity = 0;
+    loop.syncPanZoomFromCamera();
     // Elastic springs: set target = current position so they're settled.
     // During coast, _feedElasticOverflow manages elastic offset directly.
-    loop.elasticX.position = this.elasticOffsetX;
-    loop.elasticX.target = this.elasticOffsetX;
-    loop.elasticX.velocity = 0;
-    loop.elasticY.position = this.elasticOffsetY;
-    loop.elasticY.target = this.elasticOffsetY;
-    loop.elasticY.velocity = 0;
+    loop.syncElasticFromCamera();
     loop.ensureRunning();
   }
 
@@ -1116,12 +1089,7 @@ export class Camera {
     loop.panY.velocity = 0;
     // Sync elastic springs if not actively managed by snap-back or coast
     if (!this._isSnappingBack && !this._isCoasting) {
-      loop.elasticX.position = this.elasticOffsetX;
-      loop.elasticX.target = this.elasticOffsetX;
-      loop.elasticX.velocity = 0;
-      loop.elasticY.position = this.elasticOffsetY;
-      loop.elasticY.target = this.elasticOffsetY;
-      loop.elasticY.velocity = 0;
+      loop.syncElasticFromCamera();
     }
 
     loop.ensureRunning();

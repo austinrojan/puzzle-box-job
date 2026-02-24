@@ -14,6 +14,10 @@ import { AxisSpring } from './axis-spring.js';
 const MAX_DT = 0.064;    // Cap dt to ~64ms (handles tab backgrounding)
 const MIN_DT = 0.001;    // Floor dt to 1ms (handles performance.now quirks)
 
+const COAST_FRICTION = 0.96;
+const COAST_STOP_THRESHOLD = 10;   // screen px/s
+const COAST_BASE_FRAME_MS = 16.67; // 60fps reference for framerate-independent friction
+
 export const SPRING_STIFFNESS = {
   SNAP_BACK: 400,       // Snappy elastic return
   CAMERA_SNAP: 200,     // Camera position snap-back
@@ -84,6 +88,39 @@ export class CameraSpringLoop {
     this.logZoom.velocity = 0;
   }
 
+  /** Sync pan + zoom springs to current camera state (position = target, velocity = 0). */
+  syncPanZoomFromCamera() {
+    const cam = this._camera;
+    this.panX.position = cam.x;
+    this.panX.target = cam.x;
+    this.panX.velocity = 0;
+    this.panY.position = cam.y;
+    this.panY.target = cam.y;
+    this.panY.velocity = 0;
+    this.logZoom.position = Math.log(cam.zoom);
+    this.logZoom.target = Math.log(cam.zoom);
+    this.logZoom.velocity = 0;
+  }
+
+  /** Sync elastic springs to current camera elastic offset (position = target, velocity = 0). */
+  syncElasticFromCamera() {
+    const cam = this._camera;
+    this.elasticX.position = cam.elasticOffsetX;
+    this.elasticX.target = cam.elasticOffsetX;
+    this.elasticX.velocity = 0;
+    this.elasticY.position = cam.elasticOffsetY;
+    this.elasticY.target = cam.elasticOffsetY;
+    this.elasticY.velocity = 0;
+  }
+
+  /** Sync only the zoom spring to current camera zoom. */
+  syncZoomFromCamera() {
+    const z = Math.log(this._camera.zoom);
+    this.logZoom.position = z;
+    this.logZoom.setTarget(z);
+    this.logZoom.velocity = 0;
+  }
+
   /**
    * The consolidated tick function.
    * @param {number} timestamp  The rAF timestamp
@@ -121,19 +158,12 @@ export class CameraSpringLoop {
     }
 
     // C4: Sign guard — prevent elastic offset from crossing zero during snap-back.
-    // Simpler than tracking full displacement; AxisSpring recomputes from current state.
     if (cam._isSnappingBack) {
-      if (cam._elasticSnapSignX !== 0
-          && Math.sign(cam.elasticOffsetX) !== cam._elasticSnapSignX) {
+      if (this._clampElasticSign(this.elasticX, cam._elasticSnapSignX)) {
         cam.elasticOffsetX = 0;
-        this.elasticX.position = 0;
-        this.elasticX.velocity = 0;
       }
-      if (cam._elasticSnapSignY !== 0
-          && Math.sign(cam.elasticOffsetY) !== cam._elasticSnapSignY) {
+      if (this._clampElasticSign(this.elasticY, cam._elasticSnapSignY)) {
         cam.elasticOffsetY = 0;
-        this.elasticY.position = 0;
-        this.elasticY.velocity = 0;
       }
     }
 
@@ -142,37 +172,9 @@ export class CameraSpringLoop {
     cam._applyConstraints();
 
     // T8: Inertial coast — friction-based velocity decay via panBy().
-    // This runs inside the spring loop tick to consolidate rAF loops,
-    // while preserving the exact same deceleration feel as the old coast.
     // Must run BEFORE the C2 sync-back so that panBy()'s camera changes
     // (both position and elastic offset) are captured by the sync.
-    if (cam._isCoasting) {
-      const FRICTION = 0.96;
-      const STOP_THRESHOLD = 10;
-      const rawDtMs = dt * 1000;
-      const frictionFactor = Math.pow(FRICTION, rawDtMs / 16.67);
-      cam._coastVx *= frictionFactor;
-      cam._coastVy *= frictionFactor;
-
-      const speed = Math.sqrt(cam._coastVx ** 2 + cam._coastVy ** 2);
-      if (speed < STOP_THRESHOLD) {
-        const residualVx = cam._coastVx / cam.zoom;
-        const residualVy = cam._coastVy / cam.zoom;
-        cam._isCoasting = false;
-        cam._coastVx = 0;
-        cam._coastVy = 0;
-        cam._gestureActive = false;
-        if (cam._el) cam._el.classList.remove('coasting');
-        if (cam._gestures) {
-          cam._gestures.release('INERTIA');
-          cam._gestures.request('SNAP_BACK');
-        }
-        cam._snapBackElastic({ vx: residualVx, vy: residualVy });
-      } else {
-        // panBy expects screen-space deltas; velocity is screen px/s
-        cam.panBy(-cam._coastVx * dt, -cam._coastVy * dt);
-      }
-    }
+    if (cam._isCoasting) this._tickCoast(dt);
 
     // C2: Sync clamped values back into springs to prevent
     // the spring from fighting the constraint system.
@@ -218,6 +220,47 @@ export class CameraSpringLoop {
       this._rafId = null;
     } else {
       this._rafId = requestAnimationFrame(this._tick);
+    }
+  }
+
+  /** Clamp elastic axis to zero if it crosses zero during snap-back. */
+  _clampElasticSign(spring, sign) {
+    if (sign !== 0 && Math.sign(spring.position) !== sign) {
+      spring.position = 0;
+      spring.velocity = 0;
+      return true;
+    }
+    return false;
+  }
+
+  /**
+   * Apply friction-based velocity decay for inertial coasting.
+   * Uses panBy() for movement so elastic overflow feeds naturally.
+   * @param {number} dt Timestep in seconds
+   */
+  _tickCoast(dt) {
+    const cam = this._camera;
+    const rawDtMs = dt * 1000;
+    const frictionFactor = Math.pow(COAST_FRICTION, rawDtMs / COAST_BASE_FRAME_MS);
+    cam._coastVx *= frictionFactor;
+    cam._coastVy *= frictionFactor;
+
+    const speed = Math.sqrt(cam._coastVx ** 2 + cam._coastVy ** 2);
+    if (speed < COAST_STOP_THRESHOLD) {
+      const residualVx = cam._coastVx / cam.zoom;
+      const residualVy = cam._coastVy / cam.zoom;
+      cam._isCoasting = false;
+      cam._coastVx = 0;
+      cam._coastVy = 0;
+      cam._gestureActive = false;
+      if (cam._el) cam._el.classList.remove('coasting');
+      if (cam._gestures) {
+        cam._gestures.release('INERTIA');
+        cam._gestures.request('SNAP_BACK');
+      }
+      cam._snapBackElastic({ vx: residualVx, vy: residualVy });
+    } else {
+      cam.panBy(-cam._coastVx * dt, -cam._coastVy * dt);
     }
   }
 
