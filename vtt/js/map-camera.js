@@ -813,10 +813,9 @@ export class Camera {
     this._cumulativeOverflowY = 0;
 
     // Double-fire guard:
-    // If snap-back is already running and new call has zero velocity,
-    // let the running animation continue undisturbed.
-    const hasVelocity = velocity.vx !== 0 || velocity.vy !== 0;
-    if (this._isSnappingBack && !hasVelocity) {
+    // If snap-back is already running, let it continue undisturbed.
+    // Restarting with new velocity causes a visible discontinuity.
+    if (this._isSnappingBack) {
       return;
     }
 
@@ -868,7 +867,8 @@ export class Camera {
 
     if (currentScreenMag > MIN_ELASTIC_MAGNITUDE &&
         this._elasticEWMA < STALL_THRESHOLD &&
-        !this._isSnappingBack) {
+        !this._isSnappingBack &&
+        !this._gestureActive) {
       // Skip _gestures.request('SNAP_BACK') — priority 1 cannot preempt
       // SCROLL_PAN (priority 4). Formal onGestureEnd handles transition.
       this._snapBackElastic();

@@ -26,31 +26,35 @@ test.describe('_snapBackElastic double-fire guard', () => {
     expect(result.offsetX).toBe(30);
   });
 
-  test('nonzero-velocity call restarts even when _isSnappingBack', async ({ page }) => {
+  test('nonzero-velocity call is also blocked when _isSnappingBack', async ({ page }) => {
     const result = await page.evaluate(() => {
       const cam = __cam();
       cam.elasticOffsetX = 30;
       cam.elasticOffsetY = 0;
       cam._isSnappingBack = true;
+      const beforePos = cam._springLoop.elasticX.position;
+      const beforeVel = cam._springLoop.elasticX.velocity;
       cam._snapBackElastic({ vx: -500, vy: 0 });
       return {
         isSnapping: cam._isSnappingBack,
-        animatorActive: !cam._springLoop.elasticX.settled
+        offsetX: cam.elasticOffsetX,
+        posUnchanged: cam._springLoop.elasticX.position === beforePos,
+        velUnchanged: cam._springLoop.elasticX.velocity === beforeVel,
       };
     });
     expect(result.isSnapping).toBe(true);
-    expect(result.animatorActive).toBe(true);
+    expect(result.offsetX).toBe(30);
+    expect(result.posUnchanged).toBe(true);
+    expect(result.velUnchanged).toBe(true);
   });
 
-  test('negligible offset early return clears _isSnappingBack', async ({ page }) => {
+  test('negligible offset early return zeroes offset without starting spring', async ({ page }) => {
     const result = await page.evaluate(() => {
       const cam = __cam();
       cam.elasticOffsetX = 0.1;
       cam.elasticOffsetY = 0;
-      cam._isSnappingBack = true;
-      // Nonzero velocity bypasses the double-fire guard,
-      // letting us test the negligible-offset early return path.
-      cam._snapBackElastic({ vx: 1, vy: 0 });
+      cam._isSnappingBack = false;
+      cam._snapBackElastic({ vx: 0, vy: 0 });
       return {
         isSnapping: cam._isSnappingBack,
         offsetX: cam.elasticOffsetX
@@ -58,6 +62,36 @@ test.describe('_snapBackElastic double-fire guard', () => {
     });
     expect(result.isSnapping).toBe(false);
     expect(result.offsetX).toBe(0);
+  });
+
+  test('speculative snap-back does not fire while gesture is active', async ({ page }) => {
+    const result = await page.evaluate(() => {
+      const cam = __cam();
+      cam._gestureActive = true;
+      cam.elasticOffsetX = 20;
+      cam.elasticOffsetY = 0;
+      cam._elasticEWMA = 0.1;
+      cam._lastElasticScreenMag = cam._elasticScreenMag;
+      cam._isSnappingBack = false;
+      cam._checkSpeculativeSnapBack();
+      return { snapFired: cam._isSnappingBack };
+    });
+    expect(result.snapFired).toBe(false);
+  });
+
+  test('speculative snap-back fires when gesture is not active', async ({ page }) => {
+    const result = await page.evaluate(() => {
+      const cam = __cam();
+      cam._gestureActive = false;
+      cam.elasticOffsetX = 20;
+      cam.elasticOffsetY = 0;
+      cam._elasticEWMA = 0.1;
+      cam._lastElasticScreenMag = cam._elasticScreenMag;
+      cam._isSnappingBack = false;
+      cam._checkSpeculativeSnapBack();
+      return { snapFired: cam._isSnappingBack };
+    });
+    expect(result.snapFired).toBe(true);
   });
 
   test('elastic animator settlement clears _isSnappingBack', async ({ page }) => {
@@ -306,7 +340,7 @@ test.describe('Speculative snap-back integration', () => {
 
     await page.waitForFunction(() => {
       const cam = window.__vtt?.mapRenderer?.camera;
-      return cam && Math.abs(cam.elasticOffsetX) < 1.0 && !cam._gestureActive;
+      return cam && Math.abs(cam.elasticOffsetX) < 1.0 && !cam._gestureActive && !cam._isSnappingBack;
     }, { timeout: 3000 });
 
     const result = await page.evaluate(() => ({
