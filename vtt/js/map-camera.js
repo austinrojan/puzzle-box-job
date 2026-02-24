@@ -565,6 +565,11 @@ export class Camera {
     if (saved && ['auto', 'pan', 'zoom'].includes(saved)) {
       this._scrollWheelBehavior = saved;
     }
+
+    // Phase S5: Cooperative gesture handling (iframe embeds)
+    this._cooperativeGestures = false;
+    this._cooperativeOverlay = null;
+    this._cooperativeHideTimer = null;
   }
 
   // --- Coordinate conversion ---
@@ -1259,8 +1264,15 @@ export class Camera {
     });
 
     el.addEventListener('wheel', (e) => {
-      e.preventDefault();
       const { dx, dy, dz } = normalizeWheel(e);
+
+      // Cooperative mode: let unmodified scroll pass through to the page
+      if (this._cooperativeGestures && dz === 0 && !e.ctrlKey && !e.metaKey) {
+        this._showCooperativeOverlay();
+        return;
+      }
+
+      e.preventDefault();
 
       if (dz !== 0) {
         // Ctrl/meta + wheel → zoom path (pinch synthesis on trackpads)
@@ -1417,6 +1429,36 @@ export class Camera {
     });
   }
 
+  _showCooperativeOverlay() {
+    if (!this._el) return;
+    if (!this._cooperativeOverlay) {
+      const overlay = document.createElement('div');
+      overlay.className = 'cooperative-gesture-overlay';
+      const isMac = /Mac|iPhone|iPad/.test(navigator.platform);
+      const key = isMac ? '\u2318' : 'Ctrl';
+      overlay.textContent = `Use ${key} + scroll to zoom the map`;
+      overlay.style.cssText = `
+        position: absolute; inset: 0;
+        display: flex; align-items: center; justify-content: center;
+        background: rgba(0,0,0,0.5);
+        color: #fff; font: 600 16px/1 system-ui, sans-serif;
+        pointer-events: none; opacity: 0;
+        transition: opacity 0.2s ease;
+        z-index: 9999;
+      `;
+      this._el.style.position = this._el.style.position || 'relative';
+      this._el.appendChild(overlay);
+      this._cooperativeOverlay = overlay;
+    }
+
+    const overlay = this._cooperativeOverlay;
+    overlay.style.opacity = '1';
+    clearTimeout(this._cooperativeHideTimer);
+    this._cooperativeHideTimer = setTimeout(() => {
+      overlay.style.opacity = '0';
+    }, 1500);
+  }
+
   _attachSafetyGuards(el) {
     window.addEventListener('blur', () => this._cancelPan());
     document.addEventListener('visibilitychange', () => {
@@ -1501,6 +1543,14 @@ export class Camera {
         this._scrollWheelBehavior = behavior;
         localStorage.setItem('vtt_scroll_behavior', behavior);
       }
+    });
+
+    // Phase S5: Cooperative gesture handling — auto-detect iframe
+    if (window.self !== window.top) {
+      this._cooperativeGestures = true;
+    }
+    EventBus.on('camera:cooperative-mode', (enabled) => {
+      this._cooperativeGestures = !!enabled;
     });
 
     this._attachSafetyGuards(el);
