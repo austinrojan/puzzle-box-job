@@ -154,7 +154,11 @@ export class CameraSpringLoop {
       cam.x = this.panX.position;
       cam.y = this.panY.position;
       // Clear anchor when zoom settles
-      if (zoomSettled && cam._zoomAnchor) cam._zoomAnchor = null;
+      if (zoomSettled && cam._zoomAnchor) {
+        cam._zoomAnchor = null;
+        this.panX.target = this.panX.position;
+        this.panY.target = this.panY.position;
+      }
     }
 
     // C4: Sign guard — prevent elastic offset from crossing zero during snap-back.
@@ -270,12 +274,13 @@ export class CameraSpringLoop {
     }
   }
 
-  /** Whether all springs are at rest. */
+  /** Whether all springs are at rest and no coast is active. */
   get settled() {
     return this.panX.settled
         && this.panY.settled
         && this.elasticX.settled
         && this.elasticY.settled
-        && this.logZoom.settled;
+        && this.logZoom.settled
+        && !this._camera._isCoasting;
   }
 }
