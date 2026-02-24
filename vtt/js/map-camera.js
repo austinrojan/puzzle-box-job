@@ -32,14 +32,6 @@ function rubberBand(distance, dimension, c = 0.55) {
 // ~10% of a 1440px viewport. Prevents extreme displacement that looks like a bug.
 const MAX_ELASTIC_SCREEN_PX = 150;
 
-// Prevent elastic offset from crossing zero during snap-back.
-// Returns 0 if val has the opposite sign of displacement.
-
-// --- Spring animation ---
-const DEFAULT_SPRING_STIFFNESS = 200;
-const SETTLE_THRESHOLD_PX = 0.5;
-const SETTLE_THRESHOLD_VEL = 0.5;
-
 // Phase S3: Speculative snap-back EWMA stall detection
 const EWMA_ALPHA = 0.3;              // smoothing factor: ~108ms detection latency at 60Hz
 const EWMA_INIT = 10;                // anti-FIR: 140ms warm-up from cold start
@@ -47,88 +39,6 @@ const STALL_THRESHOLD = 0.5;         // screen px/frame — below perceptual thr
 const MIN_ELASTIC_MAGNITUDE = 1.0;   // screen px — don't snap for sub-pixel offsets
 
 const VELOCITY_SAMPLE_COUNT = 4;
-
-/** @deprecated Used only by this._animator (keyboard/BroadcastChannel position snap-back).
- *  Elastic snap-back and smooth zoom now use CameraSpringLoop. */
-class CameraAnimator {
-  constructor(camera, { stiffness = DEFAULT_SPRING_STIFFNESS } = {}) {
-    this._camera = camera;
-    this._stiffness = stiffness;
-    this._omega = Math.sqrt(stiffness);
-    this._rafId = null;
-    this._startTime = null;
-    this._springX = null;
-    this._springY = null;
-    this._tick = this._tick.bind(this);
-  }
-
-  snapBack(current, target, velocity = { vx: 0, vy: 0 }) {
-    this.cancel(); // Safe for Phase 5 release-velocity re-triggering
-    const dx = current.x - target.x;
-    const dy = current.y - target.y;
-    if (Math.abs(dx) < SETTLE_THRESHOLD_PX && Math.abs(dy) < SETTLE_THRESHOLD_PX) {
-      this._camera.x = target.x;
-      this._camera.y = target.y;
-      this._camera._applyHardBounds();
-      EventBus.emit('camera:changed');
-      return;
-    }
-    this._springX = { displacement: dx, velocity: velocity.vx || 0, target: target.x };
-    this._springY = { displacement: dy, velocity: velocity.vy || 0, target: target.y };
-    this._startTime = null;
-    this._rafId = requestAnimationFrame(this._tick);
-  }
-
-  // Critically damped spring: x(t) = (A + B*t) * e^(-ω*t)
-  _solveSpring(displacement, velocity, t) {
-    const omega = this._omega;
-    const A = displacement;
-    const B = velocity + omega * displacement;
-    const exp = Math.exp(-omega * t);
-    return {
-      position: (A + B * t) * exp,
-      velocity: (B - omega * (A + B * t)) * exp
-    };
-  }
-
-  _resolveAxis(spring, t) {
-    if (!spring) return { value: spring, settled: true };
-    const { position, velocity } = this._solveSpring(spring.displacement, spring.velocity, t);
-    const active = Math.abs(position) > SETTLE_THRESHOLD_PX
-               || Math.abs(velocity) > SETTLE_THRESHOLD_VEL;
-    return {
-      value: active ? spring.target + position : spring.target,
-      settled: !active
-    };
-  }
-
-  _tick(timestamp) {
-    if (!this._startTime) this._startTime = timestamp;
-    const t = Math.min((timestamp - this._startTime) / 1000, 2.0);
-
-    const rx = this._resolveAxis(this._springX, t);
-    const ry = this._resolveAxis(this._springY, t);
-    if (this._springX) this._camera.x = rx.value;
-    if (this._springY) this._camera.y = ry.value;
-    const settled = rx.settled && ry.settled;
-
-    // Emit camera:changed directly, bypassing _applyConstraints.
-    // Safe because a critically damped spring (ζ=1) approaches the
-    // target monotonically from one side, never crossing it. With zero
-    // initial velocity (Phase 3), displacement strictly decreases.
-    // Phase 5 will add release velocity — review this bypass then.
-    EventBus.emit('camera:changed');
-    if (settled) this.cancel();
-    else this._rafId = requestAnimationFrame(this._tick);
-  }
-
-  cancel() {
-    if (this._rafId) { cancelAnimationFrame(this._rafId); this._rafId = null; }
-    this._startTime = null;
-    this._springX = null;
-    this._springY = null;
-  }
-}
 
 export class VelocityTracker {
   constructor() {
@@ -169,15 +79,7 @@ export class VelocityTracker {
   }
 }
 
-// ============================================================
-// Smooth Zoom Animator (Phase 6)
-// ============================================================
-//
-// Converts discrete mouse wheel zoom into smooth animated transitions.
-// Each wheel notch sets a target zoom level, and an exponential lerp
-// in log-space chases it. Rapid scrolling accumulates a larger delta,
-// creating natural acceleration. Trackpad pinch bypasses this (direct 1:1).
-
+// --- Zoom constants ---
 const ZOOM_PER_NOTCH = 1.15;          // ~15% zoom per mouse wheel notch
 
 // ============================================================
@@ -524,7 +426,6 @@ export class Camera {
     this._el = null;
     this._boundsCache = new BoundsCache();
     this._keyboard = new KeyboardController(this);
-    this._animator = null;  // CameraAnimator — created in attachTo()
     this._dmCanZoomPastCover = false;
     this._lastClampedZoom = NaN;
     this._velocityTracker = new VelocityTracker();
@@ -1443,8 +1344,6 @@ export class Camera {
     this._boundsCache.observe(el);
     this._preventBrowserZoom();
     this._keyboard.attach();
-    this._animator = new CameraAnimator(this, { stiffness: 200 });
-
     this._gestures = new GestureStateMachine(this);
     this._springLoop = new CameraSpringLoop(this);
     this._springLoop.syncFromCamera();
@@ -1522,7 +1421,6 @@ export class Camera {
     this.elasticOffsetX = 0;
     this.elasticOffsetY = 0;
 
-    if (this._animator) this._animator.cancel();
     this._velocityTracker.reset();
     this._setPanCursor(true);
   }
@@ -1543,7 +1441,6 @@ export class Camera {
     this._cumulativeOverflowY = 0;
     this.elasticOffsetX = 0;
     this.elasticOffsetY = 0;
-    if (this._animator) this._animator.cancel();
     this._cancelSpeculativeSnapBack();
     if (this._springLoop) this._springLoop.syncElasticFromCamera();
     this._setPanCursor(true);
