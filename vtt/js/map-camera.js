@@ -19,6 +19,7 @@ const DRAG_THRESHOLD = 3;          // px before click becomes drag
 // Prevents false positives when comparing floating-point zoom to cover zoom
 const COVER_ZOOM_EPSILON = 0.001;
 const MAX_COAST_SPEED = 3000;     // px/s — Leaflet inertiaMaxSpeed reference
+const SETTLE_THRESHOLD_PX = 0.5;  // world-space px — elastic snap-back skip threshold
 
 // Apple iOS-style rubber-band: asymptotic resistance that grows weaker
 // the further you overshoot, preventing the viewport from ever reaching
@@ -1440,6 +1441,7 @@ export class Camera {
     this._panning = true;
     this._pendingPan = false;
     this._panButton = 0;
+    if (this._gestures) this._gestures.request('DRAG_PAN');
     this._gestureActive = true;
     this._cumulativeOverflowX = 0;
     this._cumulativeOverflowY = 0;
