@@ -1071,7 +1071,10 @@ export class Camera {
 
     // If starting fresh, sync position from camera
     if (loop.logZoom.settled) {
-      loop.logZoom.position = Math.log(this.zoom);
+      const currentLogZoom = Math.log(this.zoom);
+      loop.logZoom.position = currentLogZoom;
+      loop.logZoom.target = currentLogZoom;
+      loop.logZoom.velocity = 0;
     }
 
     // Accumulate target in log space (rapid scrolling stacks)
@@ -1474,9 +1477,11 @@ export class Camera {
     });
 
     // Phase S5: Cooperative gesture handling — auto-detect iframe
-    if (window.self !== window.top) {
-      this._cooperativeGestures = true;
-    }
+    try {
+      if (window.self !== window.top) {
+        this._cooperativeGestures = true;
+      }
+    } catch { this._cooperativeGestures = true; }
     EventBus.on('camera:cooperative-mode', (enabled) => {
       this._cooperativeGestures = !!enabled;
     });
@@ -1540,6 +1545,7 @@ export class Camera {
     this.elasticOffsetY = 0;
     if (this._animator) this._animator.cancel();
     this._cancelSpeculativeSnapBack();
+    if (this._springLoop) this._springLoop.syncElasticFromCamera();
     this._setPanCursor(true);
   }
 
