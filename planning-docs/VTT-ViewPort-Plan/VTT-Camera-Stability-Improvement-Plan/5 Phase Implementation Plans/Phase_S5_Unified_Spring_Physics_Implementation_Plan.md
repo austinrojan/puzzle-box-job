@@ -1,4 +1,6 @@
 # Phase S5: Unified Spring Physics and Beyond-Parity Features
+**Status:** IMPLEMENTED (2026-02-23)
+
 ## A comprehensive implementation plan for replacing multiple animation systems with a single spring integrator per axis, adding input-proportional overflow drain, user preference scroll-wheel toggle, elastic ceiling, and cooperative gesture handling
 
 **Fixes:** Cumulative overflow discontinuities (the 0.8 decay jerk), elastic offset escaping to extreme values, scroll-wheel behavior locked to classifier output with no user override, no embedded-context support
