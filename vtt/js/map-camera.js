@@ -603,7 +603,9 @@ export class Camera {
     this._momentumScrollActive = false;  // true during trackpad momentum (dampened rubber-band)
     this._cumulativeOverflowX = 0; // accumulated overflow for rubber-band calculation
     this._cumulativeOverflowY = 0;
-    this._inertiaRafId = null;     // rAF ID for inertial coast animation
+    this._isCoasting = false;       // true during inertial coast (driven by spring loop tick)
+    this._coastVx = 0;              // screen-space coast velocity X (px/s)
+    this._coastVy = 0;              // screen-space coast velocity Y (px/s)
 
     // Phase S3: Speculative snap-back
     this._elasticEWMA = 0;               // EWMA of elastic offset growth rate
@@ -1084,53 +1086,41 @@ export class Camera {
     }
 
     this._gestureActive = true;
-    let vx = velocity.x;
-    let vy = velocity.y;
-    let lastTime = performance.now();
-
-    const FRICTION = 0.96;
-    const STOP_THRESHOLD = 10;
-    const MAX_DT = 64;
-
+    this._isCoasting = true;
+    // Store screen-space velocity for friction-based decay in the spring loop tick.
+    this._coastVx = velocity.x;
+    this._coastVy = velocity.y;
     if (this._el) this._el.classList.add('coasting');
 
-    const tick = (timestamp) => {
-      const rawDt = timestamp - lastTime;
-      const dt = Math.min(rawDt, MAX_DT) / 1000;
-      lastTime = timestamp;
-
-      const frictionFactor = Math.pow(FRICTION, rawDt / 16.67);
-      vx *= frictionFactor;
-      vy *= frictionFactor;
-
-      const speed = Math.sqrt(vx * vx + vy * vy);
-      if (speed < STOP_THRESHOLD) {
-        this._gestureActive = false;
-        this._inertiaRafId = null;
-        if (this._el) this._el.classList.remove('coasting');
-        if (this._gestures) {
-          this._gestures.release('INERTIA');
-          this._gestures.request('SNAP_BACK');
-        }
-        this._snapBackElastic({
-          vx: vx / this.zoom,
-          vy: vy / this.zoom
-        });
-        return;
-      }
-
-      // panBy expects screen-space deltas; velocity is screen px/s
-      this.panBy(-vx * dt, -vy * dt);
-      this._inertiaRafId = requestAnimationFrame(tick);
-    };
-
-    this._inertiaRafId = requestAnimationFrame(tick);
+    // Sync all springs to current camera state before starting the loop.
+    // Without this, stale spring targets (from initial syncFromCamera or
+    // a prior animation) would fight the camera during coast.
+    const loop = this._springLoop;
+    loop.panX.position = this.x;
+    loop.panX.target = this.x;
+    loop.panX.velocity = 0;
+    loop.panY.position = this.y;
+    loop.panY.target = this.y;
+    loop.panY.velocity = 0;
+    loop.logZoom.position = Math.log(this.zoom);
+    loop.logZoom.target = Math.log(this.zoom);
+    loop.logZoom.velocity = 0;
+    // Elastic springs: set target = current position so they're settled.
+    // During coast, _feedElasticOverflow manages elastic offset directly.
+    loop.elasticX.position = this.elasticOffsetX;
+    loop.elasticX.target = this.elasticOffsetX;
+    loop.elasticX.velocity = 0;
+    loop.elasticY.position = this.elasticOffsetY;
+    loop.elasticY.target = this.elasticOffsetY;
+    loop.elasticY.velocity = 0;
+    loop.ensureRunning();
   }
 
   _cancelInertialCoast() {
-    if (this._inertiaRafId) {
-      cancelAnimationFrame(this._inertiaRafId);
-      this._inertiaRafId = null;
+    if (this._isCoasting) {
+      this._isCoasting = false;
+      this._coastVx = 0;
+      this._coastVy = 0;
       this._gestureActive = false;
       if (this._el) this._el.classList.remove('coasting');
     }

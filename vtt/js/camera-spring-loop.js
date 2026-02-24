@@ -130,11 +130,57 @@ export class CameraSpringLoop {
     // Do NOT call cam._emitChanged() — it doesn't exist.
     cam._applyConstraints();
 
+    // T8: Inertial coast — friction-based velocity decay via panBy().
+    // This runs inside the spring loop tick to consolidate rAF loops,
+    // while preserving the exact same deceleration feel as the old coast.
+    // Must run BEFORE the C2 sync-back so that panBy()'s camera changes
+    // (both position and elastic offset) are captured by the sync.
+    if (cam._isCoasting) {
+      const FRICTION = 0.96;
+      const STOP_THRESHOLD = 10;
+      const rawDtMs = dt * 1000;
+      const frictionFactor = Math.pow(FRICTION, rawDtMs / 16.67);
+      cam._coastVx *= frictionFactor;
+      cam._coastVy *= frictionFactor;
+
+      const speed = Math.sqrt(cam._coastVx ** 2 + cam._coastVy ** 2);
+      if (speed < STOP_THRESHOLD) {
+        const residualVx = cam._coastVx / cam.zoom;
+        const residualVy = cam._coastVy / cam.zoom;
+        cam._isCoasting = false;
+        cam._coastVx = 0;
+        cam._coastVy = 0;
+        cam._gestureActive = false;
+        if (cam._el) cam._el.classList.remove('coasting');
+        if (cam._gestures) {
+          cam._gestures.release('INERTIA');
+          cam._gestures.request('SNAP_BACK');
+        }
+        cam._snapBackElastic({ vx: residualVx, vy: residualVy });
+      } else {
+        // panBy expects screen-space deltas; velocity is screen px/s
+        cam.panBy(-cam._coastVx * dt, -cam._coastVy * dt);
+      }
+    }
+
     // C2: Sync clamped values back into springs to prevent
     // the spring from fighting the constraint system.
+    // Placed AFTER coast so panBy()'s camera changes are captured.
     this.panX.position = cam.x;
     this.panY.position = cam.y;
     this.logZoom.position = Math.log(cam.zoom);
+    // During coast, panBy() updates elastic offset via _feedElasticOverflow(),
+    // bypassing the elastic spring. Keep the spring fully passive (position =
+    // target = current) so it doesn't fight the drain. After coast ends,
+    // _snapBackElastic() sets the proper target (0) and starts the spring.
+    if (cam._isCoasting) {
+      this.elasticX.position = cam.elasticOffsetX;
+      this.elasticX.target = cam.elasticOffsetX;
+      this.elasticX.velocity = 0;
+      this.elasticY.position = cam.elasticOffsetY;
+      this.elasticY.target = cam.elasticOffsetY;
+      this.elasticY.velocity = 0;
+    }
 
     // C4: Settlement detection for elastic snap-back
     if (elasticXSettled && elasticYSettled && cam._isSnappingBack) {
@@ -148,10 +194,13 @@ export class CameraSpringLoop {
       if (cam._gestures) cam._gestures.release('SNAP_BACK');
     }
 
-    // Auto-stop when all springs are settled
+    // Auto-stop when all springs are settled AND no coast is active.
+    // Coast uses friction-based velocity (not springs), so the loop
+    // must keep running while _isCoasting to apply per-frame decay.
     const allSettled = panXSettled && panYSettled
                     && elasticXSettled && elasticYSettled
-                    && zoomSettled;
+                    && zoomSettled
+                    && !cam._isCoasting;
 
     if (allSettled) {
       this._running = false;
