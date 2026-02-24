@@ -195,8 +195,14 @@ export class CameraSpringLoop {
       this.elasticY.velocity = 0;
     }
 
+    // Re-derive elastic settlement after coast — _tickCoast may have
+    // called _snapBackElastic() which changes elastic spring targets.
+    // The pre-coast values (lines 137-138) are stale if coast just ended.
+    const elasticXNowSettled = this.elasticX.settled;
+    const elasticYNowSettled = this.elasticY.settled;
+
     // C4: Settlement detection for elastic snap-back
-    if (elasticXSettled && elasticYSettled && cam._isSnappingBack) {
+    if (elasticXNowSettled && elasticYNowSettled && cam._isSnappingBack) {
       cam.elasticOffsetX = 0;
       cam.elasticOffsetY = 0;
       cam._cumulativeOverflowX = 0;
@@ -211,7 +217,7 @@ export class CameraSpringLoop {
     // Coast uses friction-based velocity (not springs), so the loop
     // must keep running while _isCoasting to apply per-frame decay.
     const allSettled = panXSettled && panYSettled
-                    && elasticXSettled && elasticYSettled
+                    && elasticXNowSettled && elasticYNowSettled
                     && zoomSettled
                     && !cam._isCoasting;
 

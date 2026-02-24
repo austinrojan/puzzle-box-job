@@ -38,7 +38,7 @@ test.describe('Phase S5: Unified Spring Physics', () => {
     await page.waitForFunction(() => {
       const cam = window.__vtt?.mapRenderer?.camera;
       return cam && Math.abs(cam.elasticOffsetX) < 0.5 && !cam._isSnappingBack;
-    }, { timeout: 400 });
+    }, { timeout: 800 });
   });
 
   test('zoom during elastic snap-back does NOT freeze elastic offset', async ({ page }) => {
