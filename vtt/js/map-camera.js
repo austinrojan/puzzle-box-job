@@ -34,11 +34,6 @@ const MAX_ELASTIC_SCREEN_PX = 150;
 
 // Prevent elastic offset from crossing zero during snap-back.
 // Returns 0 if val has the opposite sign of displacement.
-function clampSign(val, displacement) {
-  if (displacement > 0 && val < 0) return 0;
-  if (displacement < 0 && val > 0) return 0;
-  return val;
-}
 
 // --- Spring animation ---
 const DEFAULT_SPRING_STIFFNESS = 200;
@@ -53,6 +48,8 @@ const MIN_ELASTIC_MAGNITUDE = 1.0;   // screen px — don't snap for sub-pixel o
 
 const VELOCITY_SAMPLE_COUNT = 4;
 
+/** @deprecated Used only by this._animator (keyboard/BroadcastChannel position snap-back).
+ *  Elastic snap-back and smooth zoom now use CameraSpringLoop. */
 class CameraAnimator {
   constructor(camera, { stiffness = DEFAULT_SPRING_STIFFNESS } = {}) {
     this._camera = camera;
@@ -1476,43 +1473,6 @@ export class Camera {
     this._preventBrowserZoom();
     this._keyboard.attach();
     this._animator = new CameraAnimator(this, { stiffness: 200 });
-
-    // Phase 6: elastic offset animator (stiffness=400 for snappier feel).
-    // Its _tick updates elasticOffsetX/Y instead of camera.x/y.
-    this._elasticAnimator = new CameraAnimator(this, { stiffness: 400 });
-    this._elasticAnimator._tick = ((cam) => {
-      const anim = cam._elasticAnimator;
-      return (timestamp) => {
-        if (!anim._startTime) anim._startTime = timestamp;
-        const elapsed = Math.min((timestamp - anim._startTime) / 1000, 2.0);
-        const rx = anim._resolveAxis(anim._springX, elapsed);
-        const ry = anim._resolveAxis(anim._springY, elapsed);
-
-        // Position safety net (secondary overshoot defense).
-        // Elastic offset must not change sign during snap-back.
-        // Catches floating-point edge cases where velocity clamp produces
-        // a B coefficient that is very slightly negative due to rounding.
-        let valX = rx.value;
-        let valY = ry.value;
-        if (anim._springX) valX = clampSign(valX, anim._springX.displacement);
-        if (anim._springY) valY = clampSign(valY, anim._springY.displacement);
-        cam.elasticOffsetX = valX;
-        cam.elasticOffsetY = valY;
-        EventBus.emit('camera:changed');
-        if (rx.settled && ry.settled) {
-          cam.elasticOffsetX = 0;
-          cam.elasticOffsetY = 0;
-          cam._cumulativeOverflowX = 0;
-          cam._cumulativeOverflowY = 0;
-          cam._isSnappingBack = false;
-          EventBus.emit('camera:changed');
-          anim.cancel();
-          if (cam._gestures) cam._gestures.release('SNAP_BACK');
-        } else {
-          anim._rafId = requestAnimationFrame(anim._tick);
-        }
-      };
-    })(this);
 
     this._gestures = new GestureStateMachine(this);
     this._springLoop = new CameraSpringLoop(this);
