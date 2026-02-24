@@ -193,7 +193,7 @@ test.describe('Tightened momentum detection timing', () => {
     await page.goto('/vtt/', { waitUntil: 'load' });
   });
 
-  test('tightened active timeout fires onGestureEnd within 100ms', async ({ page }) => {
+  test('tightened active timeout fires onGestureEnd within ~80ms', async ({ page }) => {
     const elapsed = await page.evaluate(async () => {
       const { TrackpadGestureDetector } = await import('/vtt/js/trackpad-gesture.js');
       return new Promise((resolve) => {

@@ -79,7 +79,7 @@ test.describe('Scroll-wheel behavior preference', () => {
     await page.waitForFunction(() => {
       const cam = __cam();
       return !cam._springLoop.logZoom.settled;
-    }, { timeout: 3000 }).catch(() => {});
+    }, { timeout: 3000 });
 
     const result = await page.evaluate(() => {
       const cam = __cam();

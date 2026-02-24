@@ -51,24 +51,22 @@ test.describe('CameraSpringLoop', () => {
   test('loop auto-stops when all springs are settled', async ({ page }) => {
     await loadModules(page);
     await makeMockCamera(page);
-    const result = await page.evaluate(() => {
-      return new Promise(resolve => {
-        const cam = window.__mockCam;
-        const loop = new window.__CameraSpringLoop(cam);
-        loop.syncFromCamera();
-
-        // Give one spring a small displacement that will settle quickly
-        loop.panX.position = cam.x + 0.1; // Within threshold
-        loop.panX.target = cam.x;
-
-        loop.ensureRunning();
-
-        // Check after a few frames
-        setTimeout(() => {
-          resolve({ running: loop._running, settled: loop.settled });
-        }, 200);
-      });
+    await page.evaluate(() => {
+      const cam = window.__mockCam;
+      const loop = new window.__CameraSpringLoop(cam);
+      loop.syncFromCamera();
+      loop.panX.position = cam.x + 0.1;
+      loop.panX.target = cam.x;
+      loop.ensureRunning();
+      window.__testLoop = loop;
     });
+    await page.waitForFunction(() => {
+      return window.__testLoop && !window.__testLoop._running;
+    }, { timeout: 2000 });
+    const result = await page.evaluate(() => ({
+      running: window.__testLoop._running,
+      settled: window.__testLoop.settled,
+    }));
     expect(result.running).toBe(false);
     expect(result.settled).toBe(true);
   });
@@ -128,24 +126,22 @@ test.describe('CameraSpringLoop', () => {
   test('pan spring writes correct camera x/y after advance', async ({ page }) => {
     await loadModules(page);
     await makeMockCamera(page);
+    await page.evaluate(() => {
+      const cam = window.__mockCam;
+      cam.x = 100; cam.y = 200;
+      const loop = new window.__CameraSpringLoop(cam);
+      loop.syncFromCamera();
+      loop.panX.setTarget(250);
+      loop.panY.setTarget(350);
+      loop.ensureRunning();
+      window.__testLoop = loop;
+    });
+    await page.waitForFunction(() => {
+      return window.__testLoop && window.__testLoop.settled;
+    }, { timeout: 5000 });
     const result = await page.evaluate(() => {
-      return new Promise(resolve => {
-        const cam = window.__mockCam;
-        cam.x = 100; cam.y = 200;
-        const loop = new window.__CameraSpringLoop(cam);
-        loop.syncFromCamera();
-
-        // Set target to a new position
-        loop.panX.setTarget(250);
-        loop.panY.setTarget(350);
-        loop.ensureRunning();
-
-        // Wait for animation to settle
-        setTimeout(() => {
-          loop.stop();
-          resolve({ x: cam.x, y: cam.y });
-        }, 2000);
-      });
+      window.__testLoop.stop();
+      return { x: window.__mockCam.x, y: window.__mockCam.y };
     });
     // Should have converged toward target (clamped to [0, 500])
     expect(result.x).toBeCloseTo(250, 0);
@@ -155,23 +151,21 @@ test.describe('CameraSpringLoop', () => {
   test('zoom spring writes correct exp(logZoom) to cam.zoom', async ({ page }) => {
     await loadModules(page);
     await makeMockCamera(page);
+    await page.evaluate(() => {
+      const cam = window.__mockCam;
+      cam.zoom = 1.0;
+      const loop = new window.__CameraSpringLoop(cam);
+      loop.syncFromCamera();
+      loop.logZoom.setTarget(Math.log(2.0));
+      loop.ensureRunning();
+      window.__testLoop = loop;
+    });
+    await page.waitForFunction(() => {
+      return window.__testLoop && window.__testLoop.logZoom.settled;
+    }, { timeout: 5000 });
     const result = await page.evaluate(() => {
-      return new Promise(resolve => {
-        const cam = window.__mockCam;
-        cam.zoom = 1.0;
-        const loop = new window.__CameraSpringLoop(cam);
-        loop.syncFromCamera();
-
-        // Set target to zoom 2.0
-        loop.logZoom.setTarget(Math.log(2.0));
-        loop.ensureRunning();
-
-        // Wait for animation to settle
-        setTimeout(() => {
-          loop.stop();
-          resolve({ zoom: cam.zoom });
-        }, 2000);
-      });
+      window.__testLoop.stop();
+      return { zoom: window.__mockCam.zoom };
     });
     expect(result.zoom).toBeCloseTo(2.0, 1);
   });
