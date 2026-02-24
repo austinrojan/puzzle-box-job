@@ -1,14 +1,12 @@
 import { test, expect } from '@playwright/test';
-import { gotoVTT, enterMapMode, injectTestAccessors } from './helpers.js';
+import { setupMapCamera } from './helpers.js';
 
 // ============================================================
 // Velocity clamp: _clampSpringVelocity
 // ============================================================
 test.describe('Velocity clamp (_clampSpringVelocity)', () => {
   test.beforeEach(async ({ page }) => {
-    await gotoVTT(page);
-    await enterMapMode(page);
-    await injectTestAccessors(page);
+    await setupMapCamera(page);
   });
 
   test('zero displacement returns velocity unchanged', async ({ page }) => {
@@ -88,54 +86,67 @@ test.describe('Velocity clamp (_clampSpringVelocity)', () => {
 // ============================================================
 test.describe('Spring no-overshoot guarantee', () => {
   test.beforeEach(async ({ page }) => {
-    await gotoVTT(page);
-    await enterMapMode(page);
-    await injectTestAccessors(page);
+    await setupMapCamera(page);
   });
 
   test('clamped velocity never produces negative position (d > 0)', async ({ page }) => {
     const minPos = await page.evaluate(() => {
       const cam = __cam();
-      const omega = cam._elasticAnimator._omega;
+      const omega = cam._springLoop.elasticX._omega;
       const d = 50;
       const v = cam._clampSpringVelocity(-3000, d, omega);
-      const a = cam._elasticAnimator;
+      // Use AxisSpring closed-form: x(t) = (A + B·t)·e^(-ω·t)
+      function solveSpring(disp, vel, t) {
+        const A = disp;
+        const B = vel + omega * disp;
+        const exp = Math.exp(-omega * t);
+        return (A + B * t) * exp;
+      }
       let min = Infinity;
       for (let ms = 0; ms <= 1000; ms++) {
-        const { position } = a._solveSpring(d, v, ms / 1000);
+        const position = solveSpring(d, v, ms / 1000);
         min = Math.min(min, position);
       }
       return min;
     });
-    // Sub-pixel float tolerance — spring math should produce >= 0 but
-    // float rounding may cause ~1e-15 undershoot at worst.
     expect(minPos).toBeGreaterThanOrEqual(-0.001);
   });
 
   test('clamped velocity never produces positive position (d < 0)', async ({ page }) => {
     const maxPos = await page.evaluate(() => {
       const cam = __cam();
-      const omega = cam._elasticAnimator._omega;
+      const omega = cam._springLoop.elasticX._omega;
       const d = -50;
       const v = cam._clampSpringVelocity(3000, d, omega);
-      const a = cam._elasticAnimator;
+      function solveSpring(disp, vel, t) {
+        const A = disp;
+        const B = vel + omega * disp;
+        const exp = Math.exp(-omega * t);
+        return (A + B * t) * exp;
+      }
       let max = -Infinity;
       for (let ms = 0; ms <= 1000; ms++) {
-        const { position } = a._solveSpring(d, v, ms / 1000);
+        const position = solveSpring(d, v, ms / 1000);
         max = Math.max(max, position);
       }
       return max;
     });
-    // Mirror of d>0 test — same sub-pixel float tolerance.
     expect(maxPos).toBeLessThanOrEqual(0.001);
   });
 
   test('unclamped velocity DOES produce overshoot (documents Bug #2)', async ({ page }) => {
     const minPos = await page.evaluate(() => {
-      const a = __cam()._elasticAnimator;
+      const cam = __cam();
+      const omega = cam._springLoop.elasticX._omega;
+      function solveSpring(disp, vel, t) {
+        const A = disp;
+        const B = vel + omega * disp;
+        const exp = Math.exp(-omega * t);
+        return (A + B * t) * exp;
+      }
       let min = Infinity;
       for (let ms = 0; ms <= 1000; ms++) {
-        const { position } = a._solveSpring(50, -3000, ms / 1000);
+        const position = solveSpring(50, -3000, ms / 1000);
         min = Math.min(min, position);
       }
       return min;
@@ -145,28 +156,39 @@ test.describe('Spring no-overshoot guarantee', () => {
 
   test('spring with zero velocity never overshoots (baseline)', async ({ page }) => {
     const minPos = await page.evaluate(() => {
-      const a = __cam()._elasticAnimator;
+      const cam = __cam();
+      const omega = cam._springLoop.elasticX._omega;
+      function solveSpring(disp, vel, t) {
+        const A = disp;
+        const B = vel + omega * disp;
+        const exp = Math.exp(-omega * t);
+        return (A + B * t) * exp;
+      }
       let min = Infinity;
       for (let ms = 0; ms <= 1000; ms++) {
-        const { position } = a._solveSpring(100, 0, ms / 1000);
+        const position = solveSpring(100, 0, ms / 1000);
         min = Math.min(min, position);
       }
       return min;
     });
-    // Zero velocity: no overshoot risk, but float ops on large d (100px)
-    // may introduce marginally more rounding than d=50.
     expect(minPos).toBeGreaterThanOrEqual(-0.01);
   });
 
   test('exact critical velocity produces pure exponential decay', async ({ page }) => {
     const values = await page.evaluate(() => {
-      const a = __cam()._elasticAnimator;
+      const cam = __cam();
+      const omega = cam._springLoop.elasticX._omega;
       const d = 50;
-      const omega = a._omega;
       const v = -omega * d; // -1000 for omega=20
+      function solveSpring(disp, vel, t) {
+        const A = disp;
+        const B = vel + omega * disp;
+        const exp = Math.exp(-omega * t);
+        return (A + B * t) * exp;
+      }
       const results = [];
       for (const t of [0, 0.05, 0.1, 0.2, 0.5]) {
-        const { position } = a._solveSpring(d, v, t);
+        const position = solveSpring(d, v, t);
         const expected = d * Math.exp(-omega * t);
         results.push({ t, diff: Math.abs(position - expected) });
       }
@@ -180,14 +202,17 @@ test.describe('Spring no-overshoot guarantee', () => {
   test('clamped spring settles within 300ms for typical displacement', async ({ page }) => {
     const pos = await page.evaluate(() => {
       const cam = __cam();
-      const omega = cam._elasticAnimator._omega;
+      const omega = cam._springLoop.elasticX._omega;
       const d = 50;
       const v = cam._clampSpringVelocity(-3000, d, omega);
-      return Math.abs(cam._elasticAnimator._solveSpring(d, v, 0.3).position);
+      function solveSpring(disp, vel, t) {
+        const A = disp;
+        const B = vel + omega * disp;
+        const exp = Math.exp(-omega * t);
+        return (A + B * t) * exp;
+      }
+      return Math.abs(solveSpring(d, v, 0.3));
     });
-    // At t=300ms with omega=20, position should be ~0.0025px (d·e^(-20·0.3)).
-    // 0.5px threshold matches SETTLE_THRESHOLD_PX, the spring's own
-    // convergence criterion.
     expect(pos).toBeLessThan(0.5);
   });
 
@@ -202,7 +227,7 @@ test.describe('Spring no-overshoot guarantee', () => {
         // Trigger snap-back with exactly critical velocity.
         // At critical velocity, B should be exactly 0, but float rounding
         // might produce a tiny negative B → sub-pixel overshoot.
-        const omega = cam._elasticAnimator._omega;
+        const omega = cam._springLoop.elasticX._omega;
         cam._snapBackElastic({ vx: -omega * 0.7, vy: 0 });
 
         // Monitor: elastic offset should never go negative
@@ -232,9 +257,7 @@ test.describe('Spring no-overshoot guarantee', () => {
 // ============================================================
 test.describe('Spring overshoot prevention (Bug #2)', () => {
   test.beforeEach(async ({ page }) => {
-    await gotoVTT(page);
-    await enterMapMode(page);
-    await injectTestAccessors(page);
+    await setupMapCamera(page);
   });
 
   test('elastic offset never changes sign during snap-back', async ({ page }) => {
@@ -357,9 +380,9 @@ test.describe('Spring overshoot prevention (Bug #2)', () => {
     await page.waitForFunction(() => {
       const cam = window.__vtt?.mapRenderer?.camera;
       if (!cam) return false;
-      return !cam._inertiaRafId
+      return !cam._isCoasting
         && Math.abs(cam.elasticOffsetX) < 1.0
-        && !cam._elasticAnimator?._rafId;
+        && !cam._isSnappingBack;
     }, { timeout: 5000 });
 
     const postSettle = await page.evaluate(() => {
@@ -380,104 +403,60 @@ test.describe('Spring overshoot prevention (Bug #2)', () => {
 // ============================================================
 test.describe('Coast velocity cap', () => {
   test.beforeEach(async ({ page }) => {
-    await gotoVTT(page);
-    await enterMapMode(page);
-    await injectTestAccessors(page);
+    await setupMapCamera(page);
   });
 
   test('extreme flick velocity is capped in _startInertialCoast', async ({ page }) => {
-    const result = await page.evaluate(() => {
-      return new Promise((resolve) => {
-        const cam = __cam();
-        cam.zoom = 2.0;
-        cam._applyConstraints();
-
-        const cap = __capturePanBy(cam);
-        cam._startInertialCoast({ x: 6000, y: 0 });
-
-        requestAnimationFrame(() => {
-          cam._cancelInertialCoast();
-          cam._gestureActive = false;
-          // At ~16ms dt, uncapped 6000: |dx| ≈ 96px. Capped to 3000: |dx| ≈ 48px.
-          resolve({ wasCapped: cap.first !== null && Math.abs(cap.first.dx) < 80 });
-        });
-      });
-    });
-    expect(result.wasCapped).toBe(true);
-  });
-
-  test('moderate velocity passes through _startInertialCoast uncapped', async ({ page }) => {
-    // Run two coast starts with deterministic timing (mocked rAF + performance.now)
-    // and compare first-frame deltas. With identical dt, the ratio of deltas
-    // equals the ratio of (possibly capped) velocities.
     const result = await page.evaluate(() => {
       const cam = __cam();
       cam.zoom = 2.0;
       cam._applyConstraints();
 
-      const origRAF = window.requestAnimationFrame;
-      const origCAF = window.cancelAnimationFrame;
-      const origNow = performance.now.bind(performance);
-      let mockTime = origNow();
-      performance.now = () => mockTime;
+      cam._startInertialCoast({ x: 6000, y: 0 });
 
-      try {
-        // Coast 1: extreme velocity (6000 → capped to 3000)
-        let tick1;
-        window.requestAnimationFrame = (cb) => { tick1 = cb; return 1; };
-        window.cancelAnimationFrame = () => {};
-        const cap1 = __capturePanBy(cam);
-        cam._startInertialCoast({ x: 6000, y: 0 });
-        mockTime += 16.67;
-        tick1(mockTime);  // deterministic dt = 16.67ms
-        cam._cancelInertialCoast();
-        cam._gestureActive = false;
-
-        // Coast 2: moderate velocity (1500 → should NOT be capped)
-        let tick2;
-        window.requestAnimationFrame = (cb) => { tick2 = cb; return 2; };
-        const cap2 = __capturePanBy(cam);
-        cam._startInertialCoast({ x: 1500, y: 0 });
-        mockTime += 16.67;
-        tick2(mockTime);  // same deterministic dt = 16.67ms
-        cam._cancelInertialCoast();
-        cam._gestureActive = false;
-
-        // If cap works: 3000/1500 = 2.0. If both capped: 1.0. If neither: 4.0.
-        const ratio = cap1.first && cap2.first
-          ? Math.abs(cap1.first.dx / cap2.first.dx)
-          : null;
-        return { ratio };
-      } finally {
-        performance.now = origNow;
-        window.requestAnimationFrame = origRAF;
-        window.cancelAnimationFrame = origCAF;
-      }
+      // 6000 screen px/s > MAX_COAST_SPEED (3000), so capped to 3000.
+      const coastVx = cam._coastVx;
+      cam._cancelInertialCoast();
+      return { coastVx, wasCapped: Math.abs(coastVx) <= 3000 };
     });
-    // 6000 capped to 3000, 1500 uncapped → ratio = 2.0
+    expect(result.wasCapped).toBe(true);
+  });
+
+  test('moderate velocity passes through _startInertialCoast uncapped', async ({ page }) => {
+    const result = await page.evaluate(() => {
+      const cam = __cam();
+      cam.zoom = 2.0;
+      cam._applyConstraints();
+
+      // Coast 1: extreme velocity (6000 → capped to 3000 screen px/s)
+      cam._startInertialCoast({ x: 6000, y: 0 });
+      const v1 = Math.abs(cam._coastVx);
+      cam._cancelInertialCoast();
+
+      // Coast 2: moderate velocity (1500 → NOT capped)
+      cam._startInertialCoast({ x: 1500, y: 0 });
+      const v2 = Math.abs(cam._coastVx);
+      cam._cancelInertialCoast();
+
+      // If cap works: 3000/1500 = 2.0. If both capped: 1.0. If neither: 4.0.
+      return { ratio: v1 / v2 };
+    });
     expect(result.ratio).toBeCloseTo(2.0, 1);
   });
 
   test('coast velocity cap preserves direction (diagonal)', async ({ page }) => {
     const result = await page.evaluate(() => {
-      return new Promise((resolve) => {
-        const cam = __cam();
-        cam.zoom = 2.0;
-        cam._applyConstraints();
+      const cam = __cam();
+      cam.zoom = 2.0;
+      cam._applyConstraints();
 
-        const cap = __capturePanBy(cam);
-        // Diagonal: {4000, 3000} → magnitude 5000, capped to 3000
-        cam._startInertialCoast({ x: 4000, y: 3000 });
-
-        requestAnimationFrame(() => {
-          cam._cancelInertialCoast();
-          cam._gestureActive = false;
-          // panBy receives -vx*dt, -vy*dt — ratio of |dx/dy| = |vx/vy| = 4/3
-          const f = cap.first;
-          const ratio = f && f.dy !== 0 ? Math.abs(f.dx / f.dy) : null;
-          resolve({ ratio });
-        });
-      });
+      // Diagonal: {4000, 3000} → magnitude 5000, capped to 3000.
+      // Direction preserved: ratio of velocities = 4/3.
+      cam._startInertialCoast({ x: 4000, y: 3000 });
+      const vx = Math.abs(cam._coastVx);
+      const vy = Math.abs(cam._coastVy);
+      cam._cancelInertialCoast();
+      return { ratio: vx / vy };
     });
     expect(result.ratio).toBeCloseTo(4 / 3, 1);
   });

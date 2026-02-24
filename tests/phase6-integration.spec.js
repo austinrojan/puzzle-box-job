@@ -1,14 +1,12 @@
 import { test, expect } from '@playwright/test';
-import { gotoVTT, enterMapMode, injectTestAccessors, dispatchMouseWheelSequence } from './helpers.js';
+import { setupMapCamera, dispatchMouseWheelSequence } from './helpers.js';
 
 // ============================================================
 // Trackpad elastic overscroll
 // ============================================================
 test.describe('Trackpad elastic overscroll', () => {
   test.beforeEach(async ({ page }) => {
-    await gotoVTT(page);
-    await enterMapMode(page);
-    await injectTestAccessors(page);
+    await setupMapCamera(page);
   });
 
   test('trackpad scroll at boundary produces elastic offset', async ({ page }) => {
@@ -91,9 +89,7 @@ test.describe('Trackpad elastic overscroll', () => {
 // ============================================================
 test.describe('Mouse drag elastic (dual-position)', () => {
   test.beforeEach(async ({ page }) => {
-    await gotoVTT(page);
-    await enterMapMode(page);
-    await injectTestAccessors(page);
+    await setupMapCamera(page);
   });
 
   test('right-click drag past boundary produces elastic offset', async ({ page }) => {
@@ -174,9 +170,7 @@ test.describe('Mouse drag elastic (dual-position)', () => {
 // ============================================================
 test.describe('Smooth zoom animation', () => {
   test.beforeEach(async ({ page }) => {
-    await gotoVTT(page);
-    await enterMapMode(page);
-    await injectTestAccessors(page);
+    await setupMapCamera(page);
   });
 
   test('mouse wheel scroll triggers smooth zoom (not pan)', async ({ page }) => {
@@ -186,7 +180,7 @@ test.describe('Smooth zoom animation', () => {
 
     // Wait for smooth zoom animation to settle
     await page.waitForFunction(() => {
-      return !window.__vtt?.mapRenderer?.camera?._smoothZoom?._animating;
+      return window.__vtt?.mapRenderer?.camera?._springLoop?.logZoom?.settled;
     }, { timeout: 2000 });
 
     const afterZoom = await page.evaluate(() => __cam().zoom);
@@ -200,9 +194,7 @@ test.describe('Smooth zoom animation', () => {
 // ============================================================
 test.describe('Gesture preemption', () => {
   test.beforeEach(async ({ page }) => {
-    await gotoVTT(page);
-    await enterMapMode(page);
-    await injectTestAccessors(page);
+    await setupMapCamera(page);
   });
 
   test('mouse drag preempts scroll gesture', async ({ page }) => {
@@ -243,9 +235,7 @@ test.describe('Gesture preemption', () => {
 // ============================================================
 test.describe('Stateful device classification', () => {
   test.beforeEach(async ({ page }) => {
-    await gotoVTT(page);
-    await enterMapMode(page);
-    await injectTestAccessors(page);
+    await setupMapCamera(page);
   });
 
   test('fast trackpad scroll does NOT trigger zoom (bug #4 regression)', async ({ page }) => {
@@ -315,7 +305,7 @@ test.describe('Stateful device classification', () => {
 
     // Wait for smooth zoom animation to settle
     await page.waitForFunction(() => {
-      return !window.__vtt?.mapRenderer?.camera?._smoothZoom?._animating;
+      return window.__vtt?.mapRenderer?.camera?._springLoop?.logZoom?.settled;
     }, { timeout: 2000 });
 
     const after = await page.evaluate(() => __cam().zoom);
@@ -328,9 +318,7 @@ test.describe('Stateful device classification', () => {
 // ============================================================
 test.describe('Gesture coordination (Phase S4)', () => {
   test.beforeEach(async ({ page }) => {
-    await gotoVTT(page);
-    await enterMapMode(page);
-    await injectTestAccessors(page);
+    await setupMapCamera(page);
   });
 
   test('rapid alternating scroll/pinch events do not oscillate', async ({ page }) => {

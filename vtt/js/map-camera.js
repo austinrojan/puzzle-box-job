@@ -8,6 +8,7 @@
 import { EventBus } from './state.js';
 import { normalizeWheel } from './normalize-wheel.js';
 import { TrackpadGestureDetector, WheelDeviceClassifier } from './trackpad-gesture.js';
+import { CameraSpringLoop, SPRING_STIFFNESS } from './camera-spring-loop.js';
 
 // --- Constants ---
 const MIN_ZOOM = 0.1;              // absolute floor (safety valve)
@@ -27,18 +28,9 @@ function rubberBand(distance, dimension, c = 0.55) {
   return (distance * dimension * c) / (dimension + c * distance);
 }
 
-// Prevent elastic offset from crossing zero during snap-back.
-// Returns 0 if val has the opposite sign of displacement.
-function clampSign(val, displacement) {
-  if (displacement > 0 && val < 0) return 0;
-  if (displacement < 0 && val > 0) return 0;
-  return val;
-}
-
-// --- Spring animation ---
-const DEFAULT_SPRING_STIFFNESS = 200;
-const SETTLE_THRESHOLD_PX = 0.5;
-const SETTLE_THRESHOLD_VEL = 0.5;
+// Maximum elastic offset in screen-space pixels.
+// ~10% of a 1440px viewport. Prevents extreme displacement that looks like a bug.
+const MAX_ELASTIC_SCREEN_PX = 150;
 
 // Phase S3: Speculative snap-back EWMA stall detection
 const EWMA_ALPHA = 0.3;              // smoothing factor: ~108ms detection latency at 60Hz
@@ -47,86 +39,6 @@ const STALL_THRESHOLD = 0.5;         // screen px/frame — below perceptual thr
 const MIN_ELASTIC_MAGNITUDE = 1.0;   // screen px — don't snap for sub-pixel offsets
 
 const VELOCITY_SAMPLE_COUNT = 4;
-
-class CameraAnimator {
-  constructor(camera, { stiffness = DEFAULT_SPRING_STIFFNESS } = {}) {
-    this._camera = camera;
-    this._stiffness = stiffness;
-    this._omega = Math.sqrt(stiffness);
-    this._rafId = null;
-    this._startTime = null;
-    this._springX = null;
-    this._springY = null;
-    this._tick = this._tick.bind(this);
-  }
-
-  snapBack(current, target, velocity = { vx: 0, vy: 0 }) {
-    this.cancel(); // Safe for Phase 5 release-velocity re-triggering
-    const dx = current.x - target.x;
-    const dy = current.y - target.y;
-    if (Math.abs(dx) < SETTLE_THRESHOLD_PX && Math.abs(dy) < SETTLE_THRESHOLD_PX) {
-      this._camera.x = target.x;
-      this._camera.y = target.y;
-      this._camera._applyHardBounds();
-      EventBus.emit('camera:changed');
-      return;
-    }
-    this._springX = { displacement: dx, velocity: velocity.vx || 0, target: target.x };
-    this._springY = { displacement: dy, velocity: velocity.vy || 0, target: target.y };
-    this._startTime = null;
-    this._rafId = requestAnimationFrame(this._tick);
-  }
-
-  // Critically damped spring: x(t) = (A + B*t) * e^(-ω*t)
-  _solveSpring(displacement, velocity, t) {
-    const omega = this._omega;
-    const A = displacement;
-    const B = velocity + omega * displacement;
-    const exp = Math.exp(-omega * t);
-    return {
-      position: (A + B * t) * exp,
-      velocity: (B - omega * (A + B * t)) * exp
-    };
-  }
-
-  _resolveAxis(spring, t) {
-    if (!spring) return { value: spring, settled: true };
-    const { position, velocity } = this._solveSpring(spring.displacement, spring.velocity, t);
-    const active = Math.abs(position) > SETTLE_THRESHOLD_PX
-               || Math.abs(velocity) > SETTLE_THRESHOLD_VEL;
-    return {
-      value: active ? spring.target + position : spring.target,
-      settled: !active
-    };
-  }
-
-  _tick(timestamp) {
-    if (!this._startTime) this._startTime = timestamp;
-    const t = Math.min((timestamp - this._startTime) / 1000, 2.0);
-
-    const rx = this._resolveAxis(this._springX, t);
-    const ry = this._resolveAxis(this._springY, t);
-    if (this._springX) this._camera.x = rx.value;
-    if (this._springY) this._camera.y = ry.value;
-    const settled = rx.settled && ry.settled;
-
-    // Emit camera:changed directly, bypassing _applyConstraints.
-    // Safe because a critically damped spring (ζ=1) approaches the
-    // target monotonically from one side, never crossing it. With zero
-    // initial velocity (Phase 3), displacement strictly decreases.
-    // Phase 5 will add release velocity — review this bypass then.
-    EventBus.emit('camera:changed');
-    if (settled) this.cancel();
-    else this._rafId = requestAnimationFrame(this._tick);
-  }
-
-  cancel() {
-    if (this._rafId) { cancelAnimationFrame(this._rafId); this._rafId = null; }
-    this._startTime = null;
-    this._springX = null;
-    this._springY = null;
-  }
-}
 
 export class VelocityTracker {
   constructor() {
@@ -167,89 +79,8 @@ export class VelocityTracker {
   }
 }
 
-// ============================================================
-// Smooth Zoom Animator (Phase 6)
-// ============================================================
-//
-// Converts discrete mouse wheel zoom into smooth animated transitions.
-// Each wheel notch sets a target zoom level, and an exponential lerp
-// in log-space chases it. Rapid scrolling accumulates a larger delta,
-// creating natural acceleration. Trackpad pinch bypasses this (direct 1:1).
-
-const SMOOTH_ZOOM_LERP = 0.15;       // Per-frame lerp factor
-const SMOOTH_ZOOM_EPSILON = 0.001;    // Convergence threshold (log-space)
+// --- Zoom constants ---
 const ZOOM_PER_NOTCH = 1.15;          // ~15% zoom per mouse wheel notch
-
-class SmoothZoomAnimator {
-  constructor(camera) {
-    this._camera = camera;
-    this._targetZoom = camera.zoom;
-    this._animating = false;
-    this._anchor = { wx: 0, wy: 0, sx: 0, sy: 0 };
-    this._rafId = null;
-    this._step = this._step.bind(this);
-  }
-
-  onWheelZoom(dz, screenX, screenY) {
-    const direction = dz < 0 ? 1 : -1;
-    const factor = Math.pow(ZOOM_PER_NOTCH, Math.abs(dz) * direction);
-    const minZoom = this._camera._getMinZoom();
-    this._targetZoom = Math.max(minZoom, Math.min(MAX_ZOOM, this._targetZoom * factor));
-
-    this._anchor.sx = screenX;
-    this._anchor.sy = screenY;
-    const worldPt = this._camera.logicalScreenToWorld(screenX, screenY);
-    this._anchor.wx = worldPt.x;
-    this._anchor.wy = worldPt.y;
-
-    if (!this._animating) {
-      this._animating = true;
-      this._rafId = requestAnimationFrame(this._step);
-    }
-  }
-
-  _step() {
-    const cam = this._camera;
-    const logCurrent = Math.log(cam.zoom);
-    const logTarget = Math.log(this._targetZoom);
-    const logNew = logCurrent + (logTarget - logCurrent) * SMOOTH_ZOOM_LERP;
-    const newZoom = Math.exp(logNew);
-
-    cam.zoom = newZoom;
-    cam.x = this._anchor.wx - this._anchor.sx / newZoom;
-    cam.y = this._anchor.wy - this._anchor.sy / newZoom;
-    cam._applyConstraints();
-
-    if (Math.abs(logNew - logTarget) > SMOOTH_ZOOM_EPSILON) {
-      this._rafId = requestAnimationFrame(this._step);
-    } else {
-      cam.zoom = this._targetZoom;
-      cam.x = this._anchor.wx - this._anchor.sx / this._targetZoom;
-      cam.y = this._anchor.wy - this._anchor.sy / this._targetZoom;
-      cam._applyConstraints();
-      this._animating = false;
-      this._rafId = null;
-    }
-  }
-
-  retarget() {
-    this._targetZoom = this._camera.zoom;
-    if (this._animating) {
-      cancelAnimationFrame(this._rafId);
-      this._animating = false;
-      this._rafId = null;
-    }
-  }
-
-  cancel() {
-    if (this._rafId) {
-      cancelAnimationFrame(this._rafId);
-      this._rafId = null;
-    }
-    this._animating = false;
-    this._targetZoom = this._camera.zoom;
-  }
-}
 
 // ============================================================
 // Gesture State Machine (Phase S4: Hierarchical Coordination)
@@ -345,11 +176,16 @@ class GestureStateMachine {
         break;
       case 'SNAP_BACK':
         this._camera._cancelSpeculativeSnapBack();
-        this._camera._elasticAnimator.cancel();
         break;
-      case 'ZOOM_ANIMATE':
-        this._camera._smoothZoom.cancel();
+      case 'ZOOM_ANIMATE': {
+        const loop = this._camera._springLoop;
+        if (loop) {
+          loop.logZoom.setTarget(loop.logZoom.position);
+          loop.logZoom.velocity = 0;
+        }
+        this._camera._zoomAnchor = null;
         break;
+      }
       case 'SCROLL_PAN':
         this._camera._trackpadDetector.cancel();
         break;
@@ -456,13 +292,17 @@ class KeyboardController {
       if (e.key === '+' || e.key === '=') {
         e.preventDefault();
         this._camera.zoomToCenter(ZOOM_STEP_KEY);
-        if (this._camera._smoothZoom) this._camera._smoothZoom.retarget();
+        if (this._camera._springLoop) {
+          this._camera._springLoop.syncZoomFromCamera();
+        }
         return;
       }
       if (e.key === '-') {
         e.preventDefault();
         this._camera.zoomToCenter(-ZOOM_STEP_KEY);
-        if (this._camera._smoothZoom) this._camera._smoothZoom.retarget();
+        if (this._camera._springLoop) {
+          this._camera._springLoop.syncZoomFromCamera();
+        }
         return;
       }
       // Zoom presets (Shift+0 = ')', Shift+1 = '!' on US keyboards)
@@ -586,7 +426,6 @@ export class Camera {
     this._el = null;
     this._boundsCache = new BoundsCache();
     this._keyboard = new KeyboardController(this);
-    this._animator = null;  // CameraAnimator — created in attachTo()
     this._dmCanZoomPastCover = false;
     this._lastClampedZoom = NaN;
     this._velocityTracker = new VelocityTracker();
@@ -599,13 +438,32 @@ export class Camera {
     this._momentumScrollActive = false;  // true during trackpad momentum (dampened rubber-band)
     this._cumulativeOverflowX = 0; // accumulated overflow for rubber-band calculation
     this._cumulativeOverflowY = 0;
-    this._inertiaRafId = null;     // rAF ID for inertial coast animation
+    this._isCoasting = false;       // true during inertial coast (driven by spring loop tick)
+    this._coastVx = 0;              // screen-space coast velocity X (px/s)
+    this._coastVy = 0;              // screen-space coast velocity Y (px/s)
+    this._zoomAnchor = null;        // {wx, wy, sx, sy} for smooth zoom anchor preservation
 
     // Phase S3: Speculative snap-back
     this._elasticEWMA = 0;               // EWMA of elastic offset growth rate
     this._lastElasticScreenMag = 0;      // previous frame's elastic magnitude (screen px)
     this._speculativeSnapId = null;      // rAF ID for monitoring loop (null = not running)
     this._isSnappingBack = false;        // double-fire defense flag
+    this._elasticSnapSignX = 0;          // Phase S5: sign guard for spring-based snap-back
+    this._elasticSnapSignY = 0;
+
+    // Phase S5: Scroll-wheel behavior preference
+    this._scrollWheelBehavior = 'auto';  // 'auto' | 'pan' | 'zoom'
+    try {
+      const saved = localStorage.getItem('vtt_scroll_behavior');
+      if (saved && ['auto', 'pan', 'zoom'].includes(saved)) {
+        this._scrollWheelBehavior = saved;
+      }
+    } catch { /* storage unavailable (sandboxed iframe, quota exceeded) */ }
+
+    // Phase S5: Cooperative gesture handling (iframe embeds)
+    this._cooperativeGestures = false;
+    this._cooperativeOverlay = null;
+    this._cooperativeHideTimer = null;
   }
 
   // --- Coordinate conversion ---
@@ -847,6 +705,36 @@ export class Camera {
   // --- Phase 6: Elastic offset methods ---
 
   /**
+   * Update cumulative overflow with input-proportional drain.
+   * Replaces the frame-rate-dependent 0.8 decay: reverse-direction
+   * input reduces overflow at the rate of input (1:1 gesture feel).
+   *
+   * @param {number} overflow   This frame's overflow (world-space, signed)
+   * @param {number} inputDelta The user's input delta (world-space, signed)
+   * @param {number} cumulative Current cumulative overflow
+   * @returns {number} Updated cumulative overflow
+   */
+  _updateCumulativeOverflow(overflow, inputDelta, cumulative) {
+    if (overflow !== 0) {
+      if (Math.sign(overflow) !== Math.sign(cumulative) && cumulative !== 0) {
+        // Direction reversed: hard-reset to the new overflow value
+        return overflow;
+      }
+      return cumulative + overflow;
+    }
+
+    // No overflow this frame — the camera is within bounds
+    if (Math.abs(cumulative) < 0.01) return 0;
+
+    // Drain proportionally to reverse-direction input
+    const inputOpposesOverflow = Math.sign(inputDelta) !== Math.sign(cumulative);
+    if (!inputOpposesOverflow) return cumulative;
+
+    const drain = Math.min(Math.abs(inputDelta), Math.abs(cumulative));
+    return cumulative - Math.sign(cumulative) * drain;
+  }
+
+  /**
    * Feed overflow (distance past hard bounds) into the elastic offset.
    * The rubber-band formula operates in screen-space pixels for consistent
    * resistance feel, then converts back to world-space for the offset.
@@ -865,7 +753,8 @@ export class Camera {
     if (overflowX !== 0) {
       const screenOverflow = overflowX * this.zoom;
       const dampened = rubberBand(Math.abs(screenOverflow), this.viewportW, c);
-      this.elasticOffsetX = Math.sign(overflowX) * dampened / this.zoom;
+      const capped = Math.min(dampened, MAX_ELASTIC_SCREEN_PX);
+      this.elasticOffsetX = Math.sign(overflowX) * capped / this.zoom;
     } else {
       this.elasticOffsetX = 0;
     }
@@ -873,7 +762,8 @@ export class Camera {
     if (overflowY !== 0) {
       const screenOverflow = overflowY * this.zoom;
       const dampened = rubberBand(Math.abs(screenOverflow), this.viewportH, c);
-      this.elasticOffsetY = Math.sign(overflowY) * dampened / this.zoom;
+      const capped = Math.min(dampened, MAX_ELASTIC_SCREEN_PX);
+      this.elasticOffsetY = Math.sign(overflowY) * capped / this.zoom;
     } else {
       this.elasticOffsetY = 0;
     }
@@ -937,25 +827,29 @@ export class Camera {
       return;
     }
 
-    if (this._elasticAnimator) {
-      const omega = this._elasticAnimator._omega;
+    const loop = this._springLoop;
+    loop.elasticX.position = this.elasticOffsetX;
+    loop.elasticY.position = this.elasticOffsetY;
+    loop.elasticX.setStiffness(SPRING_STIFFNESS.SNAP_BACK);
+    loop.elasticY.setStiffness(SPRING_STIFFNESS.SNAP_BACK);
 
-      // Velocity clamping (primary overshoot defense).
-      const clampedVx = this._clampSpringVelocity(
-        velocity.vx, this.elasticOffsetX, omega
-      );
-      const clampedVy = this._clampSpringVelocity(
-        velocity.vy, this.elasticOffsetY, omega
-      );
+    // Velocity clamp (C3: velocity FIRST, displacement SECOND)
+    const omega = loop.elasticX._omega;
+    const clampedVx = this._clampSpringVelocity(velocity.vx, this.elasticOffsetX, omega);
+    const clampedVy = this._clampSpringVelocity(velocity.vy, this.elasticOffsetY, omega);
 
-      this._isSnappingBack = true;
+    // Store sign for clampSign guard in spring loop tick (C4)
+    this._elasticSnapSignX = Math.sign(this.elasticOffsetX);
+    this._elasticSnapSignY = Math.sign(this.elasticOffsetY);
+    this._isSnappingBack = true;
+    loop.elasticX.setTarget(0, { velocity: clampedVx });
+    loop.elasticY.setTarget(0, { velocity: clampedVy });
 
-      this._elasticAnimator.snapBack(
-        { x: this.elasticOffsetX, y: this.elasticOffsetY },
-        { x: 0, y: 0 },
-        { vx: clampedVx, vy: clampedVy }
-      );
-    }
+    // Sync pan/zoom springs to current camera state so the loop doesn't
+    // overwrite cam.x/y/zoom with stale values from attachTo() time.
+    loop.syncPanZoomFromCamera();
+
+    loop.ensureRunning();
   }
 
   /**
@@ -1001,9 +895,15 @@ export class Camera {
       this._speculativeSnapId = null;
     }
 
-    if (this._isSnappingBack && this._elasticAnimator) {
-      this._elasticAnimator.cancel();
+    if (this._isSnappingBack && this._springLoop) {
+      // Freeze elastic springs at current position (no jump)
+      this._springLoop.elasticX.setTarget(this._springLoop.elasticX.position);
+      this._springLoop.elasticX.velocity = 0;
+      this._springLoop.elasticY.setTarget(this._springLoop.elasticY.position);
+      this._springLoop.elasticY.velocity = 0;
       this._isSnappingBack = false;
+      this._elasticSnapSignX = 0;
+      this._elasticSnapSignY = 0;
     }
   }
 
@@ -1021,59 +921,85 @@ export class Camera {
     }
 
     this._gestureActive = true;
-    let vx = velocity.x;
-    let vy = velocity.y;
-    let lastTime = performance.now();
-
-    const FRICTION = 0.96;
-    const STOP_THRESHOLD = 10;
-    const MAX_DT = 64;
-
+    this._isCoasting = true;
+    // Store screen-space velocity for friction-based decay in the spring loop tick.
+    this._coastVx = velocity.x;
+    this._coastVy = velocity.y;
     if (this._el) this._el.classList.add('coasting');
 
-    const tick = (timestamp) => {
-      const rawDt = timestamp - lastTime;
-      const dt = Math.min(rawDt, MAX_DT) / 1000;
-      lastTime = timestamp;
-
-      const frictionFactor = Math.pow(FRICTION, rawDt / 16.67);
-      vx *= frictionFactor;
-      vy *= frictionFactor;
-
-      const speed = Math.sqrt(vx * vx + vy * vy);
-      if (speed < STOP_THRESHOLD) {
-        this._gestureActive = false;
-        this._inertiaRafId = null;
-        if (this._el) this._el.classList.remove('coasting');
-        if (this._gestures) {
-          this._gestures.release('INERTIA');
-          this._gestures.request('SNAP_BACK');
-        }
-        this._snapBackElastic({
-          vx: vx / this.zoom,
-          vy: vy / this.zoom
-        });
-        return;
-      }
-
-      // panBy expects screen-space deltas; velocity is screen px/s
-      this.panBy(-vx * dt, -vy * dt);
-      this._inertiaRafId = requestAnimationFrame(tick);
-    };
-
-    this._inertiaRafId = requestAnimationFrame(tick);
+    // Sync all springs to current camera state before starting the loop.
+    // Without this, stale spring targets (from initial syncFromCamera or
+    // a prior animation) would fight the camera during coast.
+    const loop = this._springLoop;
+    loop.syncPanZoomFromCamera();
+    // Elastic springs: set target = current position so they're settled.
+    // During coast, _feedElasticOverflow manages elastic offset directly.
+    loop.syncElasticFromCamera();
+    loop.ensureRunning();
   }
 
   _cancelInertialCoast() {
-    if (this._inertiaRafId) {
-      cancelAnimationFrame(this._inertiaRafId);
-      this._inertiaRafId = null;
+    if (this._isCoasting) {
+      this._isCoasting = false;
+      this._coastVx = 0;
+      this._coastVy = 0;
       this._gestureActive = false;
       if (this._el) this._el.classList.remove('coasting');
     }
   }
 
   // --- Zoom operations ---
+
+  /**
+   * Smooth animated zoom via the spring loop.
+   * Replaces SmoothZoomAnimator: accumulates target in log-space,
+   * preserves anchor point, springs toward final zoom level.
+   *
+   * @param {number} dz Zoom delta (same convention as onWheelZoom:
+   *   negative = zoom in, positive = zoom out).
+   * @param {number} screenX Screen X of the zoom anchor point.
+   * @param {number} screenY Screen Y of the zoom anchor point.
+   */
+  _smoothZoomTo(dz, screenX, screenY) {
+    // Convert notch delta to log-space delta
+    const direction = dz < 0 ? 1 : -1;
+    const logDelta = Math.log(ZOOM_PER_NOTCH) * Math.abs(dz) * direction;
+
+    // Store anchor for per-frame position adjustment in the spring loop tick.
+    // Uses logicalScreenToWorld (no elastic contamination — Phase S4 fix).
+    const anchor = this.logicalScreenToWorld(screenX, screenY);
+    this._zoomAnchor = { wx: anchor.x, wy: anchor.y, sx: screenX, sy: screenY };
+
+    const loop = this._springLoop;
+
+    // If starting fresh, sync position from camera
+    if (loop.logZoom.settled) {
+      const currentLogZoom = Math.log(this.zoom);
+      loop.logZoom.position = currentLogZoom;
+      loop.logZoom.target = currentLogZoom;
+      loop.logZoom.velocity = 0;
+    }
+
+    // Accumulate target in log space (rapid scrolling stacks)
+    const newLogTarget = loop.logZoom.target + logDelta;
+    const minLogZoom = Math.log(this._getMinZoom());
+    const maxLogZoom = Math.log(MAX_ZOOM);
+    loop.logZoom.setTarget(Math.max(minLogZoom, Math.min(maxLogZoom, newLogTarget)));
+
+    // Sync pan springs so stale targets don't fight the anchor adjustment
+    loop.panX.position = this.x;
+    loop.panX.target = this.x;
+    loop.panX.velocity = 0;
+    loop.panY.position = this.y;
+    loop.panY.target = this.y;
+    loop.panY.velocity = 0;
+    // Sync elastic springs if not actively managed by snap-back or coast
+    if (!this._isSnappingBack && !this._isCoasting) {
+      loop.syncElasticFromCamera();
+    }
+
+    loop.ensureRunning();
+  }
 
   /**
    * Zoom centered on a screen-space point.
@@ -1130,27 +1056,16 @@ export class Camera {
     const overflowY = rawY - this.y;
 
     if (this._gestureActive) {
-      if (overflowX !== 0) {
-        if (Math.sign(overflowX) === Math.sign(this._cumulativeOverflowX) || this._cumulativeOverflowX === 0) {
-          this._cumulativeOverflowX += overflowX;
-        } else {
-          this._cumulativeOverflowX = overflowX;
-        }
-      } else {
-        this._cumulativeOverflowX *= 0.8;
-        if (Math.abs(this._cumulativeOverflowX) < 0.1) this._cumulativeOverflowX = 0;
-      }
+      // Input delta in world-space (matches overflow sign convention)
+      const inputDeltaX = -dx / this.zoom;
+      const inputDeltaY = -dy / this.zoom;
 
-      if (overflowY !== 0) {
-        if (Math.sign(overflowY) === Math.sign(this._cumulativeOverflowY) || this._cumulativeOverflowY === 0) {
-          this._cumulativeOverflowY += overflowY;
-        } else {
-          this._cumulativeOverflowY = overflowY;
-        }
-      } else {
-        this._cumulativeOverflowY *= 0.8;
-        if (Math.abs(this._cumulativeOverflowY) < 0.1) this._cumulativeOverflowY = 0;
-      }
+      this._cumulativeOverflowX = this._updateCumulativeOverflow(
+        overflowX, inputDeltaX, this._cumulativeOverflowX
+      );
+      this._cumulativeOverflowY = this._updateCumulativeOverflow(
+        overflowY, inputDeltaY, this._cumulativeOverflowY
+      );
 
       this._feedElasticOverflow(this._cumulativeOverflowX, this._cumulativeOverflowY);
       EventBus.emit('camera:changed');
@@ -1199,7 +1114,6 @@ export class Camera {
       onGestureStart: () => {
         this._cancelInertialCoast();
         this._cancelSpeculativeSnapBack();
-        if (this._elasticAnimator) this._elasticAnimator.cancel();
         if (this._gestures) this._gestures.request('SCROLL_PAN');
         this._gestureActive = true;
         this._momentumScrollActive = false;
@@ -1221,8 +1135,15 @@ export class Camera {
     });
 
     el.addEventListener('wheel', (e) => {
-      e.preventDefault();
       const { dx, dy, dz } = normalizeWheel(e);
+
+      // Cooperative mode: let unmodified scroll pass through to the page
+      if (this._cooperativeGestures && dz === 0 && !e.ctrlKey && !e.metaKey) {
+        this._showCooperativeOverlay();
+        return;
+      }
+
+      e.preventDefault();
 
       if (dz !== 0) {
         // Ctrl/meta + wheel → zoom path (pinch synthesis on trackpads)
@@ -1231,21 +1152,27 @@ export class Camera {
 
         if (device === 'mouse') {
           const granted = this._gestures.request('ZOOM_ANIMATE');
-          if (granted) this._smoothZoom.onWheelZoom(dz, screen.x, screen.y);
+          if (granted) this._smoothZoomTo(dz, screen.x, screen.y);
         } else {
           const granted = this._gestures.request('PINCH_ZOOM');
           if (granted) this.zoomAt(screen.x, screen.y, dz * -ZOOM_SENSITIVITY);
         }
       } else if (dx !== 0 || dy !== 0) {
-        // Non-ctrl wheel: classify device to decide zoom vs pan
-        const device = this._wheelClassifier.classify(e);
+        // Non-ctrl wheel: preference > classifier > default
+        let behavior;
+        if (this._scrollWheelBehavior === 'auto') {
+          const device = this._wheelClassifier.classify(e);
+          behavior = device === 'mouse' ? 'zoom' : 'pan';
+        } else {
+          behavior = this._scrollWheelBehavior;
+        }
 
-        if (device === 'mouse') {
+        if (behavior === 'zoom') {
           const screen = this.eventToScreen(e);
           const granted = this._gestures.request('ZOOM_ANIMATE');
-          if (granted) this._smoothZoom.onWheelZoom(dy / 100, screen.x, screen.y);
+          if (granted) this._smoothZoomTo(dy / 100, screen.x, screen.y);
         } else {
-          // Trackpad two-finger scroll → pan with gesture detection
+          // Pan with gesture detection
           this._trackpadDetector.handleWheel(e);
           this.panBy(-dx, -dy);
         }
@@ -1373,6 +1300,38 @@ export class Camera {
     });
   }
 
+  _showCooperativeOverlay() {
+    if (!this._el) return;
+    if (!this._cooperativeOverlay) {
+      const overlay = document.createElement('div');
+      overlay.className = 'cooperative-gesture-overlay';
+      const isMac = /mac/i.test(navigator.userAgentData?.platform ?? navigator.platform ?? '');
+      const key = isMac ? '\u2318' : 'Ctrl';
+      overlay.textContent = `Use ${key} + scroll to zoom the map`;
+      overlay.style.cssText = `
+        position: absolute; inset: 0;
+        display: flex; align-items: center; justify-content: center;
+        background: rgba(0,0,0,0.5);
+        color: #fff; font: 600 16px/1 system-ui, sans-serif;
+        pointer-events: none; opacity: 0;
+        transition: opacity 0.2s ease;
+        z-index: 9999;
+      `;
+      if (!this._el.style.position && getComputedStyle(this._el).position === 'static') {
+        this._el.style.position = 'relative';
+      }
+      this._el.appendChild(overlay);
+      this._cooperativeOverlay = overlay;
+    }
+
+    const overlay = this._cooperativeOverlay;
+    overlay.style.opacity = '1';
+    clearTimeout(this._cooperativeHideTimer);
+    this._cooperativeHideTimer = setTimeout(() => {
+      overlay.style.opacity = '0';
+    }, 1500);
+  }
+
   _attachSafetyGuards(el) {
     window.addEventListener('blur', () => this._cancelPan());
     document.addEventListener('visibilitychange', () => {
@@ -1389,47 +1348,9 @@ export class Camera {
     this._boundsCache.observe(el);
     this._preventBrowserZoom();
     this._keyboard.attach();
-    this._animator = new CameraAnimator(this, { stiffness: 200 });
-
-    // Phase 6: elastic offset animator (stiffness=400 for snappier feel).
-    // Its _tick updates elasticOffsetX/Y instead of camera.x/y.
-    this._elasticAnimator = new CameraAnimator(this, { stiffness: 400 });
-    this._elasticAnimator._tick = ((cam) => {
-      const anim = cam._elasticAnimator;
-      return (timestamp) => {
-        if (!anim._startTime) anim._startTime = timestamp;
-        const elapsed = Math.min((timestamp - anim._startTime) / 1000, 2.0);
-        const rx = anim._resolveAxis(anim._springX, elapsed);
-        const ry = anim._resolveAxis(anim._springY, elapsed);
-
-        // Position safety net (secondary overshoot defense).
-        // Elastic offset must not change sign during snap-back.
-        // Catches floating-point edge cases where velocity clamp produces
-        // a B coefficient that is very slightly negative due to rounding.
-        let valX = rx.value;
-        let valY = ry.value;
-        if (anim._springX) valX = clampSign(valX, anim._springX.displacement);
-        if (anim._springY) valY = clampSign(valY, anim._springY.displacement);
-        cam.elasticOffsetX = valX;
-        cam.elasticOffsetY = valY;
-        EventBus.emit('camera:changed');
-        if (rx.settled && ry.settled) {
-          cam.elasticOffsetX = 0;
-          cam.elasticOffsetY = 0;
-          cam._cumulativeOverflowX = 0;
-          cam._cumulativeOverflowY = 0;
-          cam._isSnappingBack = false;
-          EventBus.emit('camera:changed');
-          anim.cancel();
-          if (cam._gestures) cam._gestures.release('SNAP_BACK');
-        } else {
-          anim._rafId = requestAnimationFrame(anim._tick);
-        }
-      };
-    })(this);
-
-    this._smoothZoom = new SmoothZoomAnimator(this);
     this._gestures = new GestureStateMachine(this);
+    this._springLoop = new CameraSpringLoop(this);
+    this._springLoop.syncFromCamera();
 
     this._attachWheelHandler(el);
     this._attachMouseHandlers(el);
@@ -1451,6 +1372,22 @@ export class Camera {
     EventBus.on('camera:momentum-toggle', (enabled) => {
       this._momentumEnabled = enabled;
     });
+    EventBus.on('camera:scroll-behavior', (behavior) => {
+      if (['auto', 'pan', 'zoom'].includes(behavior)) {
+        this._scrollWheelBehavior = behavior;
+        try { localStorage.setItem('vtt_scroll_behavior', behavior); } catch { /* storage unavailable */ }
+      }
+    });
+
+    // Phase S5: Cooperative gesture handling — auto-detect iframe
+    try {
+      if (window.self !== window.top) {
+        this._cooperativeGestures = true;
+      }
+    } catch { this._cooperativeGestures = true; }
+    EventBus.on('camera:cooperative-mode', (enabled) => {
+      this._cooperativeGestures = !!enabled;
+    });
 
     this._attachSafetyGuards(el);
   }
@@ -1469,7 +1406,6 @@ export class Camera {
   _startPan(e, button) {
     this._cancelInertialCoast();
     this._cancelSpeculativeSnapBack();
-    if (this._elasticAnimator) this._elasticAnimator.cancel();
     if (this._trackpadDetector) this._trackpadDetector.cancel();
     if (this._gestures) this._gestures.request('DRAG_PAN');
 
@@ -1489,7 +1425,6 @@ export class Camera {
     this.elasticOffsetX = 0;
     this.elasticOffsetY = 0;
 
-    if (this._animator) this._animator.cancel();
     this._velocityTracker.reset();
     this._setPanCursor(true);
   }
@@ -1510,9 +1445,8 @@ export class Camera {
     this._cumulativeOverflowY = 0;
     this.elasticOffsetX = 0;
     this.elasticOffsetY = 0;
-    if (this._animator) this._animator.cancel();
-    if (this._elasticAnimator) this._elasticAnimator.cancel();
     this._cancelSpeculativeSnapBack();
+    if (this._springLoop) this._springLoop.syncElasticFromCamera();
     this._setPanCursor(true);
   }
 

@@ -99,7 +99,6 @@ export async function enterMapMode(page) {
  * Inject VTT accessor shortcuts into the page's window for test convenience.
  * Call in beforeEach after gotoVTT(). Provides:
  * - __cam()            → window.__vtt.mapRenderer.camera (or null)
- * - __animator()       → camera._animator (or null)
  * - __edgePan()        → tokenManager._edgePan (or null)
  * - __flyToAnimator()  → window.__vtt.flyToAnimator (or null)
  * - __interpolator()   → window.__vtt.interpolator (or null)
@@ -109,12 +108,12 @@ export async function enterMapMode(page) {
 export async function injectTestAccessors(page) {
   await page.evaluate(() => {
     window.__cam = () => window.__vtt?.mapRenderer?.camera ?? null;
-    window.__animator = () => window.__vtt?.mapRenderer?.camera?._animator ?? null;
     window.__edgePan = () => window.__vtt?.tokenManager?._edgePan ?? null;
     window.__flyToAnimator = () => window.__vtt?.flyToAnimator ?? null;
     window.__interpolator = () => window.__vtt?.interpolator ?? null;
     window.__semanticZoom = () => window.__vtt?.semanticZoom ?? null;
     window.__presetManager = () => window.__vtt?.presetManager ?? null;
+    window.__springLoop = () => window.__vtt?.mapRenderer?.camera?._springLoop ?? null;
 
     // Monkey-patch cam.panBy to capture the first call, then auto-restore.
     // Returns { first: { dx, dy } | null, restore() }.
@@ -283,6 +282,24 @@ export async function setupMapCamera(page) {
   await gotoVTT(page);
   await enterMapMode(page);
   await injectTestAccessors(page);
+}
+
+/**
+ * Zoom in and pan to a boundary edge so elastic overflow tests
+ * can push past it. Returns the boundary position.
+ * @param {import('@playwright/test').Page} page
+ * @param {'left'|'right'} direction Which boundary to reach
+ * @param {number} zoom Zoom level (must be > coverZoom for boundaries to exist)
+ */
+export async function panToBoundary(page, direction = 'right', zoom = 2.0) {
+  return page.evaluate(([dir, z]) => {
+    const cam = __cam();
+    cam.zoom = z;
+    cam._applyConstraints();
+    const dx = dir === 'right' ? -50 : 50;
+    for (let i = 0; i < 200; i++) cam.panBy(dx, 0);
+    return { x: cam.x, y: cam.y };
+  }, [direction, zoom]);
 }
 
 export async function dispatchMouseWheelSequence(page, opts = {}) {

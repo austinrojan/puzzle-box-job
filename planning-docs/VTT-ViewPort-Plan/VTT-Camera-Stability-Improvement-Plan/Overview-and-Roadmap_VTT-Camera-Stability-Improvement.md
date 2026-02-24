@@ -950,6 +950,8 @@ onWheelZoom(dz, screenX, screenY) {
 
 ## Phase S5: Unified spring physics and beyond-parity features {#phase-s5}
 
+**Status:** IMPLEMENTED (2026-02-23)
+
 **Fixes:** Future-proofing and quality-of-life improvements
 **Impact:** Medium to high for polish; sets the foundation for Phase 7+
 **Risk:** Medium. Larger refactor with broad surface area.
