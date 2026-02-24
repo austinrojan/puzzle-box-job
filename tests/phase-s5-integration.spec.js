@@ -1,6 +1,6 @@
 // @ts-check
 import { test, expect } from '@playwright/test';
-import { gotoVTT, enterMapMode, injectTestAccessors, dispatchMouseWheelSequence } from './helpers.js';
+import { setupMapCamera, dispatchMouseWheelSequence } from './helpers.js';
 
 // ============================================================
 // Phase S5 Integration Tests — Unified Spring Physics
@@ -8,9 +8,7 @@ import { gotoVTT, enterMapMode, injectTestAccessors, dispatchMouseWheelSequence 
 
 test.describe('Phase S5: Unified Spring Physics', () => {
   test.beforeEach(async ({ page }) => {
-    await gotoVTT(page);
-    await enterMapMode(page);
-    await injectTestAccessors(page);
+    await setupMapCamera(page);
   });
 
   test('elastic snap-back settles within 400ms', async ({ page }) => {

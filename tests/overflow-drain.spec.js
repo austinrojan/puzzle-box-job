@@ -1,12 +1,10 @@
 // @ts-check
 import { test, expect } from '@playwright/test';
-import { gotoVTT, enterMapMode, injectTestAccessors } from './helpers.js';
+import { setupMapCamera } from './helpers.js';
 
 test.describe('Input-proportional overflow drain', () => {
   test.beforeEach(async ({ page }) => {
-    await gotoVTT(page);
-    await enterMapMode(page);
-    await injectTestAccessors(page);
+    await setupMapCamera(page);
   });
 
   test('overflow accumulates in same direction', async ({ page }) => {
@@ -68,9 +66,7 @@ test.describe('Input-proportional overflow drain', () => {
 
 test.describe('Elastic ceiling', () => {
   test.beforeEach(async ({ page }) => {
-    await gotoVTT(page);
-    await enterMapMode(page);
-    await injectTestAccessors(page);
+    await setupMapCamera(page);
   });
 
   test('aggressive overflow stays within 150/zoom world-space', async ({ page }) => {

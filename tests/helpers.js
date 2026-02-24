@@ -286,6 +286,24 @@ export async function setupMapCamera(page) {
   await injectTestAccessors(page);
 }
 
+/**
+ * Zoom in and pan to a boundary edge so elastic overflow tests
+ * can push past it. Returns the boundary position.
+ * @param {import('@playwright/test').Page} page
+ * @param {'left'|'right'} direction Which boundary to reach
+ * @param {number} zoom Zoom level (must be > coverZoom for boundaries to exist)
+ */
+export async function panToBoundary(page, direction = 'right', zoom = 2.0) {
+  return page.evaluate(([dir, z]) => {
+    const cam = __cam();
+    cam.zoom = z;
+    cam._applyConstraints();
+    const dx = dir === 'right' ? -50 : 50;
+    for (let i = 0; i < 200; i++) cam.panBy(dx, 0);
+    return { x: cam.x, y: cam.y };
+  }, [direction, zoom]);
+}
+
 export async function dispatchMouseWheelSequence(page, opts = {}) {
   await page.evaluate((o) => {
     const origNow = performance.now.bind(performance);

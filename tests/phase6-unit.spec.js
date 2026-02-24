@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { gotoVTT, enterMapMode, injectTestAccessors } from './helpers.js';
+import { setupMapCamera } from './helpers.js';
 
 // ============================================================
 // TrackpadGestureDetector
@@ -109,9 +109,7 @@ test.describe('TrackpadGestureDetector', () => {
 // ============================================================
 test.describe('Dual-position elastic model', () => {
   test.beforeEach(async ({ page }) => {
-    await gotoVTT(page);
-    await enterMapMode(page);
-    await injectTestAccessors(page);
+    await setupMapCamera(page);
   });
 
   test('visualX/Y include elastic offset', async ({ page }) => {
@@ -217,9 +215,7 @@ test.describe('Dual-position elastic model', () => {
 // ============================================================
 test.describe('Smooth Zoom (spring-based)', () => {
   test.beforeEach(async ({ page }) => {
-    await gotoVTT(page);
-    await enterMapMode(page);
-    await injectTestAccessors(page);
+    await setupMapCamera(page);
   });
 
   test('_smoothZoomTo updates logZoom target within bounds', async ({ page }) => {
@@ -271,9 +267,7 @@ test.describe('Smooth Zoom (spring-based)', () => {
 // ============================================================
 test.describe('rubberBand function', () => {
   test.beforeEach(async ({ page }) => {
-    await gotoVTT(page);
-    await enterMapMode(page);
-    await injectTestAccessors(page);
+    await setupMapCamera(page);
   });
 
   test('diminishing returns on deeper overshoot', async ({ page }) => {

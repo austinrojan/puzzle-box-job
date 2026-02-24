@@ -1,14 +1,12 @@
 import { test, expect } from '@playwright/test';
-import { gotoVTT, enterMapMode, injectTestAccessors } from './helpers.js';
+import { setupMapCamera } from './helpers.js';
 
 // ============================================================
 // Velocity clamp: _clampSpringVelocity
 // ============================================================
 test.describe('Velocity clamp (_clampSpringVelocity)', () => {
   test.beforeEach(async ({ page }) => {
-    await gotoVTT(page);
-    await enterMapMode(page);
-    await injectTestAccessors(page);
+    await setupMapCamera(page);
   });
 
   test('zero displacement returns velocity unchanged', async ({ page }) => {
@@ -88,9 +86,7 @@ test.describe('Velocity clamp (_clampSpringVelocity)', () => {
 // ============================================================
 test.describe('Spring no-overshoot guarantee', () => {
   test.beforeEach(async ({ page }) => {
-    await gotoVTT(page);
-    await enterMapMode(page);
-    await injectTestAccessors(page);
+    await setupMapCamera(page);
   });
 
   test('clamped velocity never produces negative position (d > 0)', async ({ page }) => {
@@ -261,9 +257,7 @@ test.describe('Spring no-overshoot guarantee', () => {
 // ============================================================
 test.describe('Spring overshoot prevention (Bug #2)', () => {
   test.beforeEach(async ({ page }) => {
-    await gotoVTT(page);
-    await enterMapMode(page);
-    await injectTestAccessors(page);
+    await setupMapCamera(page);
   });
 
   test('elastic offset never changes sign during snap-back', async ({ page }) => {
@@ -409,9 +403,7 @@ test.describe('Spring overshoot prevention (Bug #2)', () => {
 // ============================================================
 test.describe('Coast velocity cap', () => {
   test.beforeEach(async ({ page }) => {
-    await gotoVTT(page);
-    await enterMapMode(page);
-    await injectTestAccessors(page);
+    await setupMapCamera(page);
   });
 
   test('extreme flick velocity is capped in _startInertialCoast', async ({ page }) => {
