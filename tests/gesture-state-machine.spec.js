@@ -108,41 +108,24 @@ test.describe('Phase S4: Gesture coordination', () => {
 
   // --- Rule 2: User preempts animation ---
   test.describe('GSM Rule 2: user preempts animation', () => {
-    test('SCROLL_PAN preempts ZOOM_ANIMATE instantly', async ({ page }) => {
-      const r = await page.evaluate(() => {
-        const g = __cam()._gestures;
-        g.request('ZOOM_ANIMATE');
-        return { granted: g.request('SCROLL_PAN'), c: g.current };
-      });
-      expect(r.granted).toBe(true); expect(r.c).toBe('SCROLL_PAN');
-    });
+    const rule2Cases = [
+      ['ZOOM_ANIMATE', 'SCROLL_PAN'],
+      ['INERTIA', 'DRAG_PAN'],
+      ['SNAP_BACK', 'PINCH_ZOOM'],
+      ['INERTIA', 'SCROLL_PAN'],
+    ];
 
-    test('DRAG_PAN preempts INERTIA instantly', async ({ page }) => {
-      const r = await page.evaluate(() => {
-        const g = __cam()._gestures;
-        g.request('INERTIA');
-        return { granted: g.request('DRAG_PAN'), c: g.current };
+    for (const [animation, user] of rule2Cases) {
+      test(`${user} preempts ${animation}`, async ({ page }) => {
+        const r = await page.evaluate(([anim, usr]) => {
+          const g = __cam()._gestures;
+          g.request(anim);
+          return { granted: g.request(usr), current: g.current };
+        }, [animation, user]);
+        expect(r.granted).toBe(true);
+        expect(r.current).toBe(user);
       });
-      expect(r.granted).toBe(true); expect(r.c).toBe('DRAG_PAN');
-    });
-
-    test('PINCH_ZOOM preempts SNAP_BACK instantly', async ({ page }) => {
-      const r = await page.evaluate(() => {
-        const g = __cam()._gestures;
-        g.request('SNAP_BACK');
-        return { granted: g.request('PINCH_ZOOM'), c: g.current };
-      });
-      expect(r.granted).toBe(true); expect(r.c).toBe('PINCH_ZOOM');
-    });
-
-    test('SCROLL_PAN preempts INERTIA', async ({ page }) => {
-      const r = await page.evaluate(() => {
-        const g = __cam()._gestures;
-        g.request('INERTIA');
-        return { granted: g.request('SCROLL_PAN'), c: g.current };
-      });
-      expect(r.granted).toBe(true); expect(r.c).toBe('SCROLL_PAN');
-    });
+    }
   });
 
   // --- Rule 3: User replaces user (dwell time) ---
@@ -291,41 +274,27 @@ test.describe('Phase S4: Gesture coordination', () => {
 
   // --- Rule 5: Animation tier ---
   test.describe('GSM Rule 5: animation tier', () => {
-    test('higher priority animation replaces lower', async ({ page }) => {
-      const r = await page.evaluate(() => {
-        const g = __cam()._gestures;
-        g.request('INERTIA');
-        return { granted: g.request('ZOOM_ANIMATE'), c: g.current };
-      });
-      expect(r.granted).toBe(true); expect(r.c).toBe('ZOOM_ANIMATE');
-    });
+    const rule5Cases = [
+      ['INERTIA', 'ZOOM_ANIMATE', true],
+      ['ZOOM_ANIMATE', 'INERTIA', false],
+      ['ZOOM_ANIMATE', 'SNAP_BACK', false],
+      ['SNAP_BACK', 'ZOOM_ANIMATE', true],
+    ];
 
-    test('lower priority animation denied', async ({ page }) => {
-      const r = await page.evaluate(() => {
-        const g = __cam()._gestures;
-        g.request('ZOOM_ANIMATE');
-        return { granted: g.request('INERTIA'), c: g.current };
+    for (const [current, incoming, shouldGrant] of rule5Cases) {
+      const label = shouldGrant
+        ? `${incoming} replaces ${current}`
+        : `${incoming} denied while ${current} active`;
+      test(label, async ({ page }) => {
+        const r = await page.evaluate(([cur, inc]) => {
+          const g = __cam()._gestures;
+          g.request(cur);
+          return { granted: g.request(inc), current: g.current };
+        }, [current, incoming]);
+        expect(r.granted).toBe(shouldGrant);
+        expect(r.current).toBe(shouldGrant ? incoming : current);
       });
-      expect(r.granted).toBe(false); expect(r.c).toBe('ZOOM_ANIMATE');
-    });
-
-    test('SNAP_BACK cannot preempt ZOOM_ANIMATE', async ({ page }) => {
-      const r = await page.evaluate(() => {
-        const g = __cam()._gestures;
-        g.request('ZOOM_ANIMATE');
-        return { granted: g.request('SNAP_BACK'), c: g.current };
-      });
-      expect(r.granted).toBe(false); expect(r.c).toBe('ZOOM_ANIMATE');
-    });
-
-    test('ZOOM_ANIMATE replaces SNAP_BACK', async ({ page }) => {
-      const r = await page.evaluate(() => {
-        const g = __cam()._gestures;
-        g.request('SNAP_BACK');
-        return { granted: g.request('ZOOM_ANIMATE'), c: g.current };
-      });
-      expect(r.granted).toBe(true); expect(r.c).toBe('ZOOM_ANIMATE');
-    });
+    }
   });
 
   // --- Release semantics ---
