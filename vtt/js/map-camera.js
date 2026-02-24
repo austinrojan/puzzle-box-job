@@ -181,80 +181,7 @@ export class VelocityTracker {
 // in log-space chases it. Rapid scrolling accumulates a larger delta,
 // creating natural acceleration. Trackpad pinch bypasses this (direct 1:1).
 
-const SMOOTH_ZOOM_LERP = 0.15;       // Per-frame lerp factor
-const SMOOTH_ZOOM_EPSILON = 0.001;    // Convergence threshold (log-space)
 const ZOOM_PER_NOTCH = 1.15;          // ~15% zoom per mouse wheel notch
-
-class SmoothZoomAnimator {
-  constructor(camera) {
-    this._camera = camera;
-    this._targetZoom = camera.zoom;
-    this._animating = false;
-    this._anchor = { wx: 0, wy: 0, sx: 0, sy: 0 };
-    this._rafId = null;
-    this._step = this._step.bind(this);
-  }
-
-  onWheelZoom(dz, screenX, screenY) {
-    const direction = dz < 0 ? 1 : -1;
-    const factor = Math.pow(ZOOM_PER_NOTCH, Math.abs(dz) * direction);
-    const minZoom = this._camera._getMinZoom();
-    this._targetZoom = Math.max(minZoom, Math.min(MAX_ZOOM, this._targetZoom * factor));
-
-    this._anchor.sx = screenX;
-    this._anchor.sy = screenY;
-    const worldPt = this._camera.logicalScreenToWorld(screenX, screenY);
-    this._anchor.wx = worldPt.x;
-    this._anchor.wy = worldPt.y;
-
-    if (!this._animating) {
-      this._animating = true;
-      this._rafId = requestAnimationFrame(this._step);
-    }
-  }
-
-  _step() {
-    const cam = this._camera;
-    const logCurrent = Math.log(cam.zoom);
-    const logTarget = Math.log(this._targetZoom);
-    const logNew = logCurrent + (logTarget - logCurrent) * SMOOTH_ZOOM_LERP;
-    const newZoom = Math.exp(logNew);
-
-    cam.zoom = newZoom;
-    cam.x = this._anchor.wx - this._anchor.sx / newZoom;
-    cam.y = this._anchor.wy - this._anchor.sy / newZoom;
-    cam._applyConstraints();
-
-    if (Math.abs(logNew - logTarget) > SMOOTH_ZOOM_EPSILON) {
-      this._rafId = requestAnimationFrame(this._step);
-    } else {
-      cam.zoom = this._targetZoom;
-      cam.x = this._anchor.wx - this._anchor.sx / this._targetZoom;
-      cam.y = this._anchor.wy - this._anchor.sy / this._targetZoom;
-      cam._applyConstraints();
-      this._animating = false;
-      this._rafId = null;
-    }
-  }
-
-  retarget() {
-    this._targetZoom = this._camera.zoom;
-    if (this._animating) {
-      cancelAnimationFrame(this._rafId);
-      this._animating = false;
-      this._rafId = null;
-    }
-  }
-
-  cancel() {
-    if (this._rafId) {
-      cancelAnimationFrame(this._rafId);
-      this._rafId = null;
-    }
-    this._animating = false;
-    this._targetZoom = this._camera.zoom;
-  }
-}
 
 // ============================================================
 // Gesture State Machine (Phase S4: Hierarchical Coordination)
@@ -351,9 +278,15 @@ class GestureStateMachine {
       case 'SNAP_BACK':
         this._camera._cancelSpeculativeSnapBack();
         break;
-      case 'ZOOM_ANIMATE':
-        this._camera._smoothZoom.cancel();
+      case 'ZOOM_ANIMATE': {
+        const loop = this._camera._springLoop;
+        if (loop) {
+          loop.logZoom.setTarget(loop.logZoom.position);
+          loop.logZoom.velocity = 0;
+        }
+        this._camera._zoomAnchor = null;
         break;
+      }
       case 'SCROLL_PAN':
         this._camera._trackpadDetector.cancel();
         break;
@@ -460,13 +393,23 @@ class KeyboardController {
       if (e.key === '+' || e.key === '=') {
         e.preventDefault();
         this._camera.zoomToCenter(ZOOM_STEP_KEY);
-        if (this._camera._smoothZoom) this._camera._smoothZoom.retarget();
+        if (this._camera._springLoop) {
+          const loop = this._camera._springLoop;
+          loop.logZoom.position = Math.log(this._camera.zoom);
+          loop.logZoom.setTarget(Math.log(this._camera.zoom));
+          loop.logZoom.velocity = 0;
+        }
         return;
       }
       if (e.key === '-') {
         e.preventDefault();
         this._camera.zoomToCenter(-ZOOM_STEP_KEY);
-        if (this._camera._smoothZoom) this._camera._smoothZoom.retarget();
+        if (this._camera._springLoop) {
+          const loop = this._camera._springLoop;
+          loop.logZoom.position = Math.log(this._camera.zoom);
+          loop.logZoom.setTarget(Math.log(this._camera.zoom));
+          loop.logZoom.velocity = 0;
+        }
         return;
       }
       // Zoom presets (Shift+0 = ')', Shift+1 = '!' on US keyboards)
@@ -606,6 +549,7 @@ export class Camera {
     this._isCoasting = false;       // true during inertial coast (driven by spring loop tick)
     this._coastVx = 0;              // screen-space coast velocity X (px/s)
     this._coastVy = 0;              // screen-space coast velocity Y (px/s)
+    this._zoomAnchor = null;        // {wx, wy, sx, sy} for smooth zoom anchor preservation
 
     // Phase S3: Speculative snap-back
     this._elasticEWMA = 0;               // EWMA of elastic offset growth rate
@@ -1129,6 +1073,59 @@ export class Camera {
   // --- Zoom operations ---
 
   /**
+   * Smooth animated zoom via the spring loop.
+   * Replaces SmoothZoomAnimator: accumulates target in log-space,
+   * preserves anchor point, springs toward final zoom level.
+   *
+   * @param {number} dz Zoom delta (same convention as onWheelZoom:
+   *   negative = zoom in, positive = zoom out).
+   * @param {number} screenX Screen X of the zoom anchor point.
+   * @param {number} screenY Screen Y of the zoom anchor point.
+   */
+  _smoothZoomTo(dz, screenX, screenY) {
+    // Convert notch delta to log-space delta
+    const direction = dz < 0 ? 1 : -1;
+    const logDelta = Math.log(ZOOM_PER_NOTCH) * Math.abs(dz) * direction;
+
+    // Store anchor for per-frame position adjustment in the spring loop tick.
+    // Uses logicalScreenToWorld (no elastic contamination — Phase S4 fix).
+    const anchor = this.logicalScreenToWorld(screenX, screenY);
+    this._zoomAnchor = { wx: anchor.x, wy: anchor.y, sx: screenX, sy: screenY };
+
+    const loop = this._springLoop;
+
+    // If starting fresh, sync position from camera
+    if (loop.logZoom.settled) {
+      loop.logZoom.position = Math.log(this.zoom);
+    }
+
+    // Accumulate target in log space (rapid scrolling stacks)
+    const newLogTarget = loop.logZoom.target + logDelta;
+    const minLogZoom = Math.log(this._getMinZoom());
+    const maxLogZoom = Math.log(MAX_ZOOM);
+    loop.logZoom.setTarget(Math.max(minLogZoom, Math.min(maxLogZoom, newLogTarget)));
+
+    // Sync pan springs so stale targets don't fight the anchor adjustment
+    loop.panX.position = this.x;
+    loop.panX.target = this.x;
+    loop.panX.velocity = 0;
+    loop.panY.position = this.y;
+    loop.panY.target = this.y;
+    loop.panY.velocity = 0;
+    // Sync elastic springs if not actively managed by snap-back or coast
+    if (!this._isSnappingBack && !this._isCoasting) {
+      loop.elasticX.position = this.elasticOffsetX;
+      loop.elasticX.target = this.elasticOffsetX;
+      loop.elasticX.velocity = 0;
+      loop.elasticY.position = this.elasticOffsetY;
+      loop.elasticY.target = this.elasticOffsetY;
+      loop.elasticY.velocity = 0;
+    }
+
+    loop.ensureRunning();
+  }
+
+  /**
    * Zoom centered on a screen-space point.
    * @param {number} sx Screen X (CSS px from canvas left)
    * @param {number} sy Screen Y (CSS px from canvas top)
@@ -1272,7 +1269,7 @@ export class Camera {
 
         if (device === 'mouse') {
           const granted = this._gestures.request('ZOOM_ANIMATE');
-          if (granted) this._smoothZoom.onWheelZoom(dz, screen.x, screen.y);
+          if (granted) this._smoothZoomTo(dz, screen.x, screen.y);
         } else {
           const granted = this._gestures.request('PINCH_ZOOM');
           if (granted) this.zoomAt(screen.x, screen.y, dz * -ZOOM_SENSITIVITY);
@@ -1290,7 +1287,7 @@ export class Camera {
         if (behavior === 'zoom') {
           const screen = this.eventToScreen(e);
           const granted = this._gestures.request('ZOOM_ANIMATE');
-          if (granted) this._smoothZoom.onWheelZoom(dy / 100, screen.x, screen.y);
+          if (granted) this._smoothZoomTo(dy / 100, screen.x, screen.y);
         } else {
           // Pan with gesture detection
           this._trackpadDetector.handleWheel(e);
@@ -1475,7 +1472,6 @@ export class Camera {
       };
     })(this);
 
-    this._smoothZoom = new SmoothZoomAnimator(this);
     this._gestures = new GestureStateMachine(this);
     this._springLoop = new CameraSpringLoop(this);
     this._springLoop.syncFromCamera();

@@ -12,7 +12,7 @@ test.describe('Scroll-wheel behavior preference', () => {
       const cam = __cam();
       cam._scrollWheelBehavior = 'pan';
       const zoomBefore = cam.zoom;
-      const targetBefore = cam._smoothZoom._targetZoom;
+      const logTargetBefore = cam._springLoop.logZoom.target;
 
       const el = document.getElementById('map-container');
       const rect = el.getBoundingClientRect();
@@ -34,8 +34,7 @@ test.describe('Scroll-wheel behavior preference', () => {
       // In pan mode, zoom target should not change
       return {
         zoomBefore, zoomAfter: cam.zoom,
-        targetBefore, targetAfter: cam._smoothZoom._targetZoom,
-        targetChanged: cam._smoothZoom._targetZoom !== targetBefore,
+        targetChanged: cam._springLoop.logZoom.target !== logTargetBefore,
       };
     });
     expect(result.targetChanged).toBe(false);
@@ -45,7 +44,7 @@ test.describe('Scroll-wheel behavior preference', () => {
     const result = await page.evaluate(() => {
       const cam = __cam();
       cam._scrollWheelBehavior = 'zoom';
-      const targetBefore = cam._smoothZoom._targetZoom;
+      const logTargetBefore = cam._springLoop.logZoom.target;
 
       const el = document.getElementById('map-container');
       const rect = el.getBoundingClientRect();
@@ -66,29 +65,27 @@ test.describe('Scroll-wheel behavior preference', () => {
       }
 
       return {
-        targetBefore,
-        targetAfter: cam._smoothZoom._targetZoom,
-        targetChanged: cam._smoothZoom._targetZoom !== targetBefore,
+        targetChanged: cam._springLoop.logZoom.target !== logTargetBefore,
       };
     });
     // In zoom mode, these events should update the zoom target
     expect(result.targetChanged).toBe(true);
   });
 
-  test('auto mode: mouse wheel triggers zoom target', async ({ page }) => {
+  test('auto mode: mouse wheel triggers zoom animation', async ({ page }) => {
     await dispatchMouseWheelSequence(page, { count: 3, deltaY: -100, gapMs: 200 });
 
-    // Wait for SmoothZoomAnimator rAF to fire
+    // Wait for spring to become unsettled (zoom animation started)
     await page.waitForFunction(() => {
       const cam = __cam();
-      return cam._smoothZoom._animating || cam.zoom !== cam._smoothZoom._targetZoom;
+      return !cam._springLoop.logZoom.settled;
     }, { timeout: 3000 }).catch(() => {});
 
     const result = await page.evaluate(() => {
       const cam = __cam();
       return {
-        animating: cam._smoothZoom._animating,
-        targetChanged: cam._smoothZoom._targetZoom !== cam.zoom,
+        animating: !cam._springLoop.logZoom.settled,
+        targetChanged: cam._springLoop.logZoom.target !== Math.log(cam.zoom),
       };
     });
     // Mouse in auto mode → should have triggered zoom animation
@@ -115,7 +112,7 @@ test.describe('Scroll-wheel behavior preference', () => {
       }
 
       // Ctrl+wheel takes the dz path which calls zoomAt() directly (for trackpad)
-      // or _smoothZoom.onWheelZoom (for mouse). Either way, zoom should change.
+      // or _smoothZoomTo (for mouse). Either way, zoom should change.
       return { zoomBefore, zoomAfter: cam.zoom, changed: cam.zoom !== zoomBefore };
     });
     expect(result.changed).toBe(true);

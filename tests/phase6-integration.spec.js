@@ -186,7 +186,7 @@ test.describe('Smooth zoom animation', () => {
 
     // Wait for smooth zoom animation to settle
     await page.waitForFunction(() => {
-      return !window.__vtt?.mapRenderer?.camera?._smoothZoom?._animating;
+      return window.__vtt?.mapRenderer?.camera?._springLoop?.logZoom?.settled;
     }, { timeout: 2000 });
 
     const afterZoom = await page.evaluate(() => __cam().zoom);
@@ -315,7 +315,7 @@ test.describe('Stateful device classification', () => {
 
     // Wait for smooth zoom animation to settle
     await page.waitForFunction(() => {
-      return !window.__vtt?.mapRenderer?.camera?._smoothZoom?._animating;
+      return window.__vtt?.mapRenderer?.camera?._springLoop?.logZoom?.settled;
     }, { timeout: 2000 });
 
     const after = await page.evaluate(() => __cam().zoom);

@@ -213,48 +213,56 @@ test.describe('Dual-position elastic model', () => {
 });
 
 // ============================================================
-// SmoothZoomAnimator
+// Smooth Zoom (spring-based)
 // ============================================================
-test.describe('SmoothZoomAnimator', () => {
+test.describe('Smooth Zoom (spring-based)', () => {
   test.beforeEach(async ({ page }) => {
     await gotoVTT(page);
     await enterMapMode(page);
     await injectTestAccessors(page);
   });
 
-  test('onWheelZoom updates target within bounds', async ({ page }) => {
+  test('_smoothZoomTo updates logZoom target within bounds', async ({ page }) => {
     const result = await page.evaluate(() => {
       const cam = __cam();
-      const animator = cam._smoothZoom;
-      const before = animator._targetZoom;
-      animator.onWheelZoom(-1.0, 500, 500); // Zoom in
-      const after = animator._targetZoom;
+      const loop = cam._springLoop;
+      const before = Math.exp(loop.logZoom.target);
+      cam._smoothZoomTo(-1.0, 500, 500); // Zoom in (dz < 0 = zoom in)
+      const after = Math.exp(loop.logZoom.target);
       return { before, after };
     });
     expect(result.after).toBeGreaterThan(result.before);
   });
 
-  test('retarget syncs to current camera zoom', async ({ page }) => {
+  test('retarget syncs logZoom to current camera zoom', async ({ page }) => {
     const result = await page.evaluate(() => {
       const cam = __cam();
-      cam._smoothZoom._targetZoom = 3.0;
-      cam._smoothZoom.retarget();
-      return cam._smoothZoom._targetZoom;
+      const loop = cam._springLoop;
+      // Set a different target
+      loop.logZoom.setTarget(Math.log(3.0));
+      // Retarget: snap to current zoom
+      loop.logZoom.position = Math.log(cam.zoom);
+      loop.logZoom.setTarget(Math.log(cam.zoom));
+      loop.logZoom.velocity = 0;
+      return Math.exp(loop.logZoom.target);
     });
     const currentZoom = await page.evaluate(() => __cam().zoom);
     expect(result).toBeCloseTo(currentZoom, 2);
   });
 
-  test('cancel stops animation and resets target', async ({ page }) => {
+  test('cancel stops zoom animation and settles spring', async ({ page }) => {
     const result = await page.evaluate(() => {
       const cam = __cam();
-      cam._smoothZoom.onWheelZoom(-1.0, 500, 500);
-      const animating = cam._smoothZoom._animating;
-      cam._smoothZoom.cancel();
-      return { wasAnimating: animating, isAnimating: cam._smoothZoom._animating };
+      const loop = cam._springLoop;
+      cam._smoothZoomTo(-1.0, 500, 500);
+      const wasUnsettled = !loop.logZoom.settled;
+      // Cancel: snap target to position
+      loop.logZoom.setTarget(loop.logZoom.position);
+      loop.logZoom.velocity = 0;
+      return { wasUnsettled, isSettled: loop.logZoom.settled };
     });
-    expect(result.wasAnimating).toBe(true);
-    expect(result.isAnimating).toBe(false);
+    expect(result.wasUnsettled).toBe(true);
+    expect(result.isSettled).toBe(true);
   });
 });
 

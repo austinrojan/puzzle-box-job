@@ -62,17 +62,17 @@ test.describe('Phase S4: Gesture coordination', () => {
     });
   });
 
-  test.describe('SmoothZoomAnimator anchor decontamination', () => {
-    test('onWheelZoom anchor uses logical position, not visual', async ({ page }) => {
+  test.describe('Smooth zoom anchor decontamination', () => {
+    test('_smoothZoomTo anchor uses logical position, not visual', async ({ page }) => {
       const result = await page.evaluate(() => {
         const cam = __cam();
         cam.zoom = 2.0; cam.x = 500; cam.y = 300;
         cam.elasticOffsetX = 40; cam.elasticOffsetY = 25;
-        cam._smoothZoom.onWheelZoom(-1.0, 960, 540);
+        cam._smoothZoomTo(-1.0, 960, 540);
         return {
-          wx: cam._smoothZoom._anchor.wx,
+          wx: cam._zoomAnchor.wx,
           expectedWx: 960 / cam.zoom + cam.x,
-          wy: cam._smoothZoom._anchor.wy,
+          wy: cam._zoomAnchor.wy,
           expectedWy: 540 / cam.zoom + cam.y,
         };
       });
@@ -378,17 +378,18 @@ test.describe('Phase S4: Gesture coordination', () => {
       expect(r).toBe(true);
     });
 
-    test('cancelling ZOOM_ANIMATE calls smoothZoom.cancel()', async ({ page }) => {
+    test('cancelling ZOOM_ANIMATE settles the logZoom spring', async ({ page }) => {
       const r = await page.evaluate(() => {
         const cam = __cam();
-        let called = false;
-        const orig = cam._smoothZoom.cancel.bind(cam._smoothZoom);
-        cam._smoothZoom.cancel = () => { called = true; orig(); };
+        cam._smoothZoomTo(-1.0, 500, 500); // Start zoom animation
         cam._gestures.request('ZOOM_ANIMATE');
-        cam._gestures.request('DRAG_PAN');
-        return called;
+        const wasUnsettled = !cam._springLoop.logZoom.settled;
+        cam._gestures.request('DRAG_PAN'); // Preempts, should cancel zoom
+        const isSettled = cam._springLoop.logZoom.settled;
+        return { wasUnsettled, isSettled };
       });
-      expect(r).toBe(true);
+      expect(r.wasUnsettled).toBe(true);
+      expect(r.isSettled).toBe(true);
     });
 
     test('cancelling INERTIA calls _cancelInertialCoast', async ({ page }) => {
@@ -424,7 +425,7 @@ test.describe('Phase S4: Gesture coordination', () => {
         }));
         cam._wheelClassifier.classify = orig;
 
-        return { changed: cam.zoom !== before, animating: cam._smoothZoom._animating };
+        return { changed: cam.zoom !== before, animating: !cam._springLoop.logZoom.settled };
       });
       expect(r.changed).toBe(false);
       expect(r.animating).toBe(false);

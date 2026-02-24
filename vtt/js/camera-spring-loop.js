@@ -103,11 +103,22 @@ export class CameraSpringLoop {
 
     // Write camera state (one write per frame)
     const cam = this._camera;
-    cam.x = this.panX.position;
-    cam.y = this.panY.position;
     cam.elasticOffsetX = this.elasticX.position;
     cam.elasticOffsetY = this.elasticY.position;
     cam.zoom = Math.exp(this.logZoom.position);
+
+    // T9: Zoom anchor preservation — when the zoom spring is animating,
+    // adjust camera position so the anchor world-point stays at the
+    // same screen position. Otherwise, write pan positions from springs.
+    if (!zoomSettled && cam._zoomAnchor) {
+      cam.x = cam._zoomAnchor.wx - cam._zoomAnchor.sx / cam.zoom;
+      cam.y = cam._zoomAnchor.wy - cam._zoomAnchor.sy / cam.zoom;
+    } else {
+      cam.x = this.panX.position;
+      cam.y = this.panY.position;
+      // Clear anchor when zoom settles
+      if (zoomSettled && cam._zoomAnchor) cam._zoomAnchor = null;
+    }
 
     // C4: Sign guard — prevent elastic offset from crossing zero during snap-back.
     // Simpler than tracking full displacement; AxisSpring recomputes from current state.
