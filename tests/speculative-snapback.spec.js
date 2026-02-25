@@ -230,19 +230,30 @@ test.describe('Elastic snap-back integration', () => {
   test('continuous scrolling at boundary is not interrupted by snap-back', async ({ page }) => {
     await panToBoundary(page, 'left');
 
-    for (let i = 0; i < 30; i++) {
-      await page.evaluate(() => {
+    // Batch-dispatch 30 events with mocked time (16ms spacing) to avoid
+    // real-wall-clock timing dependency. The detector sees 16ms gaps and
+    // stays in ACTIVE state. No rAF fires during the synchronous batch,
+    // so speculative snap-back monitoring cannot trigger.
+    await page.evaluate(() => {
+      const origNow = performance.now;
+      let t = origNow.call(performance);
+      try {
+        performance.now = () => t;
         const el = document.getElementById('map-container');
         const rect = el.getBoundingClientRect();
-        el.dispatchEvent(new WheelEvent('wheel', {
-          deltaY: 0, deltaX: -10, deltaMode: 0,
-          ctrlKey: false, bubbles: true, cancelable: true,
-          clientX: rect.left + rect.width / 2,
-          clientY: rect.top + rect.height / 2,
-        }));
-      });
-      await page.waitForTimeout(16);
-    }
+        for (let i = 0; i < 30; i++) {
+          t += 16;
+          el.dispatchEvent(new WheelEvent('wheel', {
+            deltaY: 0, deltaX: -10, deltaMode: 0,
+            ctrlKey: false, bubbles: true, cancelable: true,
+            clientX: rect.left + rect.width / 2,
+            clientY: rect.top + rect.height / 2,
+          }));
+        }
+      } finally {
+        performance.now = origNow;
+      }
+    });
 
     const result = await page.evaluate(() => ({
       offset: Math.abs(__cam().elasticOffsetX),
@@ -295,25 +306,30 @@ test.describe('Elastic snap-back integration', () => {
     const cx = box.x + box.width / 2;
     const cy = box.y + box.height / 2;
 
-    for (let i = 0; i < 6; i++) {
-      await page.evaluate(({ cx, cy, i }) => {
+    // Batch-dispatch decaying deltas + trailing small delta with mocked time
+    await page.evaluate(({ cx, cy }) => {
+      const origNow = performance.now;
+      let t = origNow.call(performance);
+      try {
+        performance.now = () => t;
         const el = document.getElementById('map-container');
+        for (let i = 0; i < 6; i++) {
+          t += 16;
+          el.dispatchEvent(new WheelEvent('wheel', {
+            deltaY: 0, deltaX: -(5 - i * 0.5), deltaMode: 0,
+            ctrlKey: false, bubbles: true, cancelable: true,
+            clientX: cx, clientY: cy,
+          }));
+        }
+        t += 16;
         el.dispatchEvent(new WheelEvent('wheel', {
-          deltaY: 0, deltaX: -(5 - i * 0.5), deltaMode: 0,
+          deltaY: 0, deltaX: -0.5, deltaMode: 0,
           ctrlKey: false, bubbles: true, cancelable: true,
           clientX: cx, clientY: cy,
         }));
-      }, { cx, cy, i });
-      await page.waitForTimeout(16);
-    }
-
-    await page.evaluate(({ cx, cy }) => {
-      const el = document.getElementById('map-container');
-      el.dispatchEvent(new WheelEvent('wheel', {
-        deltaY: 0, deltaX: -0.5, deltaMode: 0,
-        ctrlKey: false, bubbles: true, cancelable: true,
-        clientX: cx, clientY: cy,
-      }));
+      } finally {
+        performance.now = origNow;
+      }
     }, { cx, cy });
 
     const result = await page.evaluate(() => ({

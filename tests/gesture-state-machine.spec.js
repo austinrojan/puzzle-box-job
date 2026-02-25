@@ -241,14 +241,16 @@ test.describe('Gesture coordination', () => {
       expect(r.granted).toBe(true); expect(r.c).toBe('SNAP_BACK');
     });
 
-    test('different animation blocked during animation cooldown', async ({ page }) => {
+    test('animation-to-animation transition allowed during cooldown', async ({ page }) => {
+      // Animation transitions are programmatic (not stray user events),
+      // so cooldown should not block them (e.g. INERTIA→SNAP_BACK).
       const r = await page.evaluate(() => {
         const g = __cam()._gestures;
         g.request('INERTIA');
         g.release('INERTIA');
         return { granted: g.request('ZOOM_ANIMATE'), c: g.current };
       });
-      expect(r.granted).toBe(false); expect(r.c).toBe('IDLE');
+      expect(r.granted).toBe(true); expect(r.c).toBe('ZOOM_ANIMATE');
     });
 
     test('exact 50ms boundary via mocked time', async ({ page }) => {

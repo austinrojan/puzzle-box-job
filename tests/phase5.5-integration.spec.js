@@ -52,11 +52,22 @@ test.describe('sendNow() DOM click fidelity', () => {
     await waitForControllerMap(ctrl, 5000);
 
     // Zoom in so there's room to pan (at cover zoom the map fills the viewport)
+    const initialZoom = await display.evaluate(() =>
+      window.__vtt?.mapRenderer?.camera?.zoom ?? 1
+    );
     await ctrl.evaluate(() => {
       window.__controller.camera.zoomToCenter(0.5);
       window.__controller.syncEngine.sendNow();
     });
-    await new Promise(r => setTimeout(r, 100));
+    // Poll until Display receives the zoom sync (replaces setTimeout(100))
+    await display.waitForFunction(
+      (prev) => {
+        const cam = window.__vtt?.mapRenderer?.camera;
+        return cam && Math.abs(cam.zoom - prev) > 0.001;
+      },
+      initialZoom,
+      { timeout: 3000 }
+    );
 
     await display.evaluate(() => {
       window.__testMsgs = [];
@@ -84,11 +95,22 @@ test.describe('sendNow() DOM click fidelity', () => {
     await waitForControllerMap(ctrl, 5000);
 
     // Zoom in first so zoom-out has room
+    const initialZoom2 = await display.evaluate(() =>
+      window.__vtt?.mapRenderer?.camera?.zoom ?? 1
+    );
     await ctrl.evaluate(() => {
       window.__controller.camera.zoomToCenter(0.5);
       window.__controller.syncEngine.sendNow();
     });
-    await new Promise(r => setTimeout(r, 100));
+    // Poll until Display receives the zoom sync (replaces setTimeout(100))
+    await display.waitForFunction(
+      (prev) => {
+        const cam = window.__vtt?.mapRenderer?.camera;
+        return cam && Math.abs(cam.zoom - prev) > 0.001;
+      },
+      initialZoom2,
+      { timeout: 3000 }
+    );
 
     await display.evaluate(() => {
       window.__testMsgs = [];

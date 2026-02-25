@@ -298,7 +298,11 @@ export async function panToBoundary(page, direction = 'right', zoom = 2.0) {
     cam._applyConstraints();
     const dx = dir === 'right' ? -50 : 50;
     for (let i = 0; i < 200; i++) cam.panBy(dx, 0);
-    return { x: cam.x, y: cam.y };
+    // Verify boundary was reached: pan once more and confirm position didn't change
+    const prevX = cam.x;
+    cam.panBy(dx, 0);
+    const atBoundary = Math.abs(cam.x - prevX) < 0.01;
+    return { x: cam.x, y: cam.y, atBoundary };
   }, [direction, zoom]);
 }
 

@@ -226,7 +226,10 @@ test.describe('Stateful device classification', () => {
         }));
       }
     });
-    await page.waitForTimeout(100);
+    // Wait 2 rAF frames for any pending animation to process
+    await page.evaluate(() => new Promise(resolve => {
+      requestAnimationFrame(() => requestAnimationFrame(resolve));
+    }));
 
     const after = await page.evaluate(() => __cam().zoom);
     expect(after).toBeCloseTo(before, 4);

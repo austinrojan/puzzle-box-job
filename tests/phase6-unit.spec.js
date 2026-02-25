@@ -214,7 +214,11 @@ test.describe('Smooth Zoom (spring-based)', () => {
   test('_smoothZoomTo updates logZoom target within bounds', async ({ page }) => {
     const result = await page.evaluate(() => {
       const cam = __cam();
+      // Pin zoom to a known mid-range value so the target has room to increase.
+      cam.zoom = 2.0;
+      cam._applyConstraints();
       const loop = cam._springLoop;
+      loop.syncFromCamera();
       const before = Math.exp(loop.logZoom.target);
       cam._smoothZoomTo(-1.0, 500, 500);
       const after = Math.exp(loop.logZoom.target);

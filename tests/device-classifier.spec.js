@@ -5,10 +5,10 @@ test.describe('WheelDeviceClassifier', () => {
     await page.goto('/vtt/', { waitUntil: 'load' });
     await page.evaluate(async () => {
       const { WheelDeviceClassifier } = await import('/vtt/js/trackpad-gesture.js');
+      window.__origPerfNow = performance.now;
       window.__newClassifier = () => {
         const c = new WheelDeviceClassifier();
         let mockTime = 1000;
-        const orig = performance.now;
         performance.now = () => mockTime;
         return {
           c,
@@ -16,10 +16,19 @@ test.describe('WheelDeviceClassifier', () => {
           classify(evt) { return c.classify(evt); },
           get device() { return c.device; },
           reset() { c.reset(); },
-          restore() { performance.now = orig; },
+          restore() { performance.now = window.__origPerfNow; },
         };
       };
     });
+  });
+
+  test.afterEach(async ({ page }) => {
+    await page.evaluate(() => {
+      if (window.__origPerfNow) {
+        performance.now = window.__origPerfNow;
+        delete window.__origPerfNow;
+      }
+    }).catch(() => {});
   });
 
   test('rapid small fractional deltas classify as trackpad', async ({ page }) => {
