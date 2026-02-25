@@ -129,15 +129,17 @@ class GestureStateMachine {
       return false;
     }
 
-    // Rule 4: from IDLE — check cooldown (tier-aware)
+    // Rule 4: from IDLE — check cooldown (user-tier only)
     if (this._activeGesture === 'IDLE') {
       if (now - this._lastGestureEndTime < COOLDOWN_MS
           && gesture !== this._lastEndedGesture
           && this._lastEndedGesture !== 'IDLE') {
-        // Cooldown only blocks same-tier different-type transitions
+        // Cooldown absorbs stray user events after gesture end.
+        // Animation-to-animation transitions (e.g. INERTIA→SNAP_BACK)
+        // are programmatic and should never be blocked by cooldown.
         const lastWasUser = USER_GESTURES.has(this._lastEndedGesture);
         const newIsUser = USER_GESTURES.has(gesture);
-        if (lastWasUser === newIsUser) return false;
+        if (lastWasUser && newIsUser) return false;
       }
       this._activate(gesture, now);
       return true;
@@ -790,6 +792,7 @@ export class Camera {
     }
 
     const loop = this._springLoop;
+    if (!loop) return;
     loop.elasticX.position = this.elasticOffsetX;
     loop.elasticY.position = this.elasticOffsetY;
     loop.elasticX.setStiffness(SPRING_STIFFNESS.SNAP_BACK);
@@ -877,6 +880,7 @@ export class Camera {
       this._coastVx = 0;
       this._coastVy = 0;
       this._gestureActive = false;
+      if (this._springLoop) this._springLoop._coastSaturatedFrames = 0;
       if (this._el) this._el.classList.remove('coasting');
     }
   }
@@ -946,6 +950,9 @@ export class Camera {
    * @param {number} screenY Screen Y of the zoom anchor point.
    */
   _smoothZoomTo(dz, screenX, screenY) {
+    const loop = this._springLoop;
+    if (!loop) return;
+
     // Convert notch delta to log-space delta
     const direction = dz < 0 ? 1 : -1;
     const logDelta = Math.log(ZOOM_PER_NOTCH) * Math.abs(dz) * direction;
@@ -954,8 +961,6 @@ export class Camera {
     // Uses logicalScreenToWorld to avoid elastic offset contamination.
     const anchor = this.logicalScreenToWorld(screenX, screenY);
     this._zoomAnchor = { wx: anchor.x, wy: anchor.y, sx: screenX, sy: screenY };
-
-    const loop = this._springLoop;
 
     // If starting fresh, sync position from camera
     if (loop.logZoom.settled) {
@@ -1097,9 +1102,12 @@ export class Camera {
     this._wheelClassifier = new WheelDeviceClassifier();
     this._trackpadDetector = new TrackpadGestureDetector({
       onGestureStart: () => {
-        // Ignore late macOS trackpad momentum events during snap-back,
-        // inertial coast, or momentum pan suppression (elastic saturation).
-        if (this._isSnappingBack || this._isCoasting || this._momentumPanSuppressed) return;
+        // Ignore late macOS trackpad momentum events during snap-back
+        // or inertial coast. New gesture clears momentum suppression so
+        // the ~60-140ms dead zone after elastic saturation doesn't block
+        // the next deliberate scroll.
+        if (this._isSnappingBack || this._isCoasting) return;
+        this._momentumPanSuppressed = false;
         this._cancelInertialCoast();
         this._cancelSnapBack();
         if (this._gestures) this._gestures.request('SCROLL_PAN');
