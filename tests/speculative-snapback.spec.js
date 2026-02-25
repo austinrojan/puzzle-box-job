@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { setupMapCamera } from './helpers.js';
+import { setupMapCamera, panToBoundary } from './helpers.js';
 
 // ============================================================
 // Elastic snap-back guard and cancellation tests
@@ -199,12 +199,7 @@ test.describe('Elastic snap-back integration', () => {
   });
 
   test('elastic overscroll resolves within 500ms of last input', async ({ page }) => {
-    await page.evaluate(() => {
-      const cam = __cam();
-      cam.zoom = 2.0;
-      cam._applyConstraints();
-      for (let i = 0; i < 200; i++) cam.panBy(50, 0);
-    });
+    await panToBoundary(page, 'left');
 
     await page.evaluate(() => {
       const el = document.getElementById('map-container');
@@ -233,12 +228,7 @@ test.describe('Elastic snap-back integration', () => {
   });
 
   test('continuous scrolling at boundary is not interrupted by snap-back', async ({ page }) => {
-    await page.evaluate(() => {
-      const cam = __cam();
-      cam.zoom = 2.0;
-      cam._applyConstraints();
-      for (let i = 0; i < 200; i++) cam.panBy(50, 0);
-    });
+    await panToBoundary(page, 'left');
 
     for (let i = 0; i < 30; i++) {
       await page.evaluate(() => {
@@ -263,26 +253,14 @@ test.describe('Elastic snap-back integration', () => {
   });
 
   test('momentum with saturated elastic at boundary triggers early snap-back', async ({ page }) => {
-    // Push camera to boundary (elastic stays 0 since _gestureActive is false)
-    await page.evaluate(() => {
-      const cam = __cam();
-      cam.zoom = 2.0;
-      cam._applyConstraints();
-      for (let k = 0; k < 200; k++) cam.panBy(50, 0);
-    });
+    await panToBoundary(page, 'left');
 
     const el = page.locator('#map-container');
     const box = await el.boundingBox();
     const cx = box.x + box.width / 2;
     const cy = box.y + box.height / 2;
 
-    // Send decaying deltas large enough to:
-    // 1. Trigger momentum detection (decay streak >= 2, eventCount > 4)
-    // 2. Saturate elastic offset at MAX_ELASTIC_SCREEN_PX cap
-    // With c=0.3 (momentum), zoom=2, viewportW=960, cap=150 screen px,
-    // saturation requires cumOverflow >= ~296 world px. Need 2 events past
-    // cap for the change-detection check to fire (prev === current).
-    // Deltas: 80,75,70,...,15 (14 events, sum=665, cumOverflow=332.5 world px)
+    // Send decaying deltas to trigger momentum detection and saturate elastic cap
     const result = await page.evaluate(({ cx, cy }) => {
       const el = document.getElementById('map-container');
       for (let i = 0; i < 14; i++) {
@@ -305,12 +283,10 @@ test.describe('Elastic snap-back integration', () => {
   });
 
   test('small momentum deltas away from boundary do NOT cancel gesture', async ({ page }) => {
-    // Ensure camera is NOT at boundary (no elastic offset)
     await page.evaluate(() => {
       const cam = __cam();
       cam.zoom = 2.0;
       cam._applyConstraints();
-      // Position in the middle of the map
       cam.x = cam.mapW / 4;
       cam.y = cam.mapH / 4;
     });
@@ -319,7 +295,6 @@ test.describe('Elastic snap-back integration', () => {
     const cx = box.x + box.width / 2;
     const cy = box.y + box.height / 2;
 
-    // Start a gesture with active scrolling
     for (let i = 0; i < 6; i++) {
       await page.evaluate(({ cx, cy, i }) => {
         const el = document.getElementById('map-container');
@@ -332,7 +307,6 @@ test.describe('Elastic snap-back integration', () => {
       await page.waitForTimeout(16);
     }
 
-    // Small delta (would trigger cutoff if at boundary)
     await page.evaluate(({ cx, cy }) => {
       const el = document.getElementById('map-container');
       el.dispatchEvent(new WheelEvent('wheel', {
@@ -347,7 +321,6 @@ test.describe('Elastic snap-back integration', () => {
       elasticX: __cam().elasticOffsetX,
     }));
 
-    // Detector should NOT be cancelled (no elastic offset = not at boundary)
     expect(result.detectorState).not.toBe('IDLE');
     expect(result.elasticX).toBe(0);
   });
@@ -392,13 +365,7 @@ test.describe('Elastic snap-back integration', () => {
   });
 
   test('small deltas at boundary trigger snap-back even without formal momentum', async ({ page }) => {
-    // Push camera to boundary with elastic offset
-    await page.evaluate(() => {
-      const cam = __cam();
-      cam.zoom = 2.0;
-      cam._applyConstraints();
-      for (let k = 0; k < 200; k++) cam.panBy(50, 0);
-    });
+    await panToBoundary(page, 'left');
 
     const box = await page.locator('#map-container').boundingBox();
     const cx = box.x + box.width / 2;
@@ -423,8 +390,6 @@ test.describe('Elastic snap-back integration', () => {
       };
     }, { cx, cy });
 
-    // Momentum should NOT have been detected (no decay), but
-    // the fallback should have triggered snap-back anyway
     expect(result.momentumDetected).toBe(false);
     expect(result.isSnapping).toBe(true);
     expect(result.suppressed).toBe(true);

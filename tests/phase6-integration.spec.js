@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { setupMapCamera, dispatchMouseWheelSequence } from './helpers.js';
+import { setupMapCamera, panToBoundary, dispatchMouseWheelSequence } from './helpers.js';
 
 // ============================================================
 // Trackpad elastic overscroll
@@ -10,21 +10,9 @@ test.describe('Trackpad elastic overscroll', () => {
   });
 
   test('trackpad scroll at boundary produces elastic offset', async ({ page }) => {
-    // Zoom in to create room to pan
-    await page.evaluate(() => {
-      const cam = __cam();
-      cam.zoom = 2.0;
-      cam._applyConstraints();
-    });
+    await panToBoundary(page, 'left');
 
-    // Pan to the left boundary (panBy(50,0) → rawX = x - 50/zoom → camera moves left)
-    await page.evaluate(() => {
-      const cam = __cam();
-      for (let i = 0; i < 200; i++) cam.panBy(50, 0);
-    });
-
-    // Dispatch trackpad-like wheel events to push PAST the left boundary.
-    // deltaX: -15 → normalizeWheel dx: -15 → panBy(15, 0) → camera moves left
+    // Dispatch trackpad-like wheel events to push past the left boundary
     await page.evaluate(() => {
       const el = document.getElementById('map-container');
       const rect = el.getBoundingClientRect();
@@ -38,26 +26,18 @@ test.describe('Trackpad elastic overscroll', () => {
         }));
       }
     });
-    // panBy + elastic offset are synchronous — no wait needed
 
     const result = await page.evaluate(() => {
       const cam = __cam();
       return { elasticX: cam.elasticOffsetX, x: cam.x };
     });
 
-    // camera.x at hard boundary, elastic offset nonzero
     expect(result.x).toBeGreaterThanOrEqual(0);
     expect(Math.abs(result.elasticX)).toBeGreaterThan(0);
   });
 
   test('elastic offset springs back to zero after gesture end', async ({ page }) => {
-    // Setup: zoom in + pan to boundary + dispatch scroll events
-    await page.evaluate(() => {
-      const cam = __cam();
-      cam.zoom = 2.0;
-      cam._applyConstraints();
-      for (let i = 0; i < 200; i++) cam.panBy(50, 0);
-    });
+    await panToBoundary(page, 'left');
 
     await page.evaluate(() => {
       const el = document.getElementById('map-container');
@@ -73,7 +53,6 @@ test.describe('Trackpad elastic overscroll', () => {
       }
     });
 
-    // Wait for gesture end timeout (150ms) + spring animation (~250ms)
     await page.waitForFunction(() => {
       const cam = window.__vtt?.mapRenderer?.camera;
       return cam && Math.abs(cam.elasticOffsetX) < 1.0;
@@ -93,12 +72,10 @@ test.describe('Mouse drag elastic (dual-position)', () => {
   });
 
   test('right-click drag past boundary produces elastic offset', async ({ page }) => {
-    // Zoom in and position camera at the right boundary.
-    // Dragging LEFT (within the container) pushes rawX past maxX → overflow.
     await page.evaluate(() => {
       const cam = __cam();
       cam.zoom = 2.0;
-      cam.x = cam.mapW; // past right boundary — _applyConstraints clamps to maxX
+      cam.x = cam.mapW;
       cam._applyConstraints();
     });
 
@@ -107,7 +84,6 @@ test.describe('Mouse drag elastic (dual-position)', () => {
     const cx = box.x + box.width / 2;
     const cy = box.y + box.height / 2;
 
-    // Right-click drag from center toward left edge (stays INSIDE container)
     await page.mouse.move(cx, cy);
     await page.mouse.down({ button: 'right' });
     await page.mouse.move(box.x + 50, cy, { steps: 10 });
@@ -123,14 +99,11 @@ test.describe('Mouse drag elastic (dual-position)', () => {
 
     expect(duringDrag.gestureActive).toBe(true);
     expect(Math.abs(duringDrag.elasticX)).toBeGreaterThan(0);
-    // cam.x stays at hard boundary (dual-position model)
     expect(duringDrag.x).toBeGreaterThanOrEqual(0);
 
-    // Release
-    await page.mouse.up({ button: 'left' }); // wrong button first to verify only right matters
+    await page.mouse.up({ button: 'left' });
     await page.mouse.up({ button: 'right' });
 
-    // Wait for snap-back
     await page.waitForFunction(() => {
       const cam = window.__vtt?.mapRenderer?.camera;
       return cam && Math.abs(cam.elasticOffsetX) < 1.0 && !cam._gestureActive;
@@ -149,15 +122,12 @@ test.describe('Mouse drag elastic (dual-position)', () => {
 
     await page.mouse.move(cx, cy);
     await page.mouse.down({ button: 'left' });
-    // Move past threshold (3px)
     await page.mouse.move(cx + 50, cy, { steps: 5 });
 
     const active = await page.evaluate(() => __cam()._gestureActive);
     expect(active).toBe(true);
 
     await page.mouse.up({ button: 'left' });
-    // After release: gestureActive may be true briefly (inertial coast) or false
-    // Wait for everything to settle
     await page.waitForFunction(() => {
       const cam = window.__vtt?.mapRenderer?.camera;
       return cam && !cam._gestureActive && Math.abs(cam.elasticOffsetX) < 1.0;
@@ -184,7 +154,6 @@ test.describe('Smooth zoom animation', () => {
     }, { timeout: 2000 });
 
     const afterZoom = await page.evaluate(() => __cam().zoom);
-    // Mouse wheel scroll up (-100 deltaY) → zoom in
     expect(afterZoom).toBeGreaterThan(beforeZoom);
   });
 });
@@ -198,12 +167,10 @@ test.describe('Gesture preemption', () => {
   });
 
   test('mouse drag preempts scroll gesture', async ({ page }) => {
-    // Start a scroll gesture
     await page.evaluate(() => {
       const cam = __cam();
       cam.zoom = 2.0;
       cam._applyConstraints();
-      // Simulate trackpad scroll gesture start (small fractional delta)
       const el = document.getElementById('map-container');
       const rect = el.getBoundingClientRect();
       el.dispatchEvent(new WheelEvent('wheel', {
@@ -217,7 +184,6 @@ test.describe('Gesture preemption', () => {
     const gestureBeforeDrag = await page.evaluate(() => __cam()._gestures?.current);
     expect(gestureBeforeDrag).toBe('SCROLL_PAN');
 
-    // Now start a mouse drag (higher priority)
     const canvas = page.locator('#map-container');
     const box = await canvas.boundingBox();
     await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
@@ -231,7 +197,7 @@ test.describe('Gesture preemption', () => {
 });
 
 // ============================================================
-// Stateful device classification (Phase S1)
+// Stateful device classification
 // ============================================================
 test.describe('Stateful device classification', () => {
   test.beforeEach(async ({ page }) => {
@@ -239,7 +205,6 @@ test.describe('Stateful device classification', () => {
   });
 
   test('fast trackpad scroll does NOT trigger zoom (bug #4 regression)', async ({ page }) => {
-    // Zoom in so pan has room to operate at all viewports
     await page.evaluate(() => {
       const cam = __cam();
       cam.zoom = 2.0;
@@ -247,9 +212,7 @@ test.describe('Stateful device classification', () => {
     });
     const before = await page.evaluate(() => __cam().zoom);
 
-    // Dispatch 10 rapid wheel events mimicking fast trackpad scroll.
-    // Large integer deltaY (80) with no horizontal — the OLD classifier
-    // would misidentify as mouse and route to SmoothZoomAnimator.
+    // Dispatch 10 rapid wheel events mimicking fast trackpad scroll
     await page.evaluate(() => {
       const el = document.getElementById('map-container');
       const rect = el.getBoundingClientRect();
@@ -263,16 +226,9 @@ test.describe('Stateful device classification', () => {
         }));
       }
     });
-    // Negative assertion: need time-based wait since we're verifying nothing happens.
-    // Condition-based waiting is inappropriate for "nothing changed" assertions.
     await page.waitForTimeout(100);
 
     const after = await page.evaluate(() => __cam().zoom);
-
-    // THE critical assertion: zoom must not change.
-    // Fast trackpad scroll routes to panBy(), not SmoothZoomAnimator.
-    // Pan may or may not move depending on viewport constraints,
-    // but zoom must remain unchanged.
     expect(after).toBeCloseTo(before, 4);
   });
 
@@ -292,7 +248,6 @@ test.describe('Stateful device classification', () => {
         }));
       }
     });
-    // zoomAt is synchronous — no wait needed
 
     const after = await page.evaluate(() => __cam().zoom);
     expect(after).not.toBeCloseTo(before, 4);
@@ -314,9 +269,9 @@ test.describe('Stateful device classification', () => {
 });
 
 // ============================================================
-// Gesture coordination (Phase S4)
+// Gesture coordination
 // ============================================================
-test.describe('Gesture coordination (Phase S4)', () => {
+test.describe('Gesture coordination', () => {
   test.beforeEach(async ({ page }) => {
     await setupMapCamera(page);
   });
@@ -373,11 +328,7 @@ test.describe('Gesture coordination (Phase S4)', () => {
   });
 
   test('zoom during elastic overscroll uses correct anchor', async ({ page }) => {
-    await page.evaluate(() => {
-      const cam = __cam();
-      cam.zoom = 2.0; cam._applyConstraints();
-      for (let i = 0; i < 200; i++) cam.panBy(50, 0);
-    });
+    await panToBoundary(page, 'left');
 
     await page.evaluate(() => {
       const cam = __cam();

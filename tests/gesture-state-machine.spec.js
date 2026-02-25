@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
 import { setupMapCamera } from './helpers.js';
 
-test.describe('Phase S4: Gesture coordination', () => {
+test.describe('Gesture coordination', () => {
   test.beforeEach(async ({ page }) => {
     await setupMapCamera(page);
   });
@@ -332,8 +332,7 @@ test.describe('Phase S4: Gesture coordination', () => {
     });
   });
 
-  // --- _cancelCurrent S3 integration ---
-  test.describe('GSM _cancelCurrent S3 integration', () => {
+  test.describe('GSM _cancelCurrent integration', () => {
     test('cancelling SNAP_BACK calls _cancelSnapBack', async ({ page }) => {
       const r = await page.evaluate(() => {
         const cam = __cam();

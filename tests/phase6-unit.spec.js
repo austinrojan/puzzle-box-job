@@ -136,7 +136,7 @@ test.describe('Dual-position elastic model', () => {
       return { offsetX: cam.elasticOffsetX, offsetY: cam.elasticOffsetY };
     });
     expect(Math.abs(result.offsetX)).toBeGreaterThan(0);
-    expect(Math.abs(result.offsetX)).toBeLessThan(100); // Rubber-banded
+    expect(Math.abs(result.offsetX)).toBeLessThan(100);
     expect(result.offsetY).toBe(0);
   });
 
@@ -147,7 +147,6 @@ test.describe('Dual-position elastic model', () => {
       cam._momentumScrollActive = false;
       cam._feedElasticOverflow(200, 0);
       const activeOffset = cam.elasticOffsetX;
-      // Reset state between phases for isolation
       cam.elasticOffsetX = 0;
       cam._cumulativeOverflowX = 0;
       cam._momentumScrollActive = true;
@@ -173,13 +172,10 @@ test.describe('Dual-position elastic model', () => {
   test('panBy at boundary produces elastic offset when gesture active', async ({ page }) => {
     const result = await page.evaluate(() => {
       const cam = __cam();
-      // Zoom in so boundaries exist
       cam.zoom = 2.0;
       cam._applyConstraints();
-      // Pan to left boundary
       for (let i = 0; i < 200; i++) cam.panBy(50, 0);
       const atBoundary = cam.x;
-      // Now activate gesture and push past
       cam._gestureActive = true;
       cam._cumulativeOverflowX = 0;
       cam.panBy(200, 0);
@@ -189,16 +185,13 @@ test.describe('Dual-position elastic model', () => {
         elasticX: cam.elasticOffsetX,
       };
     });
-    // Precondition: camera reached the left boundary (x=0)
     expect(result.atBoundary).toBeCloseTo(0, 0);
-    // camera.x should still be at the hard boundary (NOT < 0)
     expect(result.x).toBeCloseTo(result.atBoundary, 0);
     expect(result.x).toBeGreaterThanOrEqual(0);
-    // elastic offset should be nonzero
     expect(Math.abs(result.elasticX)).toBeGreaterThan(0);
   });
 
-  test('_applyConstraints always hard-clamps (no _isDragging branch)', async ({ page }) => {
+  test('_applyConstraints always hard-clamps', async ({ page }) => {
     const result = await page.evaluate(() => {
       const cam = __cam();
       cam.zoom = 2.0;
@@ -223,7 +216,7 @@ test.describe('Smooth Zoom (spring-based)', () => {
       const cam = __cam();
       const loop = cam._springLoop;
       const before = Math.exp(loop.logZoom.target);
-      cam._smoothZoomTo(-1.0, 500, 500); // Zoom in (dz < 0 = zoom in)
+      cam._smoothZoomTo(-1.0, 500, 500);
       const after = Math.exp(loop.logZoom.target);
       return { before, after };
     });
@@ -263,7 +256,7 @@ test.describe('Smooth Zoom (spring-based)', () => {
 });
 
 // ============================================================
-// rubberBand function (still exists, just verify)
+// rubberBand function
 // ============================================================
 test.describe('rubberBand function', () => {
   test.beforeEach(async ({ page }) => {
@@ -273,13 +266,11 @@ test.describe('rubberBand function', () => {
   test('diminishing returns on deeper overshoot', async ({ page }) => {
     const result = await page.evaluate(() => {
       const cam = __cam();
-      // Use _feedElasticOverflow to test rubber-band effect
       cam._gestureActive = true;
       cam._feedElasticOverflow(50, 0);
       const small = cam.elasticOffsetX;
       cam._feedElasticOverflow(500, 0);
       const large = cam.elasticOffsetX;
-      // Ratio: 500/50 = 10x input, but output ratio should be much less
       return { small, large, ratio: Math.abs(large / small) };
     });
     expect(result.ratio).toBeLessThan(10);
