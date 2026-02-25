@@ -20,6 +20,7 @@ const DRAG_THRESHOLD = 3;          // px before click becomes drag
 const COVER_ZOOM_EPSILON = 0.001;
 const MAX_COAST_SPEED = 3000;     // px/s — Leaflet inertiaMaxSpeed reference
 const SETTLE_THRESHOLD_PX = 0.5;  // world-space px — elastic snap-back skip threshold
+const INERTIA_THRESHOLD = 100;    // px/s — minimum release speed to trigger inertial coast
 
 // Apple iOS-style rubber-band: asymptotic resistance that grows weaker
 // the further you overshoot, preventing the viewport from ever reaching
@@ -78,7 +79,7 @@ export class VelocityTracker {
 const ZOOM_PER_NOTCH = 1.15;          // ~15% zoom per mouse wheel notch
 
 // ============================================================
-// Gesture State Machine (Phase S4: Hierarchical Coordination)
+// Gesture State Machine — Hierarchical Coordination
 // ============================================================
 //
 // Five ordered decision rules with cooldown and tier separation
@@ -426,9 +427,9 @@ export class Camera {
     this._velocityTracker = new VelocityTracker();
     this._momentumEnabled = true;
 
-    // Phase 6: dual-position elastic offset
-    this.elasticOffsetX = 0;       // visual displacement beyond hard bounds (world-space)
-    this.elasticOffsetY = 0;       // visual displacement beyond hard bounds (world-space)
+    // Dual-position elastic offset (visual displacement beyond hard bounds)
+    this.elasticOffsetX = 0;       // world-space
+    this.elasticOffsetY = 0;       // world-space
     this._gestureActive = false;   // true when any gesture feeds elastic offset
     this._momentumScrollActive = false;  // true during trackpad momentum (dampened rubber-band)
     this._cumulativeOverflowX = 0; // accumulated overflow for rubber-band calculation
@@ -439,12 +440,12 @@ export class Camera {
     this._zoomAnchor = null;        // {wx, wy, sx, sy} for smooth zoom anchor preservation
 
     this._isSnappingBack = false;        // double-fire defense flag
-    this._elasticSnapSignX = 0;          // Phase S5: sign guard for spring-based snap-back
+    this._elasticSnapSignX = 0;          // Sign guard for spring-based snap-back
     this._elasticSnapSignY = 0;
     this._momentumPanSuppressed = false; // suppress panBy during elastic saturation
 
-    // Phase S5: Scroll-wheel behavior preference
-    this._scrollWheelBehavior = 'auto';  // 'auto' | 'pan' | 'zoom'
+    // Scroll-wheel behavior preference ('auto' | 'pan' | 'zoom')
+    this._scrollWheelBehavior = 'auto';
     try {
       const saved = localStorage.getItem('vtt_scroll_behavior');
       if (saved && ['auto', 'pan', 'zoom'].includes(saved)) {
@@ -452,7 +453,7 @@ export class Camera {
       }
     } catch { /* storage unavailable (sandboxed iframe, quota exceeded) */ }
 
-    // Phase S5: Cooperative gesture handling (iframe embeds)
+    // Cooperative gesture handling for iframe embeds
     this._cooperativeGestures = false;
     this._cooperativeOverlay = null;
     this._cooperativeHideTimer = null;
@@ -663,11 +664,7 @@ export class Camera {
     const minZoom = this._getMinZoom();
     if (this.zoom < minZoom) {
       if (this._lastClampedZoom !== this.zoom) {
-        console.debug(
-          `[Camera] Zoom ${this.zoom.toFixed(4)} clamped to coverZoom ` +
-          `${minZoom.toFixed(4)} (viewport ${this.viewportW}\u00D7${this.viewportH}, ` +
-          `map ${this.mapW}\u00D7${this.mapH})`
-        );
+        console.debug(`[Camera] Zoom ${this.zoom.toFixed(4)} clamped to coverZoom ${minZoom.toFixed(4)} (${this.viewportW}\u00D7${this.viewportH} vp, ${this.mapW}\u00D7${this.mapH} map)`);
         this._lastClampedZoom = this.zoom;
       }
       this.zoom = minZoom;
@@ -686,7 +683,7 @@ export class Camera {
     EventBus.emit('camera:changed');
   }
 
-  // --- Phase 6: Elastic offset methods ---
+  // --- Elastic offset methods ---
 
   /**
    * Update cumulative overflow with input-proportional drain.
@@ -899,7 +896,7 @@ export class Camera {
     const logDelta = Math.log(ZOOM_PER_NOTCH) * Math.abs(dz) * direction;
 
     // Store anchor for per-frame position adjustment in the spring loop tick.
-    // Uses logicalScreenToWorld (no elastic contamination — Phase S4 fix).
+    // Uses logicalScreenToWorld to avoid elastic offset contamination.
     const anchor = this.logicalScreenToWorld(screenX, screenY);
     this._zoomAnchor = { wx: anchor.x, wy: anchor.y, sx: screenX, sy: screenY };
 
@@ -1223,11 +1220,10 @@ export class Camera {
       this._panButton = -1;
       this._setPanCursor(false);
 
-      // Phase 6: compute release velocity for inertial coast
+      // Compute release velocity for inertial coast
       const velocity = this._velocityTracker.getVelocity();
       this._velocityTracker.reset();
       const speed = Math.sqrt(velocity.vx ** 2 + velocity.vy ** 2);
-      const INERTIA_THRESHOLD = 100; // px/s
 
       if (this._gestures) this._gestures.release('DRAG_PAN');
 
@@ -1364,7 +1360,7 @@ export class Camera {
       }
     });
 
-    // Phase S5: Cooperative gesture handling — auto-detect iframe
+    // Cooperative gesture handling — auto-detect iframe
     try {
       if (window.self !== window.top) {
         this._cooperativeGestures = true;
@@ -1404,7 +1400,7 @@ export class Camera {
     this._panStartCamY = this.y;
     this._panScreenDist = 0;
 
-    // Phase 6: dual-position elastic model
+    // Reset elastic state for new gesture
     this._gestureActive = true;
     this._cumulativeOverflowX = 0;
     this._cumulativeOverflowY = 0;
