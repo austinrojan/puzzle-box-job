@@ -881,6 +881,58 @@ export class Camera {
     }
   }
 
+  // --- Wheel handler branches ---
+
+  _handleWheelZoom(e, dz) {
+    const device = this._wheelClassifier.classify(e);
+    const screen = this.eventToScreen(e);
+
+    if (device === 'mouse') {
+      const granted = this._gestures.request('ZOOM_ANIMATE');
+      if (granted) this._smoothZoomTo(dz, screen.x, screen.y);
+    } else {
+      const granted = this._gestures.request('PINCH_ZOOM');
+      if (granted) this.zoomAt(screen.x, screen.y, dz * -ZOOM_SENSITIVITY);
+    }
+  }
+
+  _handleWheelPan(e, dx, dy) {
+    // Pan with gesture detection — feed detector for state tracking
+    this._trackpadDetector.handleWheel(e);
+
+    // After momentum boundary detection, suppress panBy but keep
+    // feeding the detector for natural timeout tracking. This
+    // prevents phantom gesture restarts that cancel() would cause.
+    if (this._momentumPanSuppressed) return;
+
+    this.panBy(-dx, -dy);
+
+    // Early momentum termination: once momentum is detected AND
+    // we're at an elastic boundary, suppress further pan events and
+    // start snap-back immediately. The user's fingers are already
+    // off the trackpad — macOS sends 60+ inertial events over ~1-2s
+    // that keep pushing past the boundary with no user control.
+    if (this._momentumScrollActive &&
+        (this.elasticOffsetX !== 0 || this.elasticOffsetY !== 0)) {
+      this._momentumPanSuppressed = true;
+      this._gestureActive = false;
+      this._snapBackElastic();
+      return;
+    }
+
+    // Fallback: detect likely momentum even when detector hasn't
+    // formally transitioned (noisy macOS deltas reset decay streak).
+    // Small deltas + many events + elastic boundary = momentum.
+    if (!this._momentumScrollActive &&
+        this._trackpadDetector._eventCount > 6 &&
+        Math.abs(dx) + Math.abs(dy) < 3.0 &&
+        (this.elasticOffsetX !== 0 || this.elasticOffsetY !== 0)) {
+      this._momentumPanSuppressed = true;
+      this._gestureActive = false;
+      this._snapBackElastic();
+    }
+  }
+
   // --- Zoom operations ---
 
   /**
@@ -1083,17 +1135,7 @@ export class Camera {
       e.preventDefault();
 
       if (dz !== 0) {
-        // Ctrl/meta + wheel → zoom path (pinch synthesis on trackpads)
-        const device = this._wheelClassifier.classify(e);
-        const screen = this.eventToScreen(e);
-
-        if (device === 'mouse') {
-          const granted = this._gestures.request('ZOOM_ANIMATE');
-          if (granted) this._smoothZoomTo(dz, screen.x, screen.y);
-        } else {
-          const granted = this._gestures.request('PINCH_ZOOM');
-          if (granted) this.zoomAt(screen.x, screen.y, dz * -ZOOM_SENSITIVITY);
-        }
+        this._handleWheelZoom(e, dz);
       } else if (dx !== 0 || dy !== 0) {
         // Non-ctrl wheel: preference > classifier > default
         let behavior;
@@ -1109,39 +1151,7 @@ export class Camera {
           const granted = this._gestures.request('ZOOM_ANIMATE');
           if (granted) this._smoothZoomTo(dy / 100, screen.x, screen.y);
         } else {
-          // Pan with gesture detection — feed detector for state tracking
-          this._trackpadDetector.handleWheel(e);
-
-          // After momentum boundary detection, suppress panBy but keep
-          // feeding the detector for natural timeout tracking. This
-          // prevents phantom gesture restarts that cancel() would cause.
-          if (this._momentumPanSuppressed) return;
-
-          this.panBy(-dx, -dy);
-
-          // Early momentum termination: once momentum is detected AND
-          // we're at an elastic boundary, suppress further pan events and
-          // start snap-back immediately. The user's fingers are already
-          // off the trackpad — macOS sends 60+ inertial events over ~1-2s
-          // that keep pushing past the boundary with no user control.
-          if (this._momentumScrollActive &&
-              (this.elasticOffsetX !== 0 || this.elasticOffsetY !== 0)) {
-            this._momentumPanSuppressed = true;
-            this._gestureActive = false;
-            this._snapBackElastic();
-          }
-
-          // Fallback: detect likely momentum even when detector hasn't
-          // formally transitioned (noisy macOS deltas reset decay streak).
-          // Small deltas + many events + elastic boundary = momentum.
-          if (!this._momentumScrollActive &&
-              this._trackpadDetector._eventCount > 6 &&
-              Math.abs(dx) + Math.abs(dy) < 3.0 &&
-              (this.elasticOffsetX !== 0 || this.elasticOffsetY !== 0)) {
-            this._momentumPanSuppressed = true;
-            this._gestureActive = false;
-            this._snapBackElastic();
-          }
+          this._handleWheelPan(e, dx, dy);
         }
       }
     }, { passive: false });
