@@ -1112,24 +1112,20 @@ export class Camera {
           // Pan with gesture detection — feed detector for state tracking
           this._trackpadDetector.handleWheel(e);
 
-          // After elastic saturation during momentum, suppress panBy but
-          // keep feeding the detector for natural timeout tracking. This
+          // After momentum boundary detection, suppress panBy but keep
+          // feeding the detector for natural timeout tracking. This
           // prevents phantom gesture restarts that cancel() would cause.
           if (this._momentumPanSuppressed) return;
 
-          const prevElasticX = this.elasticOffsetX;
-          const prevElasticY = this.elasticOffsetY;
           this.panBy(-dx, -dy);
 
-          // Early momentum termination: when elastic offset is saturated
-          // during momentum (no visible change from panBy), suppress further
-          // pan events and start snap-back immediately. macOS momentum can
-          // send 60+ events over ~1s that all hit the elastic cap
-          // (MAX_ELASTIC_SCREEN_PX), producing zero visual change.
+          // Early momentum termination: once momentum is detected AND
+          // we're at an elastic boundary, suppress further pan events and
+          // start snap-back immediately. The user's fingers are already
+          // off the trackpad — macOS sends 60+ inertial events over ~1-2s
+          // that keep pushing past the boundary with no user control.
           if (this._momentumScrollActive &&
-              (this.elasticOffsetX !== 0 || this.elasticOffsetY !== 0) &&
-              Math.abs(this.elasticOffsetX - prevElasticX) < 0.01 &&
-              Math.abs(this.elasticOffsetY - prevElasticY) < 0.01) {
+              (this.elasticOffsetX !== 0 || this.elasticOffsetY !== 0)) {
             this._momentumPanSuppressed = true;
             this._gestureActive = false;
             this._snapBackElastic();
