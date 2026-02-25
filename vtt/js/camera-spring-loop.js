@@ -2,6 +2,13 @@
 // CameraSpringLoop — One rAF loop for all camera animation
 // ============================================================
 //
+// FRIEND CLASS: This module is a private implementation detail of Camera.
+// It reads and writes Camera private properties directly (x, y, zoom,
+// elasticOffsetX/Y, _zoomAnchor, _isSnappingBack, _isCoasting,
+// _coastVx/Vy, _gestureActive, _elasticSnapSignX/Y, etc.).
+// Any change to Camera's elastic/coast/snap-back state must be
+// coordinated with _tick(). Do not expand this coupling further.
+//
 // Consolidates three independent rAF loops (CameraAnimator,
 // elastic animator, SmoothZoomAnimator) into a single loop
 // that advances all spring axes per frame.
@@ -192,12 +199,7 @@ export class CameraSpringLoop {
     // target = current) so it doesn't fight the drain. After coast ends,
     // _snapBackElastic() sets the proper target (0) and starts the spring.
     if (cam._isCoasting) {
-      this.elasticX.position = cam.elasticOffsetX;
-      this.elasticX.target = cam.elasticOffsetX;
-      this.elasticX.velocity = 0;
-      this.elasticY.position = cam.elasticOffsetY;
-      this.elasticY.target = cam.elasticOffsetY;
-      this.elasticY.velocity = 0;
+      this.syncElasticFromCamera();
     }
 
     // Re-derive elastic settlement after coast — _tickCoast may have

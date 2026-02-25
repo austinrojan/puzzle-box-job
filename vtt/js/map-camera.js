@@ -175,15 +175,9 @@ class GestureStateMachine {
       case 'SNAP_BACK':
         this._camera._cancelSnapBack();
         break;
-      case 'ZOOM_ANIMATE': {
-        const loop = this._camera._springLoop;
-        if (loop) {
-          loop.logZoom.setTarget(loop.logZoom.position);
-          loop.logZoom.velocity = 0;
-        }
-        this._camera._zoomAnchor = null;
+      case 'ZOOM_ANIMATE':
+        this._camera._cancelZoomAnimation();
         break;
-      }
       case 'SCROLL_PAN':
         this._camera._trackpadDetector.cancel();
         break;
@@ -885,6 +879,15 @@ export class Camera {
     }
   }
 
+  _cancelZoomAnimation() {
+    const loop = this._springLoop;
+    if (loop) {
+      loop.logZoom.setTarget(loop.logZoom.position);
+      loop.logZoom.velocity = 0;
+    }
+    this._zoomAnchor = null;
+  }
+
   // --- Wheel handler branches ---
 
   _handleWheelZoom(e, dz) {
@@ -928,7 +931,7 @@ export class Camera {
     // formally transitioned (noisy macOS deltas reset decay streak).
     // Small deltas + many events + elastic boundary = momentum.
     if (!this._momentumScrollActive &&
-        this._trackpadDetector._eventCount > 6 &&
+        this._trackpadDetector.eventCount > 6 &&
         Math.abs(dx) + Math.abs(dy) < 3.0 &&
         (this.elasticOffsetX !== 0 || this.elasticOffsetY !== 0)) {
       this._momentumPanSuppressed = true;
@@ -1439,8 +1442,8 @@ export class Camera {
     this._pendingPan = false;
     this._panButton = 0;
     if (this._gestures) this._gestures.request('DRAG_PAN');
-    this._resetElasticState();
     this._cancelSnapBack();
+    this._resetElasticState();
     if (this._springLoop) this._springLoop.syncElasticFromCamera();
     this._setPanCursor(true);
   }

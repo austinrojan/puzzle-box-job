@@ -96,6 +96,10 @@ export class TrackpadGestureDetector {
     return this.state === 'ACTIVE' || this.state === 'MOMENTUM';
   }
 
+  get eventCount() {
+    return this._eventCount;
+  }
+
   destroy() {
     clearTimeout(this._endTimer);
   }
