@@ -46,6 +46,7 @@ export class CameraSpringLoop {
     });
 
     this._tick = this._tick.bind(this);
+    this._coastSaturatedFrames = 0;
   }
 
   /** Ensure the loop is running. Idempotent. */
@@ -145,7 +146,7 @@ export class CameraSpringLoop {
     cam.elasticOffsetY = this.elasticY.position;
     cam.zoom = Math.exp(this.logZoom.position);
 
-    // T9: Zoom anchor preservation — when the zoom spring is animating,
+    // Zoom anchor preservation — when the zoom spring is animating,
     // adjust camera position so the anchor world-point stays at the
     // same screen position. Otherwise, write pan positions from springs.
     if (!zoomSettled && cam._zoomAnchor) {
@@ -162,7 +163,7 @@ export class CameraSpringLoop {
       }
     }
 
-    // C4: Sign guard — prevent elastic offset from crossing zero during snap-back.
+    // Sign guard — prevent elastic offset from crossing zero during snap-back.
     if (cam._isSnappingBack) {
       if (this._clampElasticSign(this.elasticX, cam._elasticSnapSignX)) {
         cam.elasticOffsetX = 0;
@@ -170,19 +171,17 @@ export class CameraSpringLoop {
       if (this._clampElasticSign(this.elasticY, cam._elasticSnapSignY)) {
         cam.elasticOffsetY = 0;
       }
-
     }
 
-    // C1: Call _applyConstraints() which emits camera:changed.
-    // Do NOT call cam._emitChanged() — it doesn't exist.
+    // Apply constraints and emit camera:changed.
     cam._applyConstraints();
 
-    // T8: Inertial coast — friction-based velocity decay via panBy().
-    // Must run BEFORE the C2 sync-back so that panBy()'s camera changes
+    // Inertial coast — friction-based velocity decay via panBy().
+    // Must run BEFORE the sync-back so that panBy()'s camera changes
     // (both position and elastic offset) are captured by the sync.
     if (cam._isCoasting) this._tickCoast(dt);
 
-    // C2: Sync clamped values back into springs to prevent
+    // Sync clamped values back into springs to prevent
     // the spring from fighting the constraint system.
     // Placed AFTER coast so panBy()'s camera changes are captured.
     this.panX.position = cam.x;
@@ -207,7 +206,7 @@ export class CameraSpringLoop {
     const elasticXNowSettled = this.elasticX.settled;
     const elasticYNowSettled = this.elasticY.settled;
 
-    // C4: Settlement detection for elastic snap-back
+    // Settlement detection for elastic snap-back
     if (elasticXNowSettled && elasticYNowSettled && cam._isSnappingBack) {
       cam.elasticOffsetX = 0;
       cam.elasticOffsetY = 0;
@@ -274,7 +273,7 @@ export class CameraSpringLoop {
                           || Math.abs(cam.elasticOffsetY - prevEY) > 0.01;
       if (!elasticChanged) {
         // Count consecutive saturated frames (need 2+ to avoid single-frame glitches)
-        this._coastSaturatedFrames = (this._coastSaturatedFrames || 0) + 1;
+        this._coastSaturatedFrames++;
         if (this._coastSaturatedFrames >= 2) {
           coastSaturated = true;
         }
