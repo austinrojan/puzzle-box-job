@@ -54,7 +54,7 @@ test.describe('Center-point camera model', () => {
   });
 });
 
-test.describe('Phase 4 protocol message validation', () => {
+test.describe('Protocol message validation', () => {
   test.beforeEach(async ({ page }) => {
     await page.goto('/vtt/', { waitUntil: 'load' });
   });

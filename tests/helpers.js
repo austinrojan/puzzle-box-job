@@ -261,9 +261,9 @@ export async function waitForControllerMap(ctrl, timeoutMs = 10000) {
 }
 
 /**
- * Wait for Phase 5 modules to be wired on the Display.
+ * Wait for fly-to animator to be wired on the Display.
  */
-export async function waitForDisplayPhase5(display, timeoutMs = 5000) {
+export async function waitForFlyToAnimator(display, timeoutMs = 5000) {
   await display.waitForFunction(
     () => window.__vtt?.flyToAnimator != null,
     { timeout: timeoutMs }
@@ -318,8 +318,8 @@ export async function dispatchMouseWheelSequence(page, opts = {}) {
     const cy = rect.top + rect.height / 2;
 
     // Pre-seed classifier to 'mouse' so the first event doesn't
-    // misroute to trackpad/pan path (Phase S4: GSM now gates on
-    // request() return, so misclassified events are actually blocked).
+    // misroute to trackpad/pan path (GSM gates on request() return,
+    // so misclassified events are actually blocked).
     // Must also set _lastEventTime to prevent silence reset in classify().
     if (cam?._wheelClassifier) {
       cam._wheelClassifier._device = 'mouse';

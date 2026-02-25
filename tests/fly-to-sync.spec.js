@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { bootDisplay, bootController, waitForControllerMap, waitForDisplayPhase5 } from './helpers.js';
+import { bootDisplay, bootController, waitForControllerMap, waitForFlyToAnimator } from './helpers.js';
 
 test.describe('Cross-window flyTo sync', () => {
   /** @type {import('@playwright/test').BrowserContext} */
@@ -21,7 +21,7 @@ test.describe('Cross-window flyTo sync', () => {
     await waitForControllerMap(ctrl, 5000);
 
     // Wait for Display to have flyToAnimator wired
-    await waitForDisplayPhase5(display);
+    await waitForFlyToAnimator(display);
 
     // Record Display camera state before
     const before = await display.evaluate(() => {
@@ -67,7 +67,7 @@ test.describe('Cross-window flyTo sync', () => {
     const ctrl = await bootController(context);
 
     await waitForControllerMap(ctrl, 5000);
-    await waitForDisplayPhase5(display);
+    await waitForFlyToAnimator(display);
 
     // Move Controller camera to target first, then send flyTo.
     // This ensures the CAMERA_SYNC stream reinforces (not fights) the
@@ -127,7 +127,7 @@ test.describe('Cross-window flyTo sync', () => {
     const ctrl = await bootController(context);
 
     await waitForControllerMap(ctrl, 5000);
-    await waitForDisplayPhase5(display);
+    await waitForFlyToAnimator(display);
 
     // Start a long flyTo
     await ctrl.evaluate(() => {

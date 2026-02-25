@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
 import { bootDisplay, bootController, waitForControllerMap } from './helpers.js';
 
-test.describe('Phase 5 Integration', () => {
+test.describe('Authority election integration', () => {
   test('authority election works via production Controller boot', async ({ context }) => {
     const display = await bootDisplay(context);
     const ctrl = await bootController(context);

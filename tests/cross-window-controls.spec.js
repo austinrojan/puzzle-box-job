@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { bootDisplay, bootController, waitForControllerMap, waitForDisplayPhase5 } from './helpers.js';
+import { bootDisplay, bootController, waitForControllerMap, waitForFlyToAnimator } from './helpers.js';
 
 // Skip non-desktop-1920 projects — cross-window tests need full viewport
 test.beforeEach(async ({}, testInfo) => {
@@ -210,7 +210,7 @@ test.describe('sendFlyTo public API', () => {
     const display = await bootDisplay(context);
     const ctrl = await bootController(context);
     await waitForControllerMap(ctrl, 5000);
-    await waitForDisplayPhase5(display);
+    await waitForFlyToAnimator(display);
 
     const before = await display.evaluate(() => {
       const cam = window.__vtt.mapRenderer.camera;

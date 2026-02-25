@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { bootDisplay, bootController, waitForControllerMap, waitForDisplayPhase5 } from './helpers.js';
+import { bootDisplay, bootController, waitForControllerMap, waitForFlyToAnimator } from './helpers.js';
 
 test.describe('Cross-window preset sync', () => {
   /** @type {import('@playwright/test').BrowserContext} */
@@ -59,7 +59,7 @@ test.describe('Cross-window preset sync', () => {
     const ctrl = await bootController(context);
 
     await waitForControllerMap(ctrl, 5000);
-    await waitForDisplayPhase5(display);
+    await waitForFlyToAnimator(display);
 
     // Save a preset at a zoomed-in position
     await ctrl.evaluate(() => {

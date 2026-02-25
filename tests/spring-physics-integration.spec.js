@@ -2,11 +2,7 @@
 import { test, expect } from '@playwright/test';
 import { setupMapCamera } from './helpers.js';
 
-// ============================================================
-// Phase S5 Integration Tests — Unified Spring Physics
-// ============================================================
-
-test.describe('Phase S5: Unified Spring Physics', () => {
+test.describe('Unified spring physics', () => {
   test.beforeEach(async ({ page }) => {
     await setupMapCamera(page);
   });

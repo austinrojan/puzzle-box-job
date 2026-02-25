@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
 import { waitForFonts, APPS } from './helpers.js';
 
-// Pre-existing violations excluded (not Phase 3 regressions):
+// Pre-existing violations excluded:
 // - color-contrast: dark theme design decision (--text-muted 3.38:1 ratio)
 // - select-name: Controller <select> elements without labels
 // - scrollable-region-focusable: DM Guide scrollable panels

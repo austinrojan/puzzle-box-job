@@ -8,7 +8,7 @@ async function evalNormalize(page, wheelEvent) {
   }, wheelEvent);
 }
 
-test.describe('Phase 2: Input handling', () => {
+test.describe('Input handling', () => {
 
   test.beforeEach(async ({ page }) => {
     await gotoVTT(page);
