@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test';
 import { setupMapCamera } from './helpers.js';
 
 // ============================================================
-// Phase S3: Speculative snap-back tests
+// Elastic snap-back guard and cancellation tests
 // ============================================================
 
 test.describe('_snapBackElastic double-fire guard', () => {
@@ -64,34 +64,42 @@ test.describe('_snapBackElastic double-fire guard', () => {
     expect(result.offsetX).toBe(0);
   });
 
-  test('speculative snap-back does not fire while gesture is active', async ({ page }) => {
+  test('onGestureStart is ignored during active snap-back', async ({ page }) => {
     const result = await page.evaluate(() => {
       const cam = __cam();
-      cam._gestureActive = true;
-      cam.elasticOffsetX = 20;
+      cam.elasticOffsetX = 30;
       cam.elasticOffsetY = 0;
-      cam._elasticEWMA = 0.1;
-      cam._lastElasticScreenMag = cam._elasticScreenMag;
-      cam._isSnappingBack = false;
-      cam._checkSpeculativeSnapBack();
-      return { snapFired: cam._isSnappingBack };
+      cam._snapBackElastic();
+      const springVelBefore = cam._springLoop.elasticX.velocity;
+      // Simulate a late trackpad momentum event arriving during snap-back
+      cam._trackpadDetector._callbacks.onGestureStart();
+      return {
+        isSnapping: cam._isSnappingBack,
+        gestureActive: cam._gestureActive,
+        springVelUnchanged: cam._springLoop.elasticX.velocity === springVelBefore
+      };
     });
-    expect(result.snapFired).toBe(false);
+    expect(result.isSnapping).toBe(true);
+    expect(result.gestureActive).toBe(false);
+    expect(result.springVelUnchanged).toBe(true);
   });
 
-  test('speculative snap-back fires when gesture is not active', async ({ page }) => {
+  test('_feedElasticOverflow is rejected during active snap-back', async ({ page }) => {
     const result = await page.evaluate(() => {
       const cam = __cam();
-      cam._gestureActive = false;
-      cam.elasticOffsetX = 20;
+      cam.elasticOffsetX = 30;
       cam.elasticOffsetY = 0;
-      cam._elasticEWMA = 0.1;
-      cam._lastElasticScreenMag = cam._elasticScreenMag;
-      cam._isSnappingBack = false;
-      cam._checkSpeculativeSnapBack();
-      return { snapFired: cam._isSnappingBack };
+      cam._snapBackElastic();
+      const offsetBefore = cam.elasticOffsetX;
+      cam._gestureActive = true; // normally blocked by onGestureStart guard, but test directly
+      cam._feedElasticOverflow(100, 0);
+      return {
+        isSnapping: cam._isSnappingBack,
+        offsetUnchanged: cam.elasticOffsetX === offsetBefore
+      };
     });
-    expect(result.snapFired).toBe(true);
+    expect(result.isSnapping).toBe(true);
+    expect(result.offsetUnchanged).toBe(true);
   });
 
   test('elastic animator settlement clears _isSnappingBack', async ({ page }) => {
@@ -117,106 +125,48 @@ test.describe('_snapBackElastic double-fire guard', () => {
   });
 });
 
-test.describe('EWMA stall detection', () => {
-  test.beforeEach(async ({ page }) => {
-    await page.goto('/vtt/', { waitUntil: 'load' });
-  });
-
-  test('EWMA decays from EWMA_INIT(10) to below STALL_THRESHOLD(0.5) in ~8-9 frames', async ({ page }) => {
-    const frames = await page.evaluate(() => {
-      const ALPHA = 0.3;
-      let ewma = 10;
-      let frame = 0;
-      while (ewma >= 0.5 && frame < 50) {
-        ewma = ALPHA * 0 + (1 - ALPHA) * ewma;
-        frame++;
-      }
-      return frame;
-    });
-    expect(frames).toBeGreaterThanOrEqual(8);
-    expect(frames).toBeLessThanOrEqual(10);
-  });
-
-  test('EWMA stays above threshold during constant-speed elastic growth', async ({ page }) => {
-    const result = await page.evaluate(() => {
-      const ALPHA = 0.3;
-      let ewma = 10;
-      const values = [];
-      for (let i = 0; i < 30; i++) {
-        ewma = ALPHA * 5.0 + (1 - ALPHA) * ewma;
-        values.push(ewma);
-      }
-      return { min: Math.min(...values), final: ewma };
-    });
-    expect(result.min).toBeGreaterThan(0.5);
-    expect(result.final).toBeCloseTo(5.0, 0);
-  });
-
-  test('EWMA detects stall within 6-8 frames after speed drops to zero', async ({ page }) => {
-    const framesAfterDrop = await page.evaluate(() => {
-      const ALPHA = 0.3;
-      let ewma = 10;
-      for (let i = 0; i < 20; i++) ewma = ALPHA * 5 + (1 - ALPHA) * ewma;
-      let frames = 0;
-      while (ewma >= 0.5 && frames < 30) {
-        ewma = ALPHA * 0 + (1 - ALPHA) * ewma;
-        frames++;
-      }
-      return frames;
-    });
-    expect(framesAfterDrop).toBeGreaterThanOrEqual(6);
-    expect(framesAfterDrop).toBeLessThanOrEqual(8);
-  });
-});
-
-test.describe('_cancelSpeculativeSnapBack', () => {
+test.describe('_cancelSnapBack', () => {
   test.beforeEach(async ({ page }) => {
     await setupMapCamera(page);
   });
 
-  test('preserves elastic offset and clears flag', async ({ page }) => {
+  test('freezes elastic springs and clears _isSnappingBack', async ({ page }) => {
     const result = await page.evaluate(() => {
       const cam = __cam();
       cam.elasticOffsetX = 40;
       cam.elasticOffsetY = -15;
       cam._isSnappingBack = true;
-      cam._speculativeSnapId = 999;
-      cam._cancelSpeculativeSnapBack();
+      cam._cancelSnapBack();
       return {
         isSnapping: cam._isSnappingBack,
-        snapId: cam._speculativeSnapId,
         offsetX: cam.elasticOffsetX,
-        offsetY: cam.elasticOffsetY
+        offsetY: cam.elasticOffsetY,
+        springSettled: cam._springLoop.elasticX.settled && cam._springLoop.elasticY.settled
       };
     });
     expect(result.isSnapping).toBe(false);
-    expect(result.snapId).toBeNull();
     expect(result.offsetX).toBe(40);
     expect(result.offsetY).toBe(-15);
   });
 
-  test('is a no-op when nothing is running', async ({ page }) => {
+  test('is a no-op when _isSnappingBack is false', async ({ page }) => {
     const result = await page.evaluate(() => {
       const cam = __cam();
       cam.elasticOffsetX = 10;
       cam._isSnappingBack = false;
-      cam._speculativeSnapId = null;
-      // Spy on spring target-setting to prove it was NOT called
       let springTargetCalled = false;
       if (cam._springLoop) {
         const orig = cam._springLoop.elasticX.setTarget.bind(cam._springLoop.elasticX);
         cam._springLoop.elasticX.setTarget = (...args) => { springTargetCalled = true; return orig(...args); };
       }
-      cam._cancelSpeculativeSnapBack();
+      cam._cancelSnapBack();
       return {
         isSnapping: cam._isSnappingBack,
-        snapId: cam._speculativeSnapId,
         offsetX: cam.elasticOffsetX,
         springTargetCalled
       };
     });
     expect(result.isSnapping).toBe(false);
-    expect(result.snapId).toBeNull();
     expect(result.offsetX).toBe(10);
     expect(result.springTargetCalled).toBe(false);
   });
@@ -243,7 +193,7 @@ test.describe('Tightened momentum detection timing', () => {
   });
 });
 
-test.describe('Speculative snap-back integration', () => {
+test.describe('Elastic snap-back integration', () => {
   test.beforeEach(async ({ page }) => {
     await setupMapCamera(page);
   });
@@ -282,7 +232,7 @@ test.describe('Speculative snap-back integration', () => {
     expect(offset).toBeLessThan(1.0);
   });
 
-  test('continuous scrolling at boundary is not interrupted by speculative snap-back', async ({ page }) => {
+  test('continuous scrolling at boundary is not interrupted by snap-back', async ({ page }) => {
     await page.evaluate(() => {
       const cam = __cam();
       cam.zoom = 2.0;
@@ -312,56 +262,46 @@ test.describe('Speculative snap-back integration', () => {
     expect(result.snapping).toBe(false);
   });
 
-  test('momentum with tiny deltas at boundary triggers early snap-back', async ({ page }) => {
-    // Push camera to boundary and establish elastic offset
+  test('momentum with saturated elastic at boundary triggers early snap-back', async ({ page }) => {
+    // Push camera to boundary (elastic stays 0 since _gestureActive is false)
     await page.evaluate(() => {
       const cam = __cam();
       cam.zoom = 2.0;
       cam._applyConstraints();
-      for (let i = 0; i < 200; i++) cam.panBy(50, 0);
+      for (let k = 0; k < 200; k++) cam.panBy(50, 0);
     });
 
-    // Simulate active scrolling to establish momentum phase
     const el = page.locator('#map-container');
     const box = await el.boundingBox();
     const cx = box.x + box.width / 2;
     const cy = box.y + box.height / 2;
 
-    // Active phase: larger deltas
-    for (let i = 0; i < 8; i++) {
-      await page.evaluate(({ cx, cy }) => {
-        const el = document.getElementById('map-container');
+    // Send decaying deltas large enough to:
+    // 1. Trigger momentum detection (decay streak >= 2, eventCount > 4)
+    // 2. Saturate elastic offset at MAX_ELASTIC_SCREEN_PX cap
+    // With c=0.3 (momentum), zoom=2, viewportW=960, cap=150 screen px,
+    // saturation requires cumOverflow >= ~296 world px. Need 2 events past
+    // cap for the change-detection check to fire (prev === current).
+    // Deltas: 80,75,70,...,15 (14 events, sum=665, cumOverflow=332.5 world px)
+    const result = await page.evaluate(({ cx, cy }) => {
+      const el = document.getElementById('map-container');
+      for (let i = 0; i < 14; i++) {
+        const delta = 80 - i * 5;
         el.dispatchEvent(new WheelEvent('wheel', {
-          deltaY: 0, deltaX: -(10 - i), deltaMode: 0,
+          deltaY: 0, deltaX: -delta, deltaMode: 0,
           ctrlKey: false, bubbles: true, cancelable: true,
           clientX: cx, clientY: cy,
         }));
-      }, { cx, cy });
-      await page.waitForTimeout(16);
-    }
-
-    // Wait for momentum detection
-    await page.waitForTimeout(20);
-
-    // Momentum phase: tiny delta that should trigger early termination
-    await page.evaluate(({ cx, cy }) => {
-      const el = document.getElementById('map-container');
-      el.dispatchEvent(new WheelEvent('wheel', {
-        deltaY: 0, deltaX: -0.5, deltaMode: 0,
-        ctrlKey: false, bubbles: true, cancelable: true,
-        clientX: cx, clientY: cy,
-      }));
+      }
+      const cam = __cam();
+      return {
+        isSnapping: cam._isSnappingBack,
+        suppressed: cam._momentumPanSuppressed,
+      };
     }, { cx, cy });
 
-    // Snap-back should start almost immediately (not wait 60-80ms timeout)
-    const result = await page.evaluate(() => ({
-      detectorState: __cam()._trackpadDetector.state,
-      isSnapping: __cam()._isSnappingBack,
-    }));
-
-    // Detector should be IDLE (cancel was called) and snap-back should have started
-    expect(result.detectorState).toBe('IDLE');
     expect(result.isSnapping).toBe(true);
+    expect(result.suppressed).toBe(true);
   });
 
   test('small momentum deltas away from boundary do NOT cancel gesture', async ({ page }) => {
@@ -381,14 +321,14 @@ test.describe('Speculative snap-back integration', () => {
 
     // Start a gesture with active scrolling
     for (let i = 0; i < 6; i++) {
-      await page.evaluate(({ cx, cy }) => {
+      await page.evaluate(({ cx, cy, i }) => {
         const el = document.getElementById('map-container');
         el.dispatchEvent(new WheelEvent('wheel', {
           deltaY: 0, deltaX: -(5 - i * 0.5), deltaMode: 0,
           ctrlKey: false, bubbles: true, cancelable: true,
           clientX: cx, clientY: cy,
         }));
-      }, { cx, cy });
+      }, { cx, cy, i });
       await page.waitForTimeout(16);
     }
 
@@ -412,7 +352,7 @@ test.describe('Speculative snap-back integration', () => {
     expect(result.elasticX).toBe(0);
   });
 
-  test('mouse drag elastic overscroll works correctly after Phase S3', async ({ page }) => {
+  test('mouse drag elastic overscroll works correctly', async ({ page }) => {
     await page.evaluate(() => {
       const cam = __cam();
       cam.zoom = 2.0;

@@ -334,12 +334,12 @@ test.describe('Phase S4: Gesture coordination', () => {
 
   // --- _cancelCurrent S3 integration ---
   test.describe('GSM _cancelCurrent S3 integration', () => {
-    test('cancelling SNAP_BACK calls _cancelSpeculativeSnapBack', async ({ page }) => {
+    test('cancelling SNAP_BACK calls _cancelSnapBack', async ({ page }) => {
       const r = await page.evaluate(() => {
         const cam = __cam();
         let called = false;
-        const orig = cam._cancelSpeculativeSnapBack.bind(cam);
-        cam._cancelSpeculativeSnapBack = () => { called = true; orig(); };
+        const orig = cam._cancelSnapBack.bind(cam);
+        cam._cancelSnapBack = () => { called = true; orig(); };
         cam._gestures.request('SNAP_BACK');
         cam._gestures.request('SCROLL_PAN');
         return called;

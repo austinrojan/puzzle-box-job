@@ -3,8 +3,8 @@
 // Reconstructs IDLE → ACTIVE → MOMENTUM → IDLE gesture lifecycle
 // from raw WheelEvent streams. Uses delta decay detection + timeout.
 
-// Phase S3: Tightened from Phase 6 values (3/6/150/100) because
-// speculative snap-back now handles the visual response.
+// Phase S3: Tightened from Phase 6 values (3/6/150/100) for
+// faster momentum detection and snappier gesture lifecycle.
 const DECAY_STREAK_THRESHOLD = 2;
 const MIN_EVENTS_FOR_MOMENTUM = 4;
 const DECAY_RATIO = 0.97;
