@@ -3,8 +3,7 @@
 // Reconstructs IDLE → ACTIVE → MOMENTUM → IDLE gesture lifecycle
 // from raw WheelEvent streams. Uses delta decay detection + timeout.
 
-// Phase S3: Tightened from Phase 6 values (3/6/150/100) for
-// faster momentum detection and snappier gesture lifecycle.
+// Gesture detector constants (tuned for fast momentum detection)
 const DECAY_STREAK_THRESHOLD = 2;
 const MIN_EVENTS_FOR_MOMENTUM = 4;
 const DECAY_RATIO = 0.97;
@@ -15,7 +14,7 @@ const MOMENTUM_CANCEL_SPIKE = 1.5;
 // this detector fires. Kept as defensive fallback for future timeout changes.
 const MOMENTUM_CANCEL_GAP_MS = 120;
 
-// --- Stateful Device Classifier (Phase S1) ---
+// --- Stateful Device Classifier ---
 const CLASSIFIER_SILENCE_MS = 400;
 const CLASSIFIER_WINDOW_SIZE = 6;
 const CLASSIFIER_MOUSE_THRESHOLD = 4;
@@ -103,7 +102,7 @@ export class TrackpadGestureDetector {
 }
 
 // ============================================================
-// Stateful Wheel Device Classifier (Phase S1)
+// Stateful Wheel Device Classifier
 // ============================================================
 //
 // Maintains a sliding window of recent WheelEvent summaries and scores
