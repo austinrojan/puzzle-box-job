@@ -715,6 +715,15 @@ export class Camera {
     return cumulative - Math.sign(cumulative) * drain;
   }
 
+  /** Apply rubber-band dampening to a single axis of elastic overflow. */
+  _rubberBandAxis(overflow, viewportDim, c) {
+    if (overflow === 0) return 0;
+    const screenOverflow = overflow * this.zoom;
+    const dampened = rubberBand(Math.abs(screenOverflow), viewportDim, c);
+    const capped = Math.min(dampened, MAX_ELASTIC_SCREEN_PX);
+    return Math.sign(overflow) * capped / this.zoom;
+  }
+
   /**
    * Feed overflow (distance past hard bounds) into the elastic offset.
    * The rubber-band formula operates in screen-space pixels for consistent
@@ -729,23 +738,8 @@ export class Camera {
     // Dampen rubber-band during trackpad momentum (c=0.3 vs 0.55)
     const c = this._momentumScrollActive ? 0.3 : 0.55;
 
-    if (overflowX !== 0) {
-      const screenOverflow = overflowX * this.zoom;
-      const dampened = rubberBand(Math.abs(screenOverflow), this.viewportW, c);
-      const capped = Math.min(dampened, MAX_ELASTIC_SCREEN_PX);
-      this.elasticOffsetX = Math.sign(overflowX) * capped / this.zoom;
-    } else {
-      this.elasticOffsetX = 0;
-    }
-
-    if (overflowY !== 0) {
-      const screenOverflow = overflowY * this.zoom;
-      const dampened = rubberBand(Math.abs(screenOverflow), this.viewportH, c);
-      const capped = Math.min(dampened, MAX_ELASTIC_SCREEN_PX);
-      this.elasticOffsetY = Math.sign(overflowY) * capped / this.zoom;
-    } else {
-      this.elasticOffsetY = 0;
-    }
+    this.elasticOffsetX = this._rubberBandAxis(overflowX, this.viewportW, c);
+    this.elasticOffsetY = this._rubberBandAxis(overflowY, this.viewportH, c);
   }
 
   /**
@@ -835,6 +829,15 @@ export class Camera {
       this._elasticSnapSignX = 0;
       this._elasticSnapSignY = 0;
     }
+  }
+
+  /** Reset elastic state for a new gesture (drag or promoted pending-pan). */
+  _resetElasticState() {
+    this._gestureActive = true;
+    this._cumulativeOverflowX = 0;
+    this._cumulativeOverflowY = 0;
+    this.elasticOffsetX = 0;
+    this.elasticOffsetY = 0;
   }
 
   /**
@@ -1400,12 +1403,7 @@ export class Camera {
     this._panStartCamY = this.y;
     this._panScreenDist = 0;
 
-    // Reset elastic state for new gesture
-    this._gestureActive = true;
-    this._cumulativeOverflowX = 0;
-    this._cumulativeOverflowY = 0;
-    this.elasticOffsetX = 0;
-    this.elasticOffsetY = 0;
+    this._resetElasticState();
 
     this._velocityTracker.reset();
     this._setPanCursor(true);
@@ -1423,11 +1421,7 @@ export class Camera {
     this._pendingPan = false;
     this._panButton = 0;
     if (this._gestures) this._gestures.request('DRAG_PAN');
-    this._gestureActive = true;
-    this._cumulativeOverflowX = 0;
-    this._cumulativeOverflowY = 0;
-    this.elasticOffsetX = 0;
-    this.elasticOffsetY = 0;
+    this._resetElasticState();
     this._cancelSnapBack();
     if (this._springLoop) this._springLoop.syncElasticFromCamera();
     this._setPanCursor(true);
