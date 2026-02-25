@@ -390,4 +390,43 @@ test.describe('Elastic snap-back integration', () => {
     expect(result.offsetX).toBeLessThan(1.0);
     expect(result.isSnapping).toBe(false);
   });
+
+  test('small deltas at boundary trigger snap-back even without formal momentum', async ({ page }) => {
+    // Push camera to boundary with elastic offset
+    await page.evaluate(() => {
+      const cam = __cam();
+      cam.zoom = 2.0;
+      cam._applyConstraints();
+      for (let k = 0; k < 200; k++) cam.panBy(50, 0);
+    });
+
+    const box = await page.locator('#map-container').boundingBox();
+    const cx = box.x + box.width / 2;
+    const cy = box.y + box.height / 2;
+
+    // Send 10 events with NON-decaying small deltas (prevents momentum detection).
+    // All deltas are identical (2px) — no decay streak can form.
+    const result = await page.evaluate(({ cx, cy }) => {
+      const el = document.getElementById('map-container');
+      for (let i = 0; i < 10; i++) {
+        el.dispatchEvent(new WheelEvent('wheel', {
+          deltaY: 0, deltaX: -2, deltaMode: 0,
+          ctrlKey: false, bubbles: true, cancelable: true,
+          clientX: cx, clientY: cy,
+        }));
+      }
+      const cam = __cam();
+      return {
+        isSnapping: cam._isSnappingBack,
+        suppressed: cam._momentumPanSuppressed,
+        momentumDetected: cam._momentumScrollActive,
+      };
+    }, { cx, cy });
+
+    // Momentum should NOT have been detected (no decay), but
+    // the fallback should have triggered snap-back anyway
+    expect(result.momentumDetected).toBe(false);
+    expect(result.isSnapping).toBe(true);
+    expect(result.suppressed).toBe(true);
+  });
 });

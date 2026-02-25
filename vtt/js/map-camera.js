@@ -1130,6 +1130,18 @@ export class Camera {
             this._gestureActive = false;
             this._snapBackElastic();
           }
+
+          // Fallback: detect likely momentum even when detector hasn't
+          // formally transitioned (noisy macOS deltas reset decay streak).
+          // Small deltas + many events + elastic boundary = momentum.
+          if (!this._momentumScrollActive &&
+              this._trackpadDetector._eventCount > 6 &&
+              Math.abs(dx) + Math.abs(dy) < 3.0 &&
+              (this.elasticOffsetX !== 0 || this.elasticOffsetY !== 0)) {
+            this._momentumPanSuppressed = true;
+            this._gestureActive = false;
+            this._snapBackElastic();
+          }
         }
       }
     }, { passive: false });
