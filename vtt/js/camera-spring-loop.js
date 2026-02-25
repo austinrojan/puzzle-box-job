@@ -16,6 +16,7 @@ const MIN_DT = 0.001;    // Floor dt to 1ms (handles performance.now quirks)
 
 const COAST_FRICTION = 0.96;
 const COAST_STOP_THRESHOLD = 10;   // screen px/s
+const COAST_BOUNDARY_STOP = 60;    // screen px/s — stop coast sooner when at elastic boundary
 const COAST_BASE_FRAME_MS = 16.67; // 60fps reference for framerate-independent friction
 
 export const SPRING_STIFFNESS = {
@@ -169,6 +170,7 @@ export class CameraSpringLoop {
       if (this._clampElasticSign(this.elasticY, cam._elasticSnapSignY)) {
         cam.elasticOffsetY = 0;
       }
+
     }
 
     // C1: Call _applyConstraints() which emits camera:changed.
@@ -256,22 +258,51 @@ export class CameraSpringLoop {
     cam._coastVy *= frictionFactor;
 
     const speed = Math.sqrt(cam._coastVx ** 2 + cam._coastVy ** 2);
-    if (speed < COAST_STOP_THRESHOLD) {
+    const atBoundary = cam.elasticOffsetX !== 0 || cam.elasticOffsetY !== 0;
+
+    // Early coast termination: when elastic offset is saturated (not changing
+    // between frames), the coast is producing zero visual change — camera is
+    // hard-clamped at boundary and elastic is at MAX_ELASTIC_SCREEN_PX cap.
+    // Terminate immediately instead of waiting for velocity to decay to
+    // COAST_BOUNDARY_STOP (which can take 1-2 seconds of frozen visuals).
+    let coastSaturated = false;
+    if (atBoundary) {
+      const prevEX = cam.elasticOffsetX;
+      const prevEY = cam.elasticOffsetY;
+      cam.panBy(cam._coastVx * dt, cam._coastVy * dt);
+      const elasticChanged = Math.abs(cam.elasticOffsetX - prevEX) > 0.01
+                          || Math.abs(cam.elasticOffsetY - prevEY) > 0.01;
+      if (!elasticChanged) {
+        // Count consecutive saturated frames (need 2+ to avoid single-frame glitches)
+        this._coastSaturatedFrames = (this._coastSaturatedFrames || 0) + 1;
+        if (this._coastSaturatedFrames >= 2) {
+          coastSaturated = true;
+        }
+      } else {
+        this._coastSaturatedFrames = 0;
+      }
+    }
+
+    if (coastSaturated || speed < (atBoundary ? COAST_BOUNDARY_STOP : COAST_STOP_THRESHOLD)) {
       const residualVx = cam._coastVx / cam.zoom;
       const residualVy = cam._coastVy / cam.zoom;
       cam._isCoasting = false;
       cam._coastVx = 0;
       cam._coastVy = 0;
       cam._gestureActive = false;
+      this._coastSaturatedFrames = 0;
       if (cam._el) cam._el.classList.remove('coasting');
       if (cam._gestures) {
         cam._gestures.release('INERTIA');
         cam._gestures.request('SNAP_BACK');
       }
       cam._snapBackElastic({ vx: residualVx, vy: residualVy });
-    } else {
-      cam.panBy(-cam._coastVx * dt, -cam._coastVy * dt);
+    } else if (!atBoundary) {
+      // Normal coast (not at boundary) — panBy was not called above
+      cam.panBy(cam._coastVx * dt, cam._coastVy * dt);
     }
+    // When atBoundary && !coastSaturated && !speedBelow: panBy already called
+    // in the saturation check above — no duplicate call needed.
   }
 
   /** Whether all springs are at rest and no coast is active. */

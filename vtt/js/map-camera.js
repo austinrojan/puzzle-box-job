@@ -33,12 +33,6 @@ function rubberBand(distance, dimension, c = 0.55) {
 // ~10% of a 1440px viewport. Prevents extreme displacement that looks like a bug.
 const MAX_ELASTIC_SCREEN_PX = 150;
 
-// Phase S3: Speculative snap-back EWMA stall detection
-const EWMA_ALPHA = 0.3;              // smoothing factor: ~108ms detection latency at 60Hz
-const EWMA_INIT = 10;                // anti-FIR: 140ms warm-up from cold start
-const STALL_THRESHOLD = 0.5;         // screen px/frame — below perceptual threshold
-const MIN_ELASTIC_MAGNITUDE = 1.0;   // screen px — don't snap for sub-pixel offsets
-
 const VELOCITY_SAMPLE_COUNT = 4;
 
 export class VelocityTracker {
@@ -176,7 +170,7 @@ class GestureStateMachine {
         this._camera._cancelInertialCoast();
         break;
       case 'SNAP_BACK':
-        this._camera._cancelSpeculativeSnapBack();
+        this._camera._cancelSnapBack();
         break;
       case 'ZOOM_ANIMATE': {
         const loop = this._camera._springLoop;
@@ -444,13 +438,10 @@ export class Camera {
     this._coastVy = 0;              // screen-space coast velocity Y (px/s)
     this._zoomAnchor = null;        // {wx, wy, sx, sy} for smooth zoom anchor preservation
 
-    // Phase S3: Speculative snap-back
-    this._elasticEWMA = 0;               // EWMA of elastic offset growth rate
-    this._lastElasticScreenMag = 0;      // previous frame's elastic magnitude (screen px)
-    this._speculativeSnapId = null;      // rAF ID for monitoring loop (null = not running)
     this._isSnappingBack = false;        // double-fire defense flag
     this._elasticSnapSignX = 0;          // Phase S5: sign guard for spring-based snap-back
     this._elasticSnapSignY = 0;
+    this._momentumPanSuppressed = false; // suppress panBy during elastic saturation
 
     // Phase S5: Scroll-wheel behavior preference
     this._scrollWheelBehavior = 'auto';  // 'auto' | 'pan' | 'zoom'
@@ -472,14 +463,6 @@ export class Camera {
   /** Visual camera position including elastic overscroll offset. */
   get visualX() { return this.x + this.elasticOffsetX; }
   get visualY() { return this.y + this.elasticOffsetY; }
-
-  /** Screen-space magnitude of elastic offset (px). */
-  get _elasticScreenMag() {
-    return Math.sqrt(
-      (this.elasticOffsetX * this.zoom) ** 2 +
-      (this.elasticOffsetY * this.zoom) ** 2
-    );
-  }
 
   /**
    * Convert screen coordinates (CSS pixels relative to canvas top-left)
@@ -743,10 +726,8 @@ export class Camera {
   _feedElasticOverflow(overflowX, overflowY) {
     if (!this._gestureActive) return;
 
-    // Phase S3: Cancel any running speculative snap-back — user is still providing input.
-    if (this._isSnappingBack) {
-      this._cancelSpeculativeSnapBack();
-    }
+    // During snap-back, reject new elastic input (late momentum events).
+    if (this._isSnappingBack) return;
 
     // Dampen rubber-band during trackpad momentum (c=0.3 vs 0.55)
     const c = this._momentumScrollActive ? 0.3 : 0.55;
@@ -767,16 +748,6 @@ export class Camera {
       this.elasticOffsetY = Math.sign(overflowY) * capped / this.zoom;
     } else {
       this.elasticOffsetY = 0;
-    }
-
-    // Phase S3: Start monitoring loop if not already running.
-    if (this._speculativeSnapId == null &&
-        (this.elasticOffsetX !== 0 || this.elasticOffsetY !== 0)) {
-      this._lastElasticScreenMag = this._elasticScreenMag;
-      this._elasticEWMA = EWMA_INIT;
-      this._speculativeSnapId = requestAnimationFrame(
-        () => this._checkSpeculativeSnapBack()
-      );
     }
   }
 
@@ -853,51 +824,12 @@ export class Camera {
   }
 
   /**
-   * Phase S3: EWMA stall detection and speculative snap-back launcher.
-   * Runs once per rAF when elastic offset is nonzero. Computes the EWMA
-   * of elastic offset change rate in screen-space pixels per frame.
-   * When EWMA drops below STALL_THRESHOLD, starts zero-velocity snap-back.
+   * Cancel any running snap-back animation.
+   * Freezes elastic springs at current position (no visual jump).
+   * Called by _startPan, _commitPan, and GSM _cancelCurrent.
    */
-  _checkSpeculativeSnapBack() {
-    const currentScreenMag = this._elasticScreenMag;
-    const delta = Math.abs(currentScreenMag - this._lastElasticScreenMag);
-    this._lastElasticScreenMag = currentScreenMag;
-
-    this._elasticEWMA = EWMA_ALPHA * delta + (1 - EWMA_ALPHA) * this._elasticEWMA;
-
-    if (currentScreenMag > MIN_ELASTIC_MAGNITUDE &&
-        this._elasticEWMA < STALL_THRESHOLD &&
-        !this._isSnappingBack &&
-        !this._gestureActive) {
-      // Skip _gestures.request('SNAP_BACK') — priority 1 cannot preempt
-      // SCROLL_PAN (priority 4). Formal onGestureEnd handles transition.
-      this._snapBackElastic();
-    }
-
-    // Continue monitoring while screen-space magnitude exceeds threshold.
-    // Uses MIN_ELASTIC_MAGNITUDE (screen-space) not SETTLE_THRESHOLD_PX
-    // (world-space) to avoid premature loop termination at low zoom.
-    if (currentScreenMag > MIN_ELASTIC_MAGNITUDE) {
-      this._speculativeSnapId = requestAnimationFrame(
-        () => this._checkSpeculativeSnapBack()
-      );
-    } else {
-      this._speculativeSnapId = null;
-    }
-  }
-
-  /**
-   * Cancel speculative snap-back monitoring and any running snap-back
-   * animation. Elastic offset retains its current value (no jump).
-   */
-  _cancelSpeculativeSnapBack() {
-    if (this._speculativeSnapId != null) {
-      cancelAnimationFrame(this._speculativeSnapId);
-      this._speculativeSnapId = null;
-    }
-
+  _cancelSnapBack() {
     if (this._isSnappingBack && this._springLoop) {
-      // Freeze elastic springs at current position (no jump)
       this._springLoop.elasticX.setTarget(this._springLoop.elasticX.position);
       this._springLoop.elasticX.velocity = 0;
       this._springLoop.elasticY.setTarget(this._springLoop.elasticY.position);
@@ -1113,8 +1045,11 @@ export class Camera {
     this._wheelClassifier = new WheelDeviceClassifier();
     this._trackpadDetector = new TrackpadGestureDetector({
       onGestureStart: () => {
+        // Ignore late macOS trackpad momentum events during snap-back,
+        // inertial coast, or momentum pan suppression (elastic saturation).
+        if (this._isSnappingBack || this._isCoasting || this._momentumPanSuppressed) return;
         this._cancelInertialCoast();
-        this._cancelSpeculativeSnapBack();
+        this._cancelSnapBack();
         if (this._gestures) this._gestures.request('SCROLL_PAN');
         this._gestureActive = true;
         this._momentumScrollActive = false;
@@ -1127,6 +1062,7 @@ export class Camera {
       onGestureEnd: () => {
         this._gestureActive = false;
         this._momentumScrollActive = false;
+        this._momentumPanSuppressed = false;
         if (this._gestures) {
           this._gestures.release('SCROLL_PAN');
           this._gestures.request('SNAP_BACK');
@@ -1173,9 +1109,31 @@ export class Camera {
           const granted = this._gestures.request('ZOOM_ANIMATE');
           if (granted) this._smoothZoomTo(dy / 100, screen.x, screen.y);
         } else {
-          // Pan with gesture detection
+          // Pan with gesture detection — feed detector for state tracking
           this._trackpadDetector.handleWheel(e);
+
+          // After elastic saturation during momentum, suppress panBy but
+          // keep feeding the detector for natural timeout tracking. This
+          // prevents phantom gesture restarts that cancel() would cause.
+          if (this._momentumPanSuppressed) return;
+
+          const prevElasticX = this.elasticOffsetX;
+          const prevElasticY = this.elasticOffsetY;
           this.panBy(-dx, -dy);
+
+          // Early momentum termination: when elastic offset is saturated
+          // during momentum (no visible change from panBy), suppress further
+          // pan events and start snap-back immediately. macOS momentum can
+          // send 60+ events over ~1s that all hit the elastic cap
+          // (MAX_ELASTIC_SCREEN_PX), producing zero visual change.
+          if (this._momentumScrollActive &&
+              (this.elasticOffsetX !== 0 || this.elasticOffsetY !== 0) &&
+              Math.abs(this.elasticOffsetX - prevElasticX) < 0.01 &&
+              Math.abs(this.elasticOffsetY - prevElasticY) < 0.01) {
+            this._momentumPanSuppressed = true;
+            this._gestureActive = false;
+            this._snapBackElastic();
+          }
         }
       }
     }, { passive: false });
@@ -1266,9 +1224,19 @@ export class Camera {
       if (this._gestures) this._gestures.release('DRAG_PAN');
 
       if (this._momentumEnabled && speed > INERTIA_THRESHOLD) {
-        // Inertial coast — _gestureActive stays true
-        if (this._gestures) this._gestures.request('INERTIA');
-        this._startInertialCoast({ x: velocity.vx, y: velocity.vy });
+        const atBoundary = this.elasticOffsetX !== 0 || this.elasticOffsetY !== 0;
+        if (atBoundary) {
+          // Already overscrolled — skip coast, snap back immediately with
+          // release velocity for natural bounce. Coast friction decay would
+          // freeze the view in overscroll for 0.5-1.5s before snap-back starts.
+          this._gestureActive = false;
+          if (this._gestures) this._gestures.request('SNAP_BACK');
+          this._snapBackElastic({ vx: velocity.vx / this.zoom, vy: velocity.vy / this.zoom });
+        } else {
+          // Inertial coast — _gestureActive stays true
+          if (this._gestures) this._gestures.request('INERTIA');
+          this._startInertialCoast({ x: velocity.vx, y: velocity.vy });
+        }
       } else {
         this._gestureActive = false;
         if (this._gestures) this._gestures.request('SNAP_BACK');
@@ -1336,7 +1304,15 @@ export class Camera {
   _attachSafetyGuards(el) {
     window.addEventListener('blur', () => this._cancelPan());
     document.addEventListener('visibilitychange', () => {
-      if (document.hidden) this._cancelPan();
+      if (document.hidden) {
+        this._cancelPan();
+      } else if (Math.abs(this.elasticOffsetX) > SETTLE_THRESHOLD_PX ||
+                 Math.abs(this.elasticOffsetY) > SETTLE_THRESHOLD_PX) {
+        // Tab was backgrounded with stranded elastic offset (rAF doesn't fire
+        // in hidden tabs). Trigger snap-back on return.
+        this._isSnappingBack = false; // Clear so _snapBackElastic can start
+        this._snapBackElastic();
+      }
     });
     el.addEventListener('mouseleave', () => {
       if (this._panning) this._cancelPan();
@@ -1406,7 +1382,8 @@ export class Camera {
 
   _startPan(e, button) {
     this._cancelInertialCoast();
-    this._cancelSpeculativeSnapBack();
+    this._cancelSnapBack();
+    this._momentumPanSuppressed = false;
     if (this._trackpadDetector) this._trackpadDetector.cancel();
     if (this._gestures) this._gestures.request('DRAG_PAN');
 
@@ -1447,7 +1424,7 @@ export class Camera {
     this._cumulativeOverflowY = 0;
     this.elasticOffsetX = 0;
     this.elasticOffsetY = 0;
-    this._cancelSpeculativeSnapBack();
+    this._cancelSnapBack();
     if (this._springLoop) this._springLoop.syncElasticFromCamera();
     this._setPanCursor(true);
   }
