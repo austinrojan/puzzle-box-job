@@ -2,9 +2,9 @@ import { test, expect } from '@playwright/test';
 import { waitForFonts, getGridColumnCount } from './helpers.js';
 
 const breakpoints = [
-  { width: 480, columns: 1, label: 'single column at narrow width' },
-  { width: 600, columns: 2, label: 'two columns at 500px+' },
-  { width: 900, columns: 3, label: 'three columns at 800px+' },
+  { width: 520, columns: 1, label: 'single column at popup width' },
+  { width: 700, columns: 2, label: 'two columns at 600px+' },
+  { width: 1100, columns: 3, label: 'three columns at 1000px+' },
 ];
 
 for (const { width, columns, label } of breakpoints) {
