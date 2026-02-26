@@ -55,16 +55,21 @@ body {
 /* Header */
 @layer components {
 .header {
-  display: flex; align-items: center; justify-content: space-between;
-  gap: var(--space-3);
-  padding: var(--space-2) var(--space-4);
+  display: flex; align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
   background: var(--bg-1); border-bottom: 1px solid var(--bg-3);
   position: sticky; top: 0; z-index: 100;
+  flex-wrap: wrap;
 }
 .header__title {
   font-family: var(--font-heading);
-  font-size: var(--font-size-lg); color: var(--gold);
+  font-size: var(--font-size-base); color: var(--gold);
   letter-spacing: 1px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
 }
 .header__status {
   font-family: var(--font-mono);
@@ -395,19 +400,21 @@ body {
 /* Card system */
 .card {
   background: var(--bg-1);
-  border: 1px solid var(--bg-2);
+  border: 1px solid var(--bg-3);
   border-radius: var(--radius-lg);
   padding: var(--space-3) var(--space-4);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
 }
 .card--accent {
   border-color: var(--gold-dim);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3), 0 0 0 1px var(--gold-dim);
 }
 
 /* Subsection divider within a card */
 .subsection {
   margin-top: var(--space-3);
   padding-top: var(--space-3);
-  border-top: 1px solid var(--bg-2);
+  border-top: 1px solid var(--bg-3);
 }
 .subsection__label {
   font-family: var(--font-mono);
