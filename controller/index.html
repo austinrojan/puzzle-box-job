@@ -56,7 +56,8 @@ body {
 @layer components {
 .header {
   display: flex; align-items: center; justify-content: space-between;
-  padding: var(--space-3) var(--space-4);
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-4);
   background: var(--bg-1); border-bottom: 1px solid var(--bg-3);
   position: sticky; top: 0; z-index: 100;
 }
@@ -575,6 +576,11 @@ details.section[open] > summary .section__label--collapsible::after {
 
 <div class="header">
   <span class="header__title">CONTROLLER</span>
+  <div class="header__modes" id="sec-mode">
+    <button class="btn btn--sm btn--active" data-mode="theater">Theater</button>
+    <button class="btn btn--sm" data-mode="map">Map</button>
+    <button class="btn btn--sm" data-mode="initiative">Initiative</button>
+  </div>
   <span class="header__status header__status--waiting" id="conn-status">Waiting&hellip;</span>
   <button class="btn btn--sm" id="density-toggle" aria-label="Toggle compact mode" title="Density">&#9638;</button>
   <div class="scale-control" id="scale-control">
@@ -597,16 +603,6 @@ details.section[open] > summary .section__label--collapsible::after {
 
 <div class="controller-body" id="controller-body">
 <div class="control-sections">
-
-<!-- Mode -->
-<div class="section section--mode" id="sec-mode">
-  <div class="section__label">Mode</div>
-  <div class="btn-row">
-    <button class="btn btn--active" data-mode="theater">Theater</button>
-    <button class="btn" data-mode="map">Map</button>
-    <button class="btn" data-mode="initiative">Initiative</button>
-  </div>
-</div>
 
 <!-- Scenes -->
 <div class="section section--full-width" id="sec-scenes">
