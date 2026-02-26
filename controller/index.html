@@ -464,6 +464,7 @@ body {
   flex: 1;
 }
 
+/* Default: single column (0-599px) — the popup's default view */
 .control-sections {
   display: grid;
   grid-template-columns: 1fr;
@@ -471,75 +472,41 @@ body {
   padding: var(--space-3);
 }
 
-.section--full-width {
-  grid-column: 1 / -1;
-}
-
-/* ---- Medium: Two-column layout at 500px+ ---- */
-@container controller (min-width: 500px) {
+/* Medium: two columns (600px+) */
+@container controller (min-width: 600px) {
   .control-sections {
     grid-template-columns: 1fr 1fr;
+    grid-template-areas:
+      "scenes   scenes"
+      "map      tokens"
+      "effects  tokens"
+      "combat   cinematic";
   }
-  .section--full-width {
-    grid-column: 1 / -1;
-  }
-  .section--mode {
-    grid-column: 1;
-    grid-row: auto;
-  }
-  .section--map {
-    grid-column: 1;
-  }
-  .section--tokens {
-    grid-column: 2;
-    grid-row: span 2;
-  }
-  .section--effects {
-    grid-column: 2;
-  }
-  .section--overlay {
-    grid-column: 1;
-  }
-  .section--title {
-    grid-column: 2;
-  }
+  .section--scenes    { grid-area: scenes; }
+  .section--map       { grid-area: map; }
+  .section--tokens    { grid-area: tokens; }
+  .section--effects   { grid-area: effects; }
+  .section--combat    { grid-area: combat; }
+  .section--cinematic { grid-area: cinematic; }
 }
 
-/* ---- Wide: Three-column layout at 800px+ ---- */
-@container controller (min-width: 800px) {
+/* Wide: three columns (1000px+) */
+@container controller (min-width: 1000px) {
   .control-sections {
     grid-template-columns: 1fr 1fr 1fr;
-  }
-  .section--full-width {
-    grid-column: 1 / -1;
-  }
-  .section--mode {
-    grid-column: 1;
-  }
-  .section--map {
-    grid-column: 1;
-  }
-  .section--tokens {
-    grid-column: 2;
-    grid-row: span 2;
-  }
-  .section--effects {
-    grid-column: 3;
-  }
-  .section--overlay {
-    grid-column: 3;
-  }
-  .section--title {
-    grid-column: 3;
+    grid-template-areas:
+      "scenes   scenes   scenes"
+      "map      tokens   effects"
+      "combat   tokens   cinematic";
   }
 }
 
-/* ---- Collapsible sections ---- */
-details.section > summary {
+/* Collapsible sections */
+details.card > summary {
   list-style: none;
   cursor: pointer;
 }
-details.section > summary::-webkit-details-marker {
+details.card > summary::-webkit-details-marker {
   display: none;
 }
 .section__label--collapsible {
@@ -555,7 +522,7 @@ details.section > summary::-webkit-details-marker {
   margin-left: auto;
   transition: transform var(--transition-fast);
 }
-details.section[open] > summary .section__label--collapsible::after {
+details.card[open] > summary .section__label--collapsible::after {
   transform: rotate(90deg);
 }
 .section__content {
