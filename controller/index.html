@@ -605,7 +605,7 @@ details.section[open] > summary .section__label--collapsible::after {
 <div class="control-sections">
 
 <!-- Scenes -->
-<div class="section section--full-width" id="sec-scenes">
+<div class="card section--scenes" id="sec-scenes">
   <div class="section__label">Scenes</div>
   <div class="scene-nav">
     <button class="btn btn--icon btn--sm" id="scene-prev">&#9664;</button>
@@ -619,13 +619,13 @@ details.section[open] > summary .section__label--collapsible::after {
 </div>
 
 <!-- Map & Camera -->
-<div class="section section--map" id="sec-map">
+<div class="card section--map" id="sec-map">
   <div class="section__label">Map &amp; Camera</div>
-  <div class="btn-row" style="margin-bottom:0.5rem">
+  <div class="btn-row btn-row--gap-sm">
     <select class="ctrl-select" id="map-select"></select>
     <button class="btn btn--sm" id="map-load">Load</button>
   </div>
-  <div class="btn-row" style="align-items:start;gap:0.75rem">
+  <div class="map-camera-controls">
     <div class="camera-grid">
       <div></div>
       <button class="btn btn--icon" data-cam="up">&#9650;</button>
@@ -637,7 +637,7 @@ details.section[open] > summary .section__label--collapsible::after {
       <button class="btn btn--icon" data-cam="down">&#9660;</button>
       <div></div>
     </div>
-    <div style="display:flex;flex-direction:column;gap:0.25rem">
+    <div class="camera-actions">
       <div class="btn-row">
         <button class="btn btn--sm" id="zoom-in">+ Zoom</button>
         <button class="btn btn--sm" id="zoom-out">&minus; Zoom</button>
@@ -647,9 +647,9 @@ details.section[open] > summary .section__label--collapsible::after {
         <button class="btn btn--sm" id="fog-hide">Fog &#9632;</button>
         <button class="btn btn--sm" id="grid-toggle">Grid</button>
       </div>
-      <div class="btn-row" style="margin-top:0.25rem">
+      <div class="btn-row btn-row--mt-sm">
         <button class="btn btn--sm" id="btn-frame-tokens">Frame Tokens</button>
-        <select class="ctrl-select" id="frame-mode" style="font-size:var(--font-size-sm);padding:0.15rem 0.3rem">
+        <select class="ctrl-select ctrl-select--sm" id="frame-mode">
           <option value="all">All</option>
           <option value="pcs">PCs</option>
           <option value="combatants">Combatants</option>
@@ -660,19 +660,19 @@ details.section[open] > summary .section__label--collapsible::after {
 </div>
 
 <!-- Camera Presets -->
-<div class="section section--presets" id="sec-presets">
+<div class="card section--presets" id="sec-presets">
   <div class="section__label">Camera Presets</div>
-  <div class="btn-row" style="margin-bottom:0.5rem">
-    <input type="text" class="ctrl-input" id="preset-name" placeholder="Preset name" style="flex:1;padding:0.25rem 0.5rem;background:var(--bg-2);color:var(--text-primary);border:1px solid var(--bg-3);border-radius:var(--radius-sm);font-family:var(--font-body);font-size:var(--font-size-sm)">
+  <div class="btn-row btn-row--gap-sm">
+    <input type="text" class="ctrl-input ctrl-input--sm" id="preset-name" placeholder="Preset name">
     <button class="btn btn--sm" id="preset-save">Save View</button>
   </div>
   <div id="preset-list"></div>
 </div>
 
 <!-- Tokens -->
-<div class="section section--tokens" id="sec-tokens">
+<div class="card section--tokens" id="sec-tokens">
   <div class="section__label">Tokens</div>
-  <div class="btn-row" style="margin-bottom:0.5rem">
+  <div class="btn-row btn-row--gap-sm">
     <select class="ctrl-select" id="preset-select"></select>
     <button class="btn btn--sm" id="preset-load">Load Preset</button>
     <button class="btn btn--sm btn--danger" id="clear-tokens">Clear All</button>
@@ -685,11 +685,11 @@ details.section[open] > summary .section__label--collapsible::after {
 </div>
 
 <!-- Effects -->
-<div class="section section--effects" id="sec-effects">
+<div class="card section--effects" id="sec-effects">
   <div class="section__label">Effects</div>
-  <div class="btn-row" style="margin-bottom:0.5rem">
-    <span class="text-xs text-muted" style="white-space:nowrap">Target:</span>
-    <select class="ctrl-select" id="effect-target" style="flex:1">
+  <div class="btn-row btn-row--gap-sm">
+    <span class="effects-target-label">Target:</span>
+    <select class="ctrl-select ctrl-select--flex" id="effect-target">
       <option value="">Map Center</option>
     </select>
   </div>
@@ -720,7 +720,7 @@ details.section[open] > summary .section__label--collapsible::after {
 </details>
 
 <!-- Combat -->
-<div class="section section--full-width section--combat" id="sec-combat">
+<div class="card card--accent section--combat" id="sec-combat">
   <div class="section__label">Combat</div>
   <div class="combat-info" id="combat-info"></div>
   <div class="btn-row">
