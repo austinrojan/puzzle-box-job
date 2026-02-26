@@ -83,7 +83,7 @@ body {
   font-family: var(--font-mono);
   font-size: var(--font-size-xs); text-transform: uppercase;
   letter-spacing: 0.8px; color: var(--text-muted);
-  margin-bottom: var(--space-2);
+  margin-bottom: var(--space-1);
 }
 
 /* Button grid */
@@ -390,6 +390,64 @@ body {
   width: 100%;
   text-align: center;
 }
+
+/* Card system */
+.card {
+  background: var(--bg-1);
+  border: 1px solid var(--bg-2);
+  border-radius: var(--radius-lg);
+  padding: var(--space-3) var(--space-4);
+}
+.card--accent {
+  border-color: var(--gold-dim);
+}
+
+/* Subsection divider within a card */
+.subsection {
+  margin-top: var(--space-3);
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--bg-2);
+}
+.subsection__label {
+  font-family: var(--font-mono);
+  font-size: var(--font-size-2xs);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-muted);
+  margin-bottom: var(--space-2);
+}
+
+/* Header with mode buttons */
+.header__modes {
+  display: flex;
+  gap: var(--space-1);
+}
+
+/* Inline style replacements */
+.map-camera-controls {
+  display: flex;
+  align-items: start;
+  gap: var(--space-3);
+  margin-top: var(--space-2);
+}
+.camera-actions {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+.btn-row--gap-sm { margin-bottom: var(--space-2); }
+.btn-row--mt-sm { margin-top: var(--space-1); }
+.ctrl-select--sm {
+  font-size: var(--font-size-sm);
+  padding: var(--space-1) var(--space-2);
+}
+.ctrl-select--flex { flex: 1; }
+.ctrl-input--sm { flex: 1; }
+.effects-target-label {
+  font-size: var(--font-size-xs);
+  color: var(--text-muted);
+  white-space: nowrap;
+}
 }
 
 /* ============================================
@@ -408,13 +466,8 @@ body {
 .control-sections {
   display: grid;
   grid-template-columns: 1fr;
-  gap: 1px;
-  background: var(--bg-3);
-}
-
-.control-sections > .section {
-  background: var(--bg-0);
-  padding: var(--space-3) var(--space-4);
+  gap: var(--space-3);
+  padding: var(--space-3);
 }
 
 .section--full-width {
