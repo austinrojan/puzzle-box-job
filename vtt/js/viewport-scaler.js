@@ -1,9 +1,6 @@
-// VTT Viewport Scaler — Mode-aware: CSS-scale for theater, fluid for map
+// VTT Viewport Scaler — Fluid sizing for all modes
 
 import { EventBus } from './state.js';
-
-const VTT_W = 1920;
-const VTT_H = 1080;
 
 let _scale = 1;
 let _initialized = false;
@@ -30,26 +27,11 @@ export function initViewportScaler() {
 
 function update() {
   if (!_container) return;
-  const vw = window.innerWidth;
-  const vh = window.innerHeight;
-  if (vw <= 0 || vh <= 0) return;
-
-  if (_mode === 'theater') {
-    const s = Math.min(vw / VTT_W, vh / VTT_H);
-    if (_appliedMode === _mode && Math.abs(s - _scale) < 0.0001) return;
-    _scale = s;
-    _appliedMode = _mode;
-    _container.style.transform = `scale(${s})`;
-    _container.style.width = VTT_W + 'px';
-    _container.style.height = VTT_H + 'px';
-    EventBus.emit('viewport:scaled', { scale: s });
-  } else {
-    if (_appliedMode === _mode && _scale === 1) return;
-    _scale = 1;
-    _appliedMode = _mode;
-    _container.style.transform = '';
-    _container.style.width = '100%';
-    _container.style.height = '100%';
-    EventBus.emit('viewport:scaled', { scale: 1 });
-  }
+  if (_appliedMode === _mode) return;
+  _scale = 1;
+  _appliedMode = _mode;
+  _container.style.transform = '';
+  _container.style.width = '100%';
+  _container.style.height = '100%';
+  EventBus.emit('viewport:scaled', { scale: 1 });
 }
