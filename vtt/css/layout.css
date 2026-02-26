@@ -1,6 +1,6 @@
 /* ============================================
    VTT Layout — Full-screen layer stack
-   Fixed 1920x1080 for Discord screenshare
+   Fluid viewport fill for all modes
    ============================================ */
 
 @layer layout {
@@ -15,7 +15,7 @@
     overflow: hidden;
   }
 
-  /* Scale container: fixed 1920x1080, CSS-scaled to fit viewport */
+  /* Scale container: fluid 100%x100%, CSS vars are fallback before JS */
   #vtt-scale-container {
     position: relative;
     width: var(--vtt-width);
