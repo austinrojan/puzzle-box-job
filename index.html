@@ -25,6 +25,9 @@
     --tab-max-width: 12.5rem;
     --scrollbar-size: 0.5rem;
 
+    /* ── DM Guide: Content Width ── */
+    --content-width: 41rem;
+
     /* ── DM Guide: Extended Spacing ── */
     --space-12: 3rem;
     --space-16: 4rem;
@@ -425,18 +428,19 @@ html[data-sidebar="hidden"] #app:not([data-sidebar]) { --sidebar-w: 0px; }
 #main-content > .block-vtt-cue,
 #main-content > .stat-block,
 #main-content > p {
-  max-width: min(65ch, 100%);
+  max-width: min(var(--content-width), 100%);
   margin-inline: auto;
 }
 
-/* Conditional blocks keep their left indent */
+/* Conditional blocks centered like all other blocks */
 #main-content > .block-conditional {
-  max-width: min(65ch, 100%);
+  max-width: min(var(--content-width), 100%);
+  margin-inline: auto;
 }
 
-/* Tables/stat blocks get wider allowance */
+/* Tables use the same content width as other blocks */
 #main-content > .block-table {
-  max-width: min(80ch, 100%);
+  max-width: min(var(--content-width), 100%);
   margin-inline: auto;
 }
 
