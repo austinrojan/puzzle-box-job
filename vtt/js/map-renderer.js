@@ -5,8 +5,9 @@ import { MAPS } from './data.js';
 import { Camera } from './map-camera.js';
 
 const $ = id => document.getElementById(id);
-// Map art is designed for 1920px world-space width
-const MAP_ART_WIDTH = 1920;
+// Per-map world-space width — ensures readable tokens at any grid density
+const DEFAULT_ART_WIDTH = 1920;
+const MIN_CELL_PX = 48;
 
 export class MapRenderer {
   constructor() {
@@ -136,7 +137,8 @@ export class MapRenderer {
     this.currentMap = mapDef;
     state.mapId = mapId;
 
-    this.cellPx = MAP_ART_WIDTH / mapDef.cols;
+    const artWidth = mapDef.artWidth || Math.max(DEFAULT_ART_WIDTH, mapDef.cols * MIN_CELL_PX);
+    this.cellPx = artWidth / mapDef.cols;
     this.gridSizeFt = mapDef.gridSize || 5;
 
     const worldW = mapDef.cols * this.cellPx;
