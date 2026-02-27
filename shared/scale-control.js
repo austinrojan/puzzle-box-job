@@ -95,8 +95,7 @@ export function initScaleControl() {
   // Toggle popover
   toggle.addEventListener('click', (e) => {
     e.stopPropagation();
-    const isHidden = popover.hidden;
-    popover.hidden = !isHidden;
+    popover.hidden = !popover.hidden;
   });
 
   // Close popover on outside click
@@ -114,16 +113,17 @@ export function initScaleControl() {
     }
   });
 
-  // Slider input (live preview)
+  // Slider input — update readout only (no layout reflow during drag)
   slider.addEventListener('input', () => {
-    currentScale = parseFloat(slider.value);
-    applyScale(currentScale);
-    if (readout) readout.textContent = formatPercent(currentScale);
-    if (valueDisplay) valueDisplay.textContent = formatPercent(currentScale);
+    const val = parseFloat(slider.value);
+    if (readout) readout.textContent = formatPercent(val);
+    if (valueDisplay) valueDisplay.textContent = formatPercent(val);
   });
 
-  // Slider change (persist on release)
+  // Slider change — apply scale and persist on release
   slider.addEventListener('change', () => {
+    currentScale = parseFloat(slider.value);
+    applyScale(currentScale);
     saveScale(currentScale);
   });
 
