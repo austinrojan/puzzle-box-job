@@ -19,17 +19,23 @@ ASSET_DIR = "campaigns/puzzle-box/assets/maps"
 MAPS = {
     "M01": {
         "file": "m01-dock-district.png",
-        "width": 2400,
-        "height": 1800,
-        "prompt": """A gritty dockside district seen from perfectly top-down bird's eye view, a fantasy tabletop RPG tactical battle map. The camera is directly overhead looking straight down.
+        "width": 3600,
+        "height": 2700,
+        "prompt": """A dense harbor dock district seen from perfectly top-down bird's eye view, a fantasy tabletop RPG tactical battle map. The camera is directly overhead looking straight down at rooftops and streets. Completely flat orthographic projection, zero perspective, zero vanishing points.
 
-A dense cluster of weathered wooden buildings and warehouses along a harbor waterfront. Cobblestone streets and narrow winding alleyways between timber-frame structures with shingled roofs seen from above. A salt-crusted tavern with a hanging anchor sign sits prominently near the waterfront. Wooden dock piers extend into dark harbor water along the bottom edge, with small fishing boats and a merchant vessel moored alongside.
+The bottom quarter is dark teal harbor water with wooden piers extending outward. Three weathered wooden piers jut into the water with small fishing boats and one larger merchant vessel with furled sails moored alongside. Lantern light reflects as warm amber streaks in the dark water. Coiled rope and stacked cargo crates line the dock edge.
 
-Stacked cargo crates, coiled rope piles, and barrels scattered along the dockside. Flickering oil lantern posts line the main street casting warm amber pools of light. Harbor fog rolls in from the water's edge. A market square with canvas-covered stalls near the center. Narrow alley shortcuts between buildings create tactical chokepoints.
+Above the water, a long wooden dock walkway runs horizontally across the full width, separating water from land. Immediately above the walkway, a large dark-timbered tavern with a weathered dark shingled roof dominates the center-left of the dock area, the largest building on the waterfront with a rusted iron anchor hanging from a bracket visible from above. Stacked cargo crates, coiled rope, and barrel clusters fill the spaces between smaller warehouses flanking the tavern.
 
-The waterfront runs along the bottom and right edges. Buildings cluster densely on the left and top portions. Wet cobblestones gleam in lantern light. Dark puddles reflect warm amber light. Atmospheric sea mist softens distant structures.
+The middle portion shows cobblestone streets running between timber-frame buildings seen from above as distinct shingled rooftops of varying heights and colors. On the left side, an open courtyard enclosed by tall buildings, covered with colorful patchwork canvas tarps and awnings in faded reds, yellows, and tans stretched between buildings, sheltering rows of wooden crate-table stalls below — a hidden street market. On the right side, a smaller rough two-story tavern with a steeply pitched dark damaged roof and a crooked timber sign bracket.
 
-Dark fantasy painterly digital art, gothic maritime atmosphere, muted color palette of weathered browns, grey stone, dark teal water, and warm amber lantern light. Highly detailed textures on wood, stone, and water. No text, no labels, no grid lines, no borders, no characters or figures.""",
+Narrow winding alleyways and cobblestone streets create clear visible gaps between all buildings. A wide main north-south street runs through the center with flickering oil lantern posts casting warm amber pools of light on wet gleaming cobblestones. Cross streets and alleys branch off in irregular medieval patterns. Dark puddles collect in alley corners reflecting amber lantern light.
+
+The top portion transitions to slightly wider streets and better-maintained buildings with cleaner rooflines and occasional window flower boxes. A small stone bakery with a prominent chimney and warm amber glow sits near the top edge. The transition hints at a wealthier neighboring ward beyond.
+
+Harbor fog rolls in as faint wisps at the water's edge only. Evening atmosphere with long shadows. Atmospheric mist softens the bottom edge near the water.
+
+Dark fantasy painterly digital art, gothic maritime atmosphere, muted color palette of weathered browns, dark grey stone, dark teal water, warm amber lantern light, and colorful market canvas. Highly detailed textures on wood, stone, and water surfaces. No text, no labels, no grid lines, no borders, no characters or figures.""",
     },
     "M02": {
         "file": "m02-estate-grounds.png",
