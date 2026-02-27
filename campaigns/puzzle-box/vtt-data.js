@@ -112,6 +112,18 @@ export const MAP_PRESETS = {
       { tokenId: 'kallista',       x: 16, y: 14 },
     ]
   },
+  'M01-gathering-intel': {
+    mapId: 'M01',
+    label: 'Dock District — Gathering Intel',
+    tokens: [
+      // PCs start on the street near the Rusty Anchor (Act 2 opens here)
+      { tokenId: 'martin-storm',  x: 24, y: 32 },
+      { tokenId: 'lome',          x: 25, y: 32 },
+      { tokenId: 'oda',           x: 26, y: 32 },
+      { tokenId: 'jean',          x: 23, y: 32 },
+      { tokenId: 'kallista',      x: 27, y: 32 },
+    ]
+  },
   'M02-infiltration': {
     mapId: 'M02',
     label: 'Estate Grounds — Infiltration',
