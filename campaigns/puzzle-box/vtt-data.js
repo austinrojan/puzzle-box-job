@@ -55,11 +55,11 @@ export const ACTS = [
 
 // Maps (6)
 export const MAPS = [
-  { id: 'M01', title: 'Dock District',       image: 'assets/maps/m01-dock-district.png',    gridSize: 5, cols: 40, rows: 30 },
-  { id: 'M02', title: 'Estate Grounds',      image: 'assets/maps/m02-estate-grounds.png',   gridSize: 5, cols: 40, rows: 30 },
-  { id: 'M03', title: 'Mansion — Ground',    image: 'assets/maps/m03-mansion-ground.png',   gridSize: 5, cols: 30, rows: 24 },
-  { id: 'M04', title: 'Mansion — Second',    image: 'assets/maps/m04-mansion-second.png',   gridSize: 5, cols: 30, rows: 24 },
-  { id: 'M05', title: 'Mansion — Third',     image: 'assets/maps/m05-mansion-third.png',    gridSize: 5, cols: 20, rows: 16 },
+  { id: 'M01', title: 'Dock District',       image: 'assets/maps/m01-dock-district.png',    gridSize: 2.5, cols: 40, rows: 30 },
+  { id: 'M02', title: 'Estate Grounds',      image: 'assets/maps/m02-estate-grounds.png',   gridSize: 2.5, cols: 40, rows: 30 },
+  { id: 'M03', title: 'Mansion — Ground',    image: 'assets/maps/m03-mansion-ground.png',   gridSize: 2.5, cols: 30, rows: 24 },
+  { id: 'M04', title: 'Mansion — Second',    image: 'assets/maps/m04-mansion-second.png',   gridSize: 2.5, cols: 30, rows: 24 },
+  { id: 'M05', title: 'Mansion — Third',     image: 'assets/maps/m05-mansion-third.png',    gridSize: 2.5, cols: 20, rows: 16 },
   { id: 'M06', title: 'Warehouse',           image: 'assets/maps/m06-warehouse.png',        gridSize: 2.5, cols: 24, rows: 16 },
 ];
 
