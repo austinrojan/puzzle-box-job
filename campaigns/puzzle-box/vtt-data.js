@@ -60,7 +60,7 @@ export const MAPS = [
   { id: 'M03', title: 'Mansion — Ground',    image: 'assets/maps/m03-mansion-ground.png',   gridSize: 5, cols: 30, rows: 24 },
   { id: 'M04', title: 'Mansion — Second',    image: 'assets/maps/m04-mansion-second.png',   gridSize: 5, cols: 30, rows: 24 },
   { id: 'M05', title: 'Mansion — Third',     image: 'assets/maps/m05-mansion-third.png',    gridSize: 5, cols: 20, rows: 16 },
-  { id: 'M06', title: 'Warehouse',           image: 'assets/maps/m06-warehouse.png',        gridSize: 5, cols: 24, rows: 16 },
+  { id: 'M06', title: 'Warehouse',           image: 'assets/maps/m06-warehouse.png',        gridSize: 2.5, cols: 24, rows: 16 },
 ];
 
 // Tokens (17)
@@ -83,8 +83,8 @@ export const TOKENS = {
   'pip':             { name: 'Pip',                image: 'assets/tokens/pip.png',             border: 'var(--token-npc-friendly)', size: 1 },
 
   // Objects
-  'brazier-lit':    { name: 'Brazier (Lit)',       image: 'assets/tokens/brazier-lit.png',    border: 'var(--brazier-blue)',    size: 1, isObject: true },
-  'brazier-dead':   { name: 'Brazier (Dead)',      image: 'assets/tokens/brazier-dead.png',   border: 'var(--brazier-dead)',    size: 1, isObject: true },
+  'brazier-lit':    { name: 'Brazier (Lit)',       image: 'assets/tokens/brazier-lit.png',    border: 'var(--brazier-blue)',    size: 2, isObject: true },
+  'brazier-dead':   { name: 'Brazier (Dead)',      image: 'assets/tokens/brazier-dead.png',   border: 'var(--brazier-dead)',    size: 2, isObject: true },
   'puzzle-box':     { name: 'Puzzle Box',          image: 'assets/tokens/puzzle-box.png',     border: 'var(--purple)',          size: 1, isObject: true },
   'dagger-magic':   { name: '+1 Ornate Dagger',   image: 'assets/tokens/dagger-magic.png',   border: 'var(--gold)',            size: 1, isObject: true },
 };
@@ -98,11 +98,12 @@ export const MAP_PRESETS = {
       { tokenId: 'locke-rakshasa', x: 12, y: 8 },
       { tokenId: 'cult-fanatic',   x: 8,  y: 6,  label: 'Fanatic 1' },
       { tokenId: 'cult-fanatic',   x: 16, y: 6,  label: 'Fanatic 2' },
-      { tokenId: 'brazier-lit',    x: 6,  y: 4 },
-      { tokenId: 'brazier-lit',    x: 18, y: 4 },
-      { tokenId: 'brazier-lit',    x: 6,  y: 12 },
-      { tokenId: 'brazier-lit',    x: 18, y: 12 },
-      { tokenId: 'brazier-lit',    x: 12, y: 2 },
+      // Braziers: size-2, position = old center - 1
+      { tokenId: 'brazier-lit',    x: 5,  y: 3 },
+      { tokenId: 'brazier-lit',    x: 17, y: 3 },
+      { tokenId: 'brazier-lit',    x: 5,  y: 11 },
+      { tokenId: 'brazier-lit',    x: 17, y: 11 },
+      { tokenId: 'brazier-lit',    x: 11, y: 1 },
       // PCs start near entrance
       { tokenId: 'martin-storm',   x: 10, y: 14 },
       { tokenId: 'lome',           x: 12, y: 14 },
