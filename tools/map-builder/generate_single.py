@@ -37,23 +37,23 @@ Flickering lantern posts line the main streets casting tiny warm amber pools of 
         "file": "m02-estate-grounds.png",
         "width": 3600,
         "height": 2700,
-        "prompt": """Wide aerial top-down view of an entire noble estate and its surrounding grounds at night, a tabletop RPG infiltration map. Flat two-dimensional map illustration, perfectly overhead looking straight down. Zero perspective, zero vanishing points.
+        "prompt": """Flat two-dimensional map illustration of a noble estate at night, perfectly overhead looking straight down. Zero perspective, zero vanishing points, zero foreshortening. Wide aerial top-down tabletop RPG infiltration map.
 
-The entire estate property is enclosed by a wrought-iron fence with stone pillars running along all four edges. The fence is a thin dark line with evenly spaced small square stone pillar caps visible from above.
+The entire estate property is enclosed by a thin wrought-iron fence with small stone pillar caps along all four edges.
 
-The upper center shows a large three-story pale stone mansion with a dark slate roof and dormer windows, ivy visible on the walls. Tall arched windows glow warm amber from a gala inside. The mansion occupies roughly one-sixth of the total map area. A rooftop position is visible on the west wing roof near a chimney.
+The upper center shows the mansion roof from directly above — a dark slate rectangular rooftop with dormer window peaks and chimney stacks, only the roof visible, no walls or front facade. Warm amber light spills outward from the roof edges onto the ground in rectangles. The mansion roof occupies roughly one-eighth of the total map area, surrounded by vast grounds on all sides.
 
-Below the mansion, a circular cobblestone carriage drive curves in a wide loop. A dozen small horse-drawn carriages are parked along the drive, seen from above as tiny dark rectangular shapes with wheels. The drive connects to twin ornate iron gates at the bottom center of the map.
+Below the mansion, a thin pale cobblestone carriage drive curves in a U-shaped loop — exiting the gates, curving left past the lawn, looping in front of the mansion entrance, and curving right past the gardens back to the gates. Small dark rectangular carriage shapes park along the loop. Twin ornate iron gates at the bottom center of the map, flanked by lantern posts.
 
-The left third of the map features an old rough stone wall running north-south, taller and thicker than the iron fence, covered in dark ivy. East of this wall, a wide stretch of dark open lawn extends toward the mansion — the largest single open area on the map, mostly dark green-black grass with subtle moonlight.
+The left third features an old rough stone wall running north-south, visibly thicker and rougher than the iron fence, covered in dark ivy. East of this wall stretches a vast dark open lawn — the largest single area on the map, dark green-black grass with silver-blue moonlight patches. This open expanse reaches from the stone wall all the way to the carriage drive.
 
-The right third shows formal gardens with angular topiary hedges in geometric patterns separated by pale gravel walking paths. A stone fountain sits at the center of the garden area with a small circle of water visible from above. In the far right, a glass conservatory structure with thin iron framing glows faintly from phosphorescent plants inside, adjacent to a small hedge maze of tight angular green hedge walls.
+The right third shows elaborate formal gardens: angular topiary hedge shapes in geometric diamond and circle patterns, separated by pale gravel walking paths forming a grid. A circular stone fountain with dark water sits at the garden center. In the far right, a glass conservatory with thin iron framing glows faintly green-white from phosphorescent plants inside. Adjacent to the conservatory, a small hedge maze of tight angular green walls forms a visible labyrinth pattern from above.
 
-A narrow servants' alley runs along the right edge between the outer fence and a tall hedge row — a thin dark passage just wide enough for one person.
+A narrow dark servants' alley runs along the far right edge between the outer fence and a tall hedge row — a thin shadowy passage.
 
-Flickering amber lanterns line the carriage drive and main garden paths, casting small warm pools of light. The open lawn areas are dark with silver-blue moonlight. Deep shadows fill garden corners and the space behind the hedge maze. Warm amber light spills from the mansion windows in visible rectangles on the ground nearby.
+Flickering amber lanterns line the carriage drive and garden paths, casting small warm pools of light. Unlit lawn areas are dark with silver-blue moonlight. Deep shadows fill garden corners and behind the hedge maze.
 
-Night atmosphere with a deep blue-black sky tone over all unlit areas. Dark fantasy painterly digital art, gothic aristocratic atmosphere. Muted palette of deep blue-blacks, warm ambers, pale stone whites, dark garden greens, silver moonlight. No text, no labels, no grid lines, no borders, no characters or figures.""",
+Night atmosphere, deep blue-black sky tone. Dark fantasy painterly digital art, gothic aristocratic atmosphere. Muted palette of deep blue-blacks, warm ambers, pale stone whites, dark garden greens, silver moonlight. No text, no labels, no grid lines, no borders, no characters or figures.""",
     },
     "M03": {
         "file": "m03-mansion-ground.png",
