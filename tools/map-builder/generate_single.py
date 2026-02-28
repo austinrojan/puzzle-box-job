@@ -150,7 +150,7 @@ def generate_map(map_id):
             arguments={
                 "prompt": cfg["prompt"],
                 "resolution": "4K",
-                "aspect_ratio": "4:3",
+                "aspect_ratio": cfg.get("aspect_ratio", "4:3"),
                 "num_images": 1,
                 "output_format": "png",
                 "safety_tolerance": "6",
