@@ -124,6 +124,16 @@ export const MAP_PRESETS = {
       { tokenId: 'kallista',      x: 27, y: 32 },
     ]
   },
+  'M03-gala': {
+    mapId: 'M03',
+    label: 'Mansion Ground Floor — Gala',
+    tokens: [
+      // Guard stationed at base of the grand staircase (center)
+      { tokenId: 'guard', x: 16, y: 15, label: 'Staircase Guard' },
+      // Captain Helm roaming the ballroom
+      { tokenId: 'captain-helm', x: 7, y: 12 },
+    ]
+  },
   'M02-infiltration': {
     mapId: 'M02',
     label: 'Estate Grounds — Infiltration',
