@@ -35,19 +35,25 @@ Flickering lantern posts line the main streets casting tiny warm amber pools of 
     },
     "M02": {
         "file": "m02-estate-grounds.png",
-        "width": 2400,
-        "height": 1800,
-        "prompt": """A grand noble estate and its surrounding grounds seen from perfectly top-down bird's eye view at night, a fantasy tabletop RPG tactical battle map. The camera is directly overhead looking straight down.
+        "width": 3600,
+        "height": 2700,
+        "prompt": """Wide aerial top-down view of an entire noble estate and its surrounding grounds at night, a tabletop RPG infiltration map. Flat two-dimensional map illustration, perfectly overhead looking straight down. Zero perspective, zero vanishing points.
 
-A three-story pale stone mansion with a slate roof dominates the upper center, ivy climbing its walls, tall arched windows glowing warm amber from a gala inside. A circular cobblestone carriage drive curves in front of the mansion entrance with a dozen parked horse-drawn carriages. An ornate wrought-iron fence with stone pillars rings the entire property perimeter.
+The entire estate property is enclosed by a wrought-iron fence with stone pillars running along all four edges. The fence is a thin dark line with evenly spaced small square stone pillar caps visible from above.
 
-Twin ornate iron gates at the bottom center mark the main entrance with guard lanterns flanking them. Formal manicured gardens with topiary hedges and gravel walking paths fill the grounds around the mansion. A stone fountain centerpiece in the garden with water visible from above. A glass conservatory structure with iron framing sits on the right side near a hedge maze entrance.
+The upper center shows a large three-story pale stone mansion with a dark slate roof and dormer windows, ivy visible on the walls. Tall arched windows glow warm amber from a gala inside. The mansion occupies roughly one-sixth of the total map area. A rooftop position is visible on the west wing roof near a chimney.
 
-The left side features an old rough stone wall twelve feet high covered in thick ivy, with a rooftop position above. A narrow servants' entrance alley runs along the right side between the outer wall and a hedge row. Flickering lanterns line the main drive and garden paths. Dark lawn areas stretch between garden features.
+Below the mansion, a circular cobblestone carriage drive curves in a wide loop. A dozen small horse-drawn carriages are parked along the drive, seen from above as tiny dark rectangular shapes with wheels. The drive connects to twin ornate iron gates at the bottom center of the map.
 
-Evening atmosphere with deep blue-black sky, warm amber light spilling from mansion windows, lantern glow along paths, and deep shadows in garden corners. Moonlight illuminates the open lawn areas.
+The left third of the map features an old rough stone wall running north-south, taller and thicker than the iron fence, covered in dark ivy. East of this wall, a wide stretch of dark open lawn extends toward the mansion — the largest single open area on the map, mostly dark green-black grass with subtle moonlight.
 
-Dark fantasy painterly digital art, gothic aristocratic atmosphere, rich palette of deep blues, warm ambers, pale stone whites, and dark garden greens. Highly detailed textures on stone, iron, glass, and foliage. No text, no labels, no grid lines, no borders, no characters or figures.""",
+The right third shows formal gardens with angular topiary hedges in geometric patterns separated by pale gravel walking paths. A stone fountain sits at the center of the garden area with a small circle of water visible from above. In the far right, a glass conservatory structure with thin iron framing glows faintly from phosphorescent plants inside, adjacent to a small hedge maze of tight angular green hedge walls.
+
+A narrow servants' alley runs along the right edge between the outer fence and a tall hedge row — a thin dark passage just wide enough for one person.
+
+Flickering amber lanterns line the carriage drive and main garden paths, casting small warm pools of light. The open lawn areas are dark with silver-blue moonlight. Deep shadows fill garden corners and the space behind the hedge maze. Warm amber light spills from the mansion windows in visible rectangles on the ground nearby.
+
+Night atmosphere with a deep blue-black sky tone over all unlit areas. Dark fantasy painterly digital art, gothic aristocratic atmosphere. Muted palette of deep blue-blacks, warm ambers, pale stone whites, dark garden greens, silver moonlight. No text, no labels, no grid lines, no borders, no characters or figures.""",
     },
     "M03": {
         "file": "m03-mansion-ground.png",
