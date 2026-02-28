@@ -128,11 +128,14 @@ export const MAP_PRESETS = {
     mapId: 'M02',
     label: 'Estate Grounds — Infiltration',
     tokens: [
-      { tokenId: 'guard', x: 20, y: 15, label: 'Gate Guard 1' },
-      { tokenId: 'guard', x: 21, y: 15, label: 'Gate Guard 2' },
-      { tokenId: 'guard', x: 10, y: 20, label: 'Patrol' },
-      { tokenId: 'mastiff', x: 30, y: 10, label: 'Mastiff 1' },
-      { tokenId: 'mastiff', x: 32, y: 12, label: 'Mastiff 2' },
+      // Gate guards flanking the twin gates (bottom-center)
+      { tokenId: 'guard', x: 29, y: 42, label: 'Gate Guard 1' },
+      { tokenId: 'guard', x: 31, y: 42, label: 'Gate Guard 2' },
+      // Patrol guard roaming the garden paths (right of carriage loop)
+      { tokenId: 'guard', x: 41, y: 23, label: 'Patrol' },
+      // Mastiffs near hedge maze / conservatory (right side)
+      { tokenId: 'mastiff', x: 47, y: 22, label: 'Mastiff 1' },
+      { tokenId: 'mastiff', x: 49, y: 24, label: 'Mastiff 2' },
     ]
   }
 };
