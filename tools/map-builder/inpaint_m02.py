@@ -34,18 +34,23 @@ W, H = 3600, 2700
 REGIONS = {
     "hedge_maze": {
         "crop_box": (2200, 1100, 3500, 2350),
-        "mask_box": None,  # inpaint the entire crop
-        "prompt": "Top-down flat overhead view of formal gardens at night: a small hedge maze with visible labyrinth pattern of tight angular green hedge walls, adjacent to a glass conservatory with thin iron framing glowing faintly green-white from phosphorescent plants inside. Angular topiary hedges in geometric patterns separated by pale gravel walking paths. A circular stone fountain with dark water. Dark fantasy painterly, night atmosphere, deep blue-black tones, muted greens, warm amber lantern spots. No text, no labels, no grid, no characters.",
+        "mask_box": None,
+        "prompt": "Top-down flat overhead view of formal estate gardens at night, richly detailed oil painting style: angular dark green topiary hedges trimmed into geometric diamond and spiral patterns, separated by pale cream gravel walking paths with visible individual pebble texture. A hedge maze of tight angular yew walls forming a visible labyrinth pattern. A circular stone fountain with dark reflective water. A glass conservatory with oxidized iron framing glowing warm amber and faint green from exotic plants visible through glass panels. Dark bronze statue pedestals at path intersections. Flickering amber lanterns casting warm golden pools of light. Deep midnight blues, warm ambers, dark emerald greens. Highly detailed textures on stone, hedge leaves, gravel, wrought iron. No text, no labels, no grid, no characters.",
     },
     "carriage_loop": {
-        "crop_box": (700, 800, 2900, 2300),
+        "crop_box": (400, 700, 2200, 2200),
         "mask_box": None,
-        "prompt": "Top-down flat overhead view of estate grounds at night: a thin pale cobblestone carriage drive forming a wide oval loop on dark green-black lawn. Small dark rectangular horse-drawn carriages parked along the loop edges. The oval loop is the main feature, surrounded by dark lawn with silver-blue moonlight. Small amber lanterns along the drive. Flat two-dimensional, zero perspective. Dark fantasy painterly, night atmosphere, muted palette. No text, no labels, no grid, no characters.",
+        "prompt": "Top-down flat overhead view of estate grounds at night, richly detailed oil painting style: a cobblestone carriage drive forming a wide oval loop — each individual cobblestone visible as small rounded grey stones with dark mortar gaps, the surface glistening wet. A dozen horse-drawn carriages parked along the loop edges, each a dark lacquered wooden cab with thin spoked wheels casting tiny shadows. Dark green lawn with visible grass blade texture fills inside and outside the loop, with silver-blue moonlight pooling in low areas and subtle ground fog wisps. Fallen autumn leaves scattered on the lawn. Flickering amber lanterns on wrought-iron posts along the drive. Rich saturated deep midnight blues, warm burning ambers, dark emerald greens. Highly detailed weathered textures on every surface. No text, no labels, no grid, no characters.",
     },
     "servants_alley": {
         "crop_box": (2800, 400, 3600, 2500),
         "mask_box": (600, 100, 800, 2000),
         "prompt": "A narrow dark servants' alley passage running vertically between a wrought-iron fence and a tall dark hedge row, seen from directly above at night. Thin shadowy gap with dark stone paving. Dark fantasy painterly, night atmosphere. No text, no labels, no grid, no characters.",
+    },
+    "gardens_full": {
+        "crop_box": (2100, 400, 3500, 2400),
+        "mask_box": None,
+        "prompt": "Top-down flat overhead view of formal estate gardens at night, richly detailed oil painting style. The upper half shows angular dark green topiary hedges trimmed into geometric patterns separated by pale cream gravel paths with visible pebble texture, a small circular stone fountain with dark reflective water at the path intersection, and dark bronze statue pedestals. The lower half shows a glass conservatory building with oxidized iron framing and glass roof panels glowing warm amber from lanterns inside with exotic green plants visible through the glass, adjacent to a small hedge maze of tight angular dark yew walls forming a visible labyrinth pattern from above. Wrought-iron fence with stone pillars runs along the right edge. Flickering amber lanterns on iron posts along the paths. Deep midnight blue shadows, warm burning ambers, dark emerald greens, aged pale stone. Highly detailed textures — weathered stone, trimmed hedge leaves, glistening gravel, wrought iron scrollwork. No text, no labels, no grid, no characters.",
     },
     "gate_cleanup": {
         "crop_box": (1200, 1900, 2400, 2700),
