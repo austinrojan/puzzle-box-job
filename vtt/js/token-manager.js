@@ -35,6 +35,20 @@ export class TokenManager {
 
     this._nextId = 1;
     this._edgePan = null;
+
+    this._drawRafPending = false;
+    this._drawRafId = null;
+  }
+
+  /** Coalesce high-frequency draw requests into a single rAF frame. */
+  _requestDraw() {
+    if (this._drawRafPending) return;
+    this._drawRafPending = true;
+    this._drawRafId = requestAnimationFrame(() => {
+      this._drawRafPending = false;
+      this._drawRafId = null;
+      this.draw();
+    });
   }
 
   init() {
@@ -61,10 +75,10 @@ export class TokenManager {
     document.addEventListener('click', () => this.closeMenu());
     EventBus.on('menu:close', () => {
       this.closeMenu();
-      if (this._ruler) { this._ruler = null; this.draw(); }
+      if (this._ruler) { this._ruler = null; this._requestDraw(); }
     });
 
-    EventBus.on('map:redraw', () => this.draw());
+    EventBus.on('map:redraw', () => this._requestDraw());
 
     EventBus.on('brazier:toggle', ({ index, lit }) => {
       const braziers = this.getBrazierTokens();
@@ -84,7 +98,7 @@ export class TokenManager {
     EventBus.on('map:load', (mapId) => this._onMapSwitch(mapId));
 
     EventBus.on('token:add', ({ tokenId, x, y, label }) => { this.addToken(tokenId, x, y, { label }); });
-    EventBus.on('token:remove-all', () => { this.tokens = []; this._redraw(); });
+    EventBus.on('token:remove-all', () => { this.tokens = []; this._drawAndSync(); });
     EventBus.on('token:load-preset', (presetId) => { this.loadPreset(presetId); });
 
     EventBus.on('token:update-condition', ({ instanceId, condition, enabled }) => {
@@ -95,7 +109,7 @@ export class TokenManager {
       } else if (!enabled) {
         token.conditions = token.conditions.filter(c => c !== condition);
       }
-      this._redraw();
+      this._drawAndSync();
     });
 
     EventBus.on('token:remove-one', (instanceId) => {
@@ -104,7 +118,7 @@ export class TokenManager {
 
     EventBus.on('token:visibility', ({ instanceId, visible }) => {
       const token = this.tokens.find(t => t.id === instanceId);
-      if (token) { token.visible = visible; this._redraw(); }
+      if (token) { token.visible = visible; this._drawAndSync(); }
     });
 
     EventBus.on('token-tray:toggle', () => this.toggleTray());
@@ -140,13 +154,13 @@ export class TokenManager {
     const token = this._buildToken(tokenId, col, row, def, opts);
     this.tokens.push(token);
     this.loadTokenImage(tokenId);
-    this._redraw();
+    this._drawAndSync();
     return token;
   }
 
   removeToken(id) {
     this.tokens = this.tokens.filter(t => t.id !== id);
-    this._redraw();
+    this._drawAndSync();
   }
 
   _emitTokensChanged() {
@@ -162,7 +176,7 @@ export class TokenManager {
     return this.map.camera.eventToScreen(e);
   }
 
-  _redraw() {
+  _drawAndSync() {
     this.draw();
     this._emitTokensChanged();
   }
@@ -175,7 +189,7 @@ export class TokenManager {
     token.label = def.displayName || def.name;
     token.size = def.size || 1;
     this.loadTokenImage(newTokenId);
-    this._redraw();
+    this._drawAndSync();
   }
 
   getBrazierTokens() {
@@ -207,7 +221,7 @@ export class TokenManager {
     this._saveCurrentMapTokens();
     this._currentMapId = mapId;
     this.tokens = this._tokensByMap[mapId] ? this._tokensByMap[mapId].slice() : [];
-    this._redraw();
+    this._drawAndSync();
   }
 
   // Restore tokens from a serialized snapshot (e.g. from persistence).
@@ -225,7 +239,7 @@ export class TokenManager {
 
     this._saveCurrentMapTokens();
 
-    this._redraw();
+    this._drawAndSync();
   }
 
   loadPreset(presetId) {
@@ -234,10 +248,13 @@ export class TokenManager {
 
     this.tokens = [];
     for (const t of preset.tokens) {
-      this.addToken(t.tokenId, t.x, t.y, { label: t.label });
+      const def = TOKENS[t.tokenId];
+      if (!def) continue;
+      this.tokens.push(this._buildToken(t.tokenId, t.x, t.y, def, { label: t.label }));
+      this.loadTokenImage(t.tokenId);
     }
     this._saveCurrentMapTokens();
-    this.draw();
+    this._drawAndSync();
   }
 
   initTray() {
@@ -319,7 +336,7 @@ export class TokenManager {
         item.classList.remove('token-tray__item--active');
       }
     }
-    this.draw();
+    this._requestDraw();
   }
 
   loadTokenImage(tokenId) {
@@ -331,11 +348,11 @@ export class TokenManager {
     const img = new Image();
     img.onload = () => {
       this._imageCache[tokenId] = img;
-      this.draw();
+      this._requestDraw();
     };
     img.onerror = () => {
       this._imageCache[tokenId] = this.generatePlaceholderToken(def);
-      this.draw();
+      this._requestDraw();
     };
     img.src = def.image;
   }
@@ -359,9 +376,7 @@ export class TokenManager {
     ctx.textBaseline = 'middle';
     ctx.fillText(initials, size / 2, size / 2);
 
-    const img = new Image();
-    img.src = canvas.toDataURL();
-    return img;
+    return canvas;
   }
 
   draw() {
@@ -372,7 +387,8 @@ export class TokenManager {
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
 
-    this.labelsEl.textContent = '';
+    const updateLabels = !this._dragging;
+    if (updateLabels) this.labelsEl.textContent = '';
 
     cam.applyTransform(ctx);
 
@@ -395,74 +411,59 @@ export class TokenManager {
         continue;
       }
 
-      ctx.beginPath();
-      ctx.arc(cx, cy, radius + 2 / cam.zoom, 0, Math.PI * 2);
-      ctx.strokeStyle = resolveCSSVar(def.border);
-      ctx.lineWidth = 3 / cam.zoom;
-      ctx.stroke();
-
-      ctx.save();
-      ctx.beginPath();
-      ctx.arc(cx, cy, radius, 0, Math.PI * 2);
-      ctx.clip();
-
-      if (img) {
-        ctx.drawImage(img, cx - radius, cy - radius, radius * 2, radius * 2);
-      } else {
-        ctx.fillStyle = '#1A1F2B';
-        ctx.fill();
-      }
-      ctx.restore();
+      this._drawTokenCircle(ctx, cx, cy, radius, def, img, cam.zoom);
 
       if (token.conditions.length > 0) {
         this.drawConditionDots(ctx, cx, cy, radius, token.conditions, cam.zoom);
       }
 
-      const screenPos = cam.worldToScreen(cx, y + tokenSize + 4);
-      const displayLabel = token.label || def.displayName || def.name;
-      this.addLabel(displayLabel, screenPos.x, screenPos.y);
+      if (updateLabels) {
+        const screenPos = cam.worldToScreen(cx, y + tokenSize + 4);
+        const displayLabel = token.label || def.displayName || def.name;
+        this.addLabel(displayLabel, screenPos.x, screenPos.y);
 
-      if (token.hp !== null && token.maxHp) {
-        const hpScreen = cam.worldToScreen(cx, y + tokenSize + 18);
-        this.addHPBar(token.hp, token.maxHp, hpScreen.x, hpScreen.y);
+        if (token.hp !== null && token.maxHp) {
+          const hpScreen = cam.worldToScreen(cx, y + tokenSize + 18);
+          this.addHPBar(token.hp, token.maxHp, hpScreen.x, hpScreen.y);
+        }
       }
     }
 
     this.drawRuler(ctx, cam, cp);
-
-    if (this._placing && this._placingGhostPos) {
-      const ghostDef = TOKENS[this._placing];
-      if (ghostDef) {
-        const ghostImg = this._imageCache[this._placing];
-        const ghostWorld = cam.screenToWorld(this._placingGhostPos.x, this._placingGhostPos.y);
-        const snapCol = Math.floor(ghostWorld.x / cp);
-        const snapRow = Math.floor(ghostWorld.y / cp);
-        const gx = (snapCol + 0.5) * cp;
-        const gy = (snapRow + 0.5) * cp;
-        const ghostRadius = cp * TOKEN_RADIUS_FACTOR;
-
-        ctx.globalAlpha = 0.4;
-        ctx.beginPath();
-        ctx.arc(gx, gy, ghostRadius, 0, Math.PI * 2);
-        ctx.strokeStyle = resolveCSSVar(ghostDef.border);
-        ctx.lineWidth = 2 / cam.zoom;
-        ctx.setLineDash([4 / cam.zoom, 4 / cam.zoom]);
-        ctx.stroke();
-        ctx.setLineDash([]);
-
-        if (ghostImg) {
-          ctx.save();
-          ctx.beginPath();
-          ctx.arc(gx, gy, ghostRadius, 0, Math.PI * 2);
-          ctx.clip();
-          ctx.drawImage(ghostImg, gx - ghostRadius, gy - ghostRadius, ghostRadius * 2, ghostRadius * 2);
-          ctx.restore();
-        }
-        ctx.globalAlpha = 1.0;
-      }
-    }
+    this._drawPlacementGhost(ctx, cam, cp);
 
     cam.resetTransform(ctx);
+  }
+
+  _drawPlacementGhost(ctx, cam, cp) {
+    if (!this._placing || !this._placingGhostPos) return;
+    const def = TOKENS[this._placing];
+    if (!def) return;
+
+    const img = this._imageCache[this._placing];
+    const world = cam.screenToWorld(this._placingGhostPos.x, this._placingGhostPos.y);
+    const gx = (Math.floor(world.x / cp) + 0.5) * cp;
+    const gy = (Math.floor(world.y / cp) + 0.5) * cp;
+    const radius = cp * TOKEN_RADIUS_FACTOR;
+
+    ctx.globalAlpha = 0.4;
+    ctx.beginPath();
+    ctx.arc(gx, gy, radius, 0, Math.PI * 2);
+    ctx.strokeStyle = resolveCSSVar(def.border);
+    ctx.lineWidth = 2 / cam.zoom;
+    ctx.setLineDash([4 / cam.zoom, 4 / cam.zoom]);
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    if (img) {
+      ctx.save();
+      ctx.beginPath();
+      ctx.arc(gx, gy, radius, 0, Math.PI * 2);
+      ctx.clip();
+      ctx.drawImage(img, gx - radius, gy - radius, radius * 2, radius * 2);
+      ctx.restore();
+    }
+    ctx.globalAlpha = 1.0;
   }
 
   drawRuler(ctx, cam, cp) {
@@ -525,6 +526,26 @@ export class TokenManager {
     }
   }
 
+  _drawTokenCircle(ctx, cx, cy, radius, def, img, zoom) {
+    ctx.beginPath();
+    ctx.arc(cx, cy, radius + 2 / zoom, 0, Math.PI * 2);
+    ctx.strokeStyle = resolveCSSVar(def.border);
+    ctx.lineWidth = 3 / zoom;
+    ctx.stroke();
+
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+    ctx.clip();
+    if (img) {
+      ctx.drawImage(img, cx - radius, cy - radius, radius * 2, radius * 2);
+    } else {
+      ctx.fillStyle = '#1A1F2B';
+      ctx.fill();
+    }
+    ctx.restore();
+  }
+
   drawTokenAt(ctx, token, def, img, screenX, screenY, radius, cp) {
     const cam = this.map.camera;
     cam.resetTransform(ctx);
@@ -537,20 +558,7 @@ export class TokenManager {
 
     ctx.globalAlpha = 0.7;
 
-    ctx.beginPath();
-    ctx.arc(cx, cy, radius + 2 / cam.zoom, 0, Math.PI * 2);
-    ctx.strokeStyle = resolveCSSVar(def.border);
-    ctx.lineWidth = 3 / cam.zoom;
-    ctx.stroke();
-
-    ctx.save();
-    ctx.beginPath();
-    ctx.arc(cx, cy, radius, 0, Math.PI * 2);
-    ctx.clip();
-    if (img) {
-      ctx.drawImage(img, cx - radius, cy - radius, radius * 2, radius * 2);
-    }
-    ctx.restore();
+    this._drawTokenCircle(ctx, cx, cy, radius, def, img, cam.zoom);
 
     ctx.globalAlpha = 1.0;
 
@@ -639,13 +647,13 @@ export class TokenManager {
       this._ruler = { startCol: col, startRow: row, endCol: col, endRow: row };
       this._rulerDragging = true;
       e.stopPropagation();
-      this.draw();
+      this._requestDraw();
       return;
     }
 
     if (this._ruler) {
       this._ruler = null;
-      this.draw();
+      this._requestDraw();
     }
 
     if (this._placing) {
@@ -665,7 +673,9 @@ export class TokenManager {
     this._dragScreenX = sx;
     this._dragScreenY = sy;
     $('map-container').classList.add('dragging-token');
+    this.labelsEl.style.display = 'none';
     if (this._edgePan) this._edgePan.startTracking();
+    this._requestDraw();
   }
 
   onMouseMove(e) {
@@ -674,13 +684,13 @@ export class TokenManager {
       const world = this.map.camera.screenToWorld(x, y);
       this._ruler.endCol = Math.floor(world.x / this.map.cellPx);
       this._ruler.endRow = Math.floor(world.y / this.map.cellPx);
-      this.draw();
+      this._requestDraw();
       return;
     }
 
     if (this._placing) {
       this._placingGhostPos = this._screenCoords(e);
-      this.draw();
+      this._requestDraw();
       return;
     }
 
@@ -689,7 +699,7 @@ export class TokenManager {
     this._dragScreenX = x;
     this._dragScreenY = y;
     if (this._edgePan) this._edgePan.updateCursor(x, y);
-    this.draw();
+    this._requestDraw();
   }
 
   onMouseUp(e) {
@@ -701,13 +711,21 @@ export class TokenManager {
     if (!this._dragging) return;
     if (this._edgePan) this._edgePan.stopTracking();
 
+    // Cancel any pending rAF so _drawAndSync() below is the authoritative final frame
+    if (this._drawRafId) {
+      cancelAnimationFrame(this._drawRafId);
+      this._drawRafId = null;
+      this._drawRafPending = false;
+    }
+
     const world = this.map.camera.screenToWorld(this._dragScreenX, this._dragScreenY);
     this._dragging.col = Math.floor(world.x / this.map.cellPx);
     this._dragging.row = Math.floor(world.y / this.map.cellPx);
 
     this._dragging = null;
     $('map-container').classList.remove('dragging-token');
-    this._redraw();
+    this._drawAndSync();
+    this.labelsEl.style.display = '';
   }
 
   _menuItem(menu, label, onClick, modifier) {
@@ -761,7 +779,7 @@ export class TokenManager {
         } else {
           token.conditions.push(cond);
         }
-        this._redraw();
+        this._drawAndSync();
       });
     }
 
@@ -769,7 +787,7 @@ export class TokenManager {
 
     this._menuItem(menu, token.visible ? 'Hide Token' : 'Show Token', () => {
       token.visible = !token.visible;
-      this._redraw();
+      this._drawAndSync();
     });
 
     this._menuItem(menu, 'Remove', () => {

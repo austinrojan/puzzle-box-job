@@ -59,6 +59,7 @@ export class EdgePanManager {
 
   _tick(timestamp) {
     if (!this._tracking) { this._rafId = null; return; }
+    if (!this._camera.viewportW || !this._camera.viewportH) { this._rafId = null; return; }
     const dt = Math.min((timestamp - this._lastTimestamp) / 1000, 0.1);
     this._lastTimestamp = timestamp;
 
