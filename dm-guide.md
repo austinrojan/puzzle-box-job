@@ -995,7 +995,95 @@ Whether they came through the stairwell door or the outside balcony, read this w
 >
 > *The hallway stretches ahead of you, lit by a single oil lamp on a wall sconce that barely pushes back the dark. Closed doors on either side. At the far end — the study. Even from here, you can see the door is heavier than the others. Reinforced oak, iron banding. The kind of door that says: this room matters.*
 
-**DM Note:** Give the players a moment here. This is the first time the gala noise has completely vanished. Let them feel the quiet. If anyone asks about the other doors — they're locked guest rooms and storage, nothing useful. The study is straight ahead.
+**DM Note:** Give the players a moment here. This is the first time the gala noise has completely vanished. Let them feel the quiet. If anyone asks about the other doors — the workshop door on the right is slightly ajar (warm candlelight visible through the gap), and the gallery door on the left is locked (Thieves' Tools DC 12). Neither room contains the box, but both reward investigation with clues about Veymar and the artifact. See the next two sections. Don't push players toward the rooms, but don't shut them down either — the heist clock is ticking, and the choice to spend time here is theirs.
+
+### The Arcane Workshop (If Players Investigate)
+
+**DM Note — Running the Workshop:** The workshop door is ajar — warm candlelight spills into the hallway through the gap. Players don't need a check to enter. This room tells the story of Veymar's desperate three-month attempt to understand and contain the box. The chalk circle on the floor, the burned-out reagents, the frantic journal notes — everything here says: this man has been losing a war against something he can't beat. Tier the reveals by Investigation DC. If they're in a rush, the room description alone (DC 10) is enough atmosphere. If they dig, they get foreshadowing that pays off in Act 6.
+
+**When they enter (no check required):**
+
+> *The door swings open at a touch — it wasn't even latched. The room beyond is smaller than you expected. Stone flagstones instead of hardwood, rough and cold underfoot. A heavy workbench runs along the far wall, its surface crowded with glass vials, brass instruments, and curled scrolls. Two candles burn in iron holders on the bench — still lit, wax pooled thick around their bases. Someone was here recently.*
+>
+> *The air smells of sulfur, dried herbs, and something acrid — like burned copper. A half-eaten bread roll and a cold cup of tea sit on a small writing desk in the corner, next to a brass microscope and a stack of leather journals. And on the floor, near the center of the room — a circle. Drawn in white chalk on the grey stone, partially scuffed and smudged, with symbols at five points around its circumference. The chalk dust is ground into the stone. This circle has been drawn, erased, and redrawn many times.*
+
+- **Investigation DC 13** — Closer examination of the workbench and chalk circle. The Rogue's Investigation or any character spending a minute looking carefully.
+
+> *The workbench tells a story of failure. Half the vials are empty or shattered — scorch marks on the stone beneath them where something went wrong. Formulas are scratched into the wood surface with a knife point, then crossed out, then scratched again. One phrase is gouged deep enough to splinter the wood: DOES NOT YIELD.*
+>
+> *The chalk circle on the floor is a containment diagram — you've seen simpler versions in spellbooks. This one is ambitious and sloppy, copied from a source the artist didn't fully understand. The five symbols at the compass points are ritual anchors, but two of them are drawn wrong — the strokes go in the wrong direction, which would collapse the containment the moment any real power touched it. Whoever drew this is educated but desperate. They're trying something far beyond their skill.*
+
+- **Investigation or Arcana DC 16** — The journal on the writing desk. Martin (Arcana +7) or anyone with Investigation expertise is best suited for this.
+
+> *The topmost journal is open to a page dense with tight, slanted handwriting — the script of a man writing too fast to be careful. You scan the entries:*
+>
+> *"Day 34. Tried silver nitrate solution on the outer seal. No reaction. Tried again with blood — my blood. The patterns on the surface moved. They MOVED. The seal responded to the blood but did not open. It wants more."*
+>
+> *"Day 51. I understand the geometry now. Five points. Five anchors. The seal is a blood ritual — it requires five lives, freely given or freely taken. This is not a lock. It is a covenant. I cannot break it alone, and I will not break it at all."*
+>
+> *"Day 78. I have stopped trying to open it. I am now trying to ensure it can never BE opened. Every ward I place on the study dissolves within days. The box consumes protective magic like kindling. It is patient. It is waiting for the right person to find it. I am not that person. God help whoever is."*
+
+**DM Note — What the Journal Means:** This is major foreshadowing. "Five lives freely given or freely taken" directly prefigures the Act 6 ritual — and Locke hired exactly five people. If a player makes that connection now, that's perfect. Don't confirm or deny it. Let them sit with the dread. Veymar's line "I will not break it at all" also reframes him from obstacle to tragic figure — he's been trying to protect the world, not hoard power.
+
+- **Investigation DC 19** — A loose page half-hidden under a beaker on the workbench. This is hard to find — only a thorough search turns it up.
+
+> *Tucked beneath a heavy glass beaker, a single loose page — different from the journal, unlined, the kind used for sketching. A charcoal drawing, hasty but precise: a figure in a long coat standing in this very room. Well-dressed. Poised. The face is left vague — just the suggestion of a smile — but the hands are rendered in detail, as if the artist kept coming back to them.*
+>
+> *Beneath the sketch, a note in the same tight handwriting: "The broker came again. Offered to 'relieve me of my burden.' His courtesy is practiced — every word measured, every gesture rehearsed. I do not trust him. Something about his hands."*
+
+- **Perception DC 19** (on the sketch) — Notice the detail in the sketch. This is the subtle Locke hint — the hands are drawn backward (thumbs on the outside). Players who remember Locke's gloves may make the connection.
+
+> *You look closer at the hands in the sketch — and something is wrong. The thumbs. They're on the outside of the hands, not the inside. The fingers curve the wrong way, as if the hands were put on backward. It could be a mistake — a hasty sketch drawn from memory. But the rest of the drawing is careful. Deliberate. The artist drew what he saw.*
+
+**DM Tip — The Backward Hands:** This is Locke. Rakshasa have reversed hands — a detail Veymar noticed but couldn't explain. If a player connects this to Locke's ever-present gloves from Act 1, reward them with a knowing nod. Don't spell it out. If nobody catches it, that's fine — the Act 6 reveal works either way. But if someone goes pale at the table, you've earned it.
+
+### The Private Gallery (If Players Investigate)
+
+**DM Note — Running the Gallery:** The gallery door is locked — Thieves' Tools DC 12, trivial for the Rogue. This room is the counterpoint to the workshop: it shows who Veymar was before the box. A collector, an aesthete, a man of taste. The dust and neglect tell the story of how completely the artifact consumed him. The paintings reward History and Religion checks — one of them directly foreshadows the Act 6 ritual. The shipwreck artifact connects the box to a larger history.
+
+- **Thieves' Tools DC 12** — Pick the gallery lock. Trivial for the Rogue with expertise. If no Rogue, Knock spell or a solid kick (Athletics DC 14, but loud — +1 Heat) works.
+
+**Once inside:**
+
+> *The lock clicks and the door opens onto a narrow room that smells of old varnish and dust. The gallery. A private museum for an audience of one.*
+>
+> *Gilt-framed paintings line both walls in two rows — dark oils in heavy gold frames, the kind of collection that takes decades and a fortune to assemble. A narrow wooden bench runs down the center of the room, its cushion flattened and faded from years of use. A brass oil lamp on the wall is cold and dark — it hasn't been lit in a long time. Dust covers everything. The bench, the frames, the floor. A thin, undisturbed layer that says: no one has set foot in this room in weeks. Maybe months.*
+>
+> *Whatever Lord Veymar loved about this place, he doesn't come here anymore.*
+
+- **Investigation or History DC 13** — Examine the paintings and the room's contents more carefully.
+
+> *The paintings span centuries of style — a naval battle with cannon smoke rolling across churning seas, a coronation in a cathedral of white stone, portraits of stern-faced merchants in starched collars. Veymar has taste. These are originals, not copies — you can see the brushwork, the impasto, the craquelure of aging oils.*
+>
+> *But one painting is different. It hangs at eye level near the far end of the room, and it's newer than the others — the varnish is still bright, the canvas unwrinkled. A stormy seascape: a merchant vessel breaking apart on coastal rocks, cargo spilling into black water, figures clinging to wreckage in the rain. A brass plaque on the frame reads: "The Wreck of the Astoria — Salvaged and Commissioned by Lord A. Veymar."*
+>
+> *This is the shipwreck. The one the box came from.*
+>
+> *And on a small display pedestal beside the bench — a brass navigational instrument crusted with barnacles and green with sea corrosion. A sextant, recovered from the same wreck. Veymar kept it as a trophy.*
+
+**DM Note — The Wreck of the Astoria:** Veymar commissioned this painting after salvaging the shipwreck haul that contained the box. He was proud of the acquisition — this was before the obsession set in. The painting and sextant are physical evidence tying the box to a specific shipwreck, which players may want to investigate later (there is no later — the heist clock is ticking — but the detail makes the world feel real).
+
+- **History or Religion DC 16** — Examine the oldest painting in the gallery — the dark one at the far wall. Lómë gets advantage on the Religion version (Kelemvor iconography).
+
+> *The oldest painting hangs in the darkest corner, furthest from the door. It's large — three feet across — and so dark with age that you almost missed it. The oils have deepened to near-black, but when you lean close, the scene emerges from the murk like something surfacing from deep water.*
+>
+> *Five robed figures stand in a circle around a stone altar. Their hands are raised, palms outward, and between them — suspended in the air above the altar — a small dark object pulses with painted light. Lines of golden energy connect each figure to the object, forming a five-pointed star. The expressions on the figures' faces are not triumph. They are grief. Whatever they're doing, it costs them.*
+>
+> *A brass plaque on the frame reads: "The Sealing — Artist Unknown, circa 1200 DR."*
+>
+> *The iconography is unmistakable to anyone who's studied divine history. This is a binding ritual. Five souls. Five anchors. The same pattern you've been stepping over in chalk on the workshop floor.*
+
+**DM Note — The Painting and the Ritual:** This painting depicts the original sealing of the Pashupatastra fragment — the same ritual Locke will attempt to reverse in Act 6. If the players found the workshop journal ("five lives freely given or freely taken") AND see this painting, the pieces fit together: the five-pointed chalk circle, the five-soul seal, the five members of their party. Don't narrate the connection — let them make it themselves. If they do, the dread is earned.
+
+- **Arcana or Investigation DC 19** — Examine the barnacle-encrusted sextant from the shipwreck. Martin (Arcana +7) is best suited.
+
+> *You pick up the sextant — heavier than it looks, the brass green and rough beneath the barnacles. On impulse, you brush your sleeve across the flat of the instrument, clearing away a crust of dried salt and sea growth. And there, etched into the brass beneath the grime — sigils. Tiny, precise, geometric. The same shifting patterns you saw on the surface of the puzzle box.*
+>
+> *This isn't a navigation instrument. It's a ward. The sigils are a charm of perpetual motion — designed to keep something moving, to prevent it from remaining in one place for too long. The box was never supposed to arrive anywhere. It was supposed to drift — shipwreck to shipwreck, current to current, forever lost at sea.*
+>
+> *Until Veymar pulled it from the water and brought it home.*
+
+**DM Tip — The Box Was Meant to Stay Lost:** This is the final piece of the gallery's story: the Pashupatastra fragment wasn't just sealed — it was set adrift. The sextant-ward was meant to keep it moving through the ocean forever, beyond the reach of anyone who might try to open it. Veymar broke that chain by salvaging the wreck. He didn't just find the box — he ended centuries of deliberate concealment. No wonder it's been consuming him ever since.
 
 ### The Arcane Ward
 
