@@ -171,6 +171,7 @@ export function initMapCamera() {
   $('#map-load').addEventListener('click', () => {
     const val = $('#map-select').value;
     if (!val) return;
+    if (vttState.mode === 'theater') send(createModeSwitchMsg('map'));
     send(createMapMsg(val));
     mapSelectDirty = false;
     clearTimeout(mapSelectDirtyTimer);
