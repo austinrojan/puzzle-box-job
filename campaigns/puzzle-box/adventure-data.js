@@ -574,7 +574,7 @@ export const ADVENTURE_DATA = {
       blocks: [
         {
           id: 'a3-read-sewers-scene', type: 'read-aloud',
-          vtt: { scene: 'S08' },
+          vtt: { scene: 'S27' },
           text: 'The entrance to the sewer system is a rusted iron grate set into the cobblestones of a back alley, two blocks south of the estate. When you pull it open, the smell hits you first \u2014 wet stone, stagnant water, and something organic and deeply unpleasant that you don\u2019t want to think too hard about. A rusted ladder descends into darkness. Below, you can hear the echo of running water and the occasional skittering of things that live where the light doesn\u2019t reach. The tunnels are old \u2014 pre-Veymar, pre-Sea District, maybe pre-Waterdeep. They go everywhere. Including, if your sense of direction holds, directly beneath the estate.'
         },
         {
@@ -603,6 +603,7 @@ export const ADVENTURE_DATA = {
         },
         {
           id: 'a3-read-sewers-success', type: 'read-aloud',
+          vtt: { scene: 'S31' },
           text: 'The tunnels twist and branch, but you keep your bearings \u2014 left, then straight, then down a set of ancient stone steps that are slick with something you refuse to examine. The air gets colder, cleaner, and then you see it: a wooden trapdoor in the ceiling, light seeping through the cracks. You push it open and the smell of aged oak and fermented grapes floods your senses. Wine racks. Hundreds of bottles, resting in stone alcoves, stretching back into the dark. You\u2019re in the cellar. You\u2019re beneath the estate. And nobody knows you\u2019re here.'
         },
         {
@@ -733,7 +734,7 @@ export const ADVENTURE_DATA = {
       blocks: [
         {
           id: 'a3-read-performer-scene', type: 'read-aloud',
-          vtt: { scene: 'S08' },
+          vtt: { scene: 'S29' },
           text: 'The side entrance near the ballroom\u2019s service corridor is a controlled chaos of its own \u2014 musicians tuning instruments, a fire-eater practicing in the alley, two acrobats stretching against the wall, and a flustered woman with a clipboard pacing back and forth, her hair escaping its pins. This is where the entertainment checks in. The smell of rosin, sweat, and stage paint hangs in the air. A hand-painted sign on an easel reads: \u201cPERFORMERS \u2014 CHECK IN WITH MADAME LYSARA. NO EXCEPTIONS. NO WALK-INS. I MEAN IT.\u201d'
         },
         {
@@ -1099,6 +1100,7 @@ export const ADVENTURE_DATA = {
         {
           id: 'a4-read-close-call-corridor',
           type: 'read-aloud',
+          vtt: { scene: 'S33' },
           text: 'You\u2019re halfway down the servants\u2019 corridor when a door flies open six feet ahead of you. A young woman in a flour-dusted apron backs through it carrying a massive pot of something steaming. She kicks the door shut with her heel, turns, and walks directly toward you \u2014 head down, muttering a count under her breath.\n\n\u201C...forty-two, forty-three, forty-four \u2014 who orders forty-four crab puffs, honestly...\u201D\n\nShe passes close enough that you can feel the heat rising from the pot. She doesn\u2019t look up. Her shoes squeak on the stone. She rounds the corner and is gone.'
         },
         {
@@ -1111,6 +1113,7 @@ export const ADVENTURE_DATA = {
         {
           id: 'a4-read-cook',
           type: 'read-aloud',
+          vtt: { scene: 'S30' },
           text: 'The kitchen is a furnace of organized chaos \u2014 three hearths blazing, copper pots clanging, the sizzle of fat and the bark of orders. You\u2019re trying to pass through quickly when a broad-shouldered woman in a grease-stained apron wheels around from the main stove and freezes. She\u2019s holding a cleaver in one hand and a half-butchered duck in the other. Her eyes narrow.\n\n\u201COi. You.\u201D\n\nShe points the cleaver at you. Not threateningly \u2014 more like a teacher who\u2019s caught someone in the wrong classroom.\n\n\u201CI know every face that works this kitchen, and yours isn\u2019t one of them. You new? Because if you\u2019re new, nobody told me, and if nobody told me, you\u2019re not supposed to be here.\u201D'
         },
         {
