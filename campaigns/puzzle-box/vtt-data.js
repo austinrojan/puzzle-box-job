@@ -74,7 +74,7 @@ export const MAPS = [
   { id: 'M06', title: 'Warehouse',           image: 'assets/maps/m06-warehouse.png',        gridSize: 2.5, cols: 24, rows: 16 },
 ];
 
-// Tokens (17)
+// Tokens (25)
 export const TOKENS = {
   // PCs
   'martin-storm':  { name: 'Martin Storm',        image: 'assets/tokens/martin-storm.png',  border: 'var(--token-pc)',       size: 1, isPC: true },
@@ -92,6 +92,16 @@ export const TOKENS = {
   'captain-helm':    { name: 'Captain Dara Helm',  image: 'assets/tokens/captain-helm.png',    border: 'var(--token-npc-hostile)',  size: 1 },
   'mastiff':         { name: 'Mastiff',            image: 'assets/tokens/mastiff.png',         border: 'var(--token-npc-hostile)',  size: 1 },
   'pip':             { name: 'Pip',                image: 'assets/tokens/pip.png',             border: 'var(--token-npc-friendly)', size: 1 },
+
+  // Mansion NPCs
+  'veymar':          { name: 'Lord Veymar',        image: 'assets/tokens/veymar.png',          border: 'var(--token-npc-neutral)',  size: 1 },
+  'thessaly':        { name: 'Lady Thessaly',      image: 'assets/tokens/thessaly.png',        border: 'var(--token-npc-friendly)', size: 1 },
+  'pemberton':       { name: 'Lord Pemberton',     image: 'assets/tokens/pemberton.png',       border: 'var(--token-npc-neutral)',  size: 1 },
+  'thorne':          { name: 'Lord Thorne',        image: 'assets/tokens/thorne.png',          border: 'var(--token-npc-neutral)',  size: 1 },
+  'knuckles':        { name: 'Knuckles',           image: 'assets/tokens/knuckles.png',        border: 'var(--token-npc-neutral)',  size: 1 },
+  'groundskeeper':   { name: 'Groundskeeper',      image: 'assets/tokens/groundskeeper.png',   border: 'var(--token-npc-friendly)', size: 1 },
+  'servant':         { name: 'Servant',            image: 'assets/tokens/servant.png',         border: 'var(--token-npc-neutral)',  size: 1 },
+  'cook':            { name: 'Cook',               image: 'assets/tokens/cook.png',            border: 'var(--token-npc-neutral)',  size: 1 },
 
   // Objects
   'brazier-lit':    { name: 'Brazier (Lit)',       image: 'assets/tokens/brazier-lit.png',    border: 'var(--brazier-blue)',    size: 2, isObject: true },
@@ -135,14 +145,77 @@ export const MAP_PRESETS = {
       { tokenId: 'kallista',      x: 27, y: 32 },
     ]
   },
-  'M03-gala': {
+  'M03-entry': {
     mapId: 'M03',
-    label: 'Mansion Ground Floor — Gala',
+    label: 'Mansion Ground — Gala Entry',
     tokens: [
-      // Guard stationed at base of the grand staircase (center)
-      { tokenId: 'guard', x: 16, y: 15, label: 'Staircase Guard' },
-      // Captain Helm roaming the ballroom
-      { tokenId: 'captain-helm', x: 7, y: 12 },
+      // Social team — front foyer (south entrance)
+      { tokenId: 'martin-storm', x: 14, y: 20 },
+      { tokenId: 'jean',         x: 16, y: 20 },
+      { tokenId: 'lome',         x: 15, y: 21 },
+      // Stealth team — servants' entrance (east side)
+      { tokenId: 'oda',          x: 27, y: 13 },
+      { tokenId: 'kallista',     x: 27, y: 14 },
+      // Named NPCs
+      { tokenId: 'captain-helm', x: 5,  y: 12 },
+      { tokenId: 'pemberton',    x: 8,  y: 9 },
+      { tokenId: 'thessaly',     x: 4,  y: 17 },
+      { tokenId: 'pip',          x: 24, y: 10 },
+      { tokenId: 'cook',         x: 23, y: 13 },
+      // Guards
+      { tokenId: 'guard',        x: 16, y: 15, label: 'Staircase Guard' },
+      { tokenId: 'guard',        x: 14, y: 22, label: 'Foyer Guard' },
+      // Servants
+      { tokenId: 'servant',      x: 9,  y: 14, label: 'Servant' },
+      { tokenId: 'servant',      x: 21, y: 7,  label: 'Servant' },
+    ]
+  },
+  'M04-arrival': {
+    mapId: 'M04',
+    label: 'Mansion Second — Split Arrival',
+    tokens: [
+      // Social team — staircase landing (north edge of staircase void)
+      { tokenId: 'martin-storm', x: 14, y: 7 },
+      { tokenId: 'jean',         x: 16, y: 7 },
+      { tokenId: 'lome',         x: 15, y: 8 },
+      // Stealth team — east corridor (emerged from dumbwaiter)
+      { tokenId: 'oda',          x: 25, y: 3 },
+      { tokenId: 'kallista',     x: 26, y: 3 },
+      // Guards
+      { tokenId: 'guard',        x: 15, y: 4,  label: 'Landing Guard' },
+      { tokenId: 'guard',        x: 20, y: 3,  label: 'Corridor Patrol' },
+    ]
+  },
+  'M05-heist': {
+    mapId: 'M05',
+    label: 'Mansion Third — The Heist',
+    tokens: [
+      // PCs in hallway approaching the study door
+      { tokenId: 'martin-storm', x: 9,  y: 9 },
+      { tokenId: 'jean',         x: 11, y: 9 },
+      { tokenId: 'lome',         x: 10, y: 10 },
+      { tokenId: 'oda',          x: 9,  y: 10 },
+      { tokenId: 'kallista',     x: 11, y: 10 },
+      // The objective
+      { tokenId: 'puzzle-box',   x: 10, y: 2 },
+    ]
+  },
+  'M05-confrontation': {
+    mapId: 'M05',
+    label: 'Mansion Third — Veymar Confrontation',
+    tokens: [
+      // PCs caught in the study
+      { tokenId: 'martin-storm', x: 8,  y: 5 },
+      { tokenId: 'jean',         x: 12, y: 5 },
+      { tokenId: 'lome',         x: 10, y: 6 },
+      { tokenId: 'oda',          x: 8,  y: 4 },
+      { tokenId: 'kallista',     x: 12, y: 3 },
+      // Veymar + guards at the study door
+      { tokenId: 'veymar',       x: 10, y: 8 },
+      { tokenId: 'guard',        x: 9,  y: 8,  label: 'Guard 1' },
+      { tokenId: 'guard',        x: 11, y: 8,  label: 'Guard 2' },
+      // The objective
+      { tokenId: 'puzzle-box',   x: 10, y: 2 },
     ]
   },
   'M02-infiltration': {
