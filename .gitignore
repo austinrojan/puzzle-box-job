@@ -6,3 +6,4 @@ node_modules/
 test-results/
 playwright-report/
 .worktrees/
+campaigns/puzzle-box/assets/chatgpt-raw/

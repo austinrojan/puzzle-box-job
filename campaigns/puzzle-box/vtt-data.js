@@ -2,10 +2,10 @@
 // Pure data exports. Loaded dynamically by shared/campaign-data.js.
 // Asset paths are relative to this directory (resolved by the loader).
 
-// Scenes (26)
+// Scenes (37)
 export const SCENES = [
   // Act 1: The Job Offer
-  { id: 'S01', act: 1, title: 'The Rusty Anchor',      art: 'assets/scenes/s01-rusty-anchor.jpg',    overlay: 'A salt-crusted tavern on the docks. Lantern light cuts through harbor fog.' },
+  { id: 'S01', act: 1, title: 'The Rusty Anchor',      art: 'assets/scenes/s01-rusty-anchor.png',    overlay: 'A salt-crusted tavern on the docks. Lantern light cuts through harbor fog.' },
   { id: 'S02', act: 1, title: "Locke's Proposition",    art: 'assets/scenes/s02-locke-booth.png',     overlay: null },
 
   // Act 2: Gathering Intel
@@ -21,6 +21,10 @@ export const SCENES = [
   { id: 'S10', act: 3, title: "Servants' Entrance",     art: 'assets/scenes/s10-servants-entrance.png', overlay: null },
   { id: 'S11', act: 3, title: 'West Wall',              art: 'assets/scenes/s11-west-wall.png',       overlay: null },
   { id: 'S12', act: 3, title: 'Conservatory',           art: 'assets/scenes/s12-conservatory.png',    overlay: null },
+  { id: 'S27', act: 3, title: 'Sewer Entrance',         art: 'assets/scenes/s27-sewer-entrance.png',  overlay: null },
+  { id: 'S28', act: 3, title: 'Gala Entrance',          art: 'assets/scenes/s28-gala-entrance.png',   overlay: null },
+  { id: 'S29', act: 3, title: "Performers' Backstage",  art: 'assets/scenes/s29-performers-backstage.png', overlay: null },
+  { id: 'S32', act: 3, title: 'Formal Garden',          art: 'assets/scenes/s32-formal-garden.png',   overlay: null },
 
   // Act 4: Mansion Interior
   { id: 'S13', act: 4, title: 'The Ballroom',           art: 'assets/scenes/s13-ballroom.png',        overlay: 'Crystal chandeliers scatter light across a sea of silk and velvet. The orchestra plays a waltz.' },
@@ -28,12 +32,16 @@ export const SCENES = [
   { id: 'S15', act: 4, title: 'Rooftop',                art: 'assets/scenes/s15-rooftop.png',         overlay: null },
   { id: 'S16', act: 4, title: 'Third-Floor Hallway',    art: 'assets/scenes/s16-third-floor.png',     overlay: null },
   { id: 'S17', act: 4, title: 'Grand Staircase',        art: 'assets/scenes/s17-grand-staircase.png', overlay: null },
+  { id: 'S30', act: 4, title: 'The Kitchen',            art: 'assets/scenes/s30-kitchen.png',         overlay: null },
+  { id: 'S31', act: 4, title: 'Wine Cellar',            art: 'assets/scenes/s31-wine-cellar.png',     overlay: null },
+  { id: 'S33', act: 4, title: 'Corridor Lock',          art: 'assets/scenes/s33-corridor-lock.png',   overlay: null },
 
   // Act 5: The Puzzle Box
   { id: 'S18', act: 5, title: 'Arcane Ward',            art: 'assets/scenes/s18-arcane-ward.png',     overlay: 'Blue-white threads of magical energy weave across the doorframe, pulsing with quiet menace.' },
   { id: 'S19', act: 5, title: "Veymar's Study",         art: 'assets/scenes/s19-veymar-study.png',    overlay: null },
   { id: 'S20', act: 5, title: 'The Puzzle Box',         art: 'assets/scenes/s20-puzzle-box.png',      overlay: null },
   { id: 'S21', act: 5, title: 'The Swap',               art: 'assets/scenes/s21-the-swap.png',        overlay: null },
+  { id: 'S34', act: 5, title: 'Puzzle Box Detail',      art: 'assets/scenes/s34-puzzle-box-detail.png', overlay: null },
 
   // Act 6: The Ritual
   { id: 'S22', act: 6, title: 'Warehouse Exterior',     art: 'assets/scenes/s22-warehouse-ext.png',   overlay: null },
@@ -41,6 +49,9 @@ export const SCENES = [
   { id: 'S24', act: 6, title: 'Rakshasa Revealed',      art: 'assets/scenes/s24-rakshasa-reveal.png', overlay: null },
   { id: 'S25', act: 6, title: 'Braziers Burning',       art: 'assets/scenes/s25-braziers.png',        overlay: null },
   { id: 'S26', act: 6, title: 'Epilogue — Dawn',        art: 'assets/scenes/s26-epilogue-dawn.png',   overlay: 'The first light of dawn breaks over the Dock District. The warehouse smolders behind you.' },
+  { id: 'S35', act: 6, title: 'Veymar Unmasked',        art: 'assets/scenes/s35-veymar-unmasked.png', overlay: null },
+  { id: 'S36', act: 6, title: 'Warehouse Battle',       art: 'assets/scenes/s36-warehouse-battle.png', overlay: null },
+  { id: 'S37', act: 6, title: "Rakshasa's Fall",        art: 'assets/scenes/s37-rakshasas-fall.png',  overlay: null },
 ];
 
 // Acts (6)
